@@ -20,7 +20,7 @@ from Pellmonsrv.yapsy.IPlugin import IPlugin
 from configparser import ConfigParser
 import os
 from logging import getLogger
-from database import Keyval_storage
+from .database import Keyval_storage
 
 logger = getLogger('pellMon')
 
