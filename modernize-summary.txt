@@ -1,0 +1,112 @@
+WARNING: Not writing files and not printing diffs; that's not very useful.
+ Loading the following fixers:
+    fissix.fixes.fix_apply  (apply)
+    fissix.fixes.fix_except  (except)
+    fissix.fixes.fix_exec  (exec)
+    fissix.fixes.fix_execfile  (execfile)
+    fissix.fixes.fix_exitfunc  (exitfunc)
+    fissix.fixes.fix_funcattrs  (funcattrs)
+    fissix.fixes.fix_has_key  (has_key)
+    fissix.fixes.fix_idioms  (idioms)
+    fissix.fixes.fix_long  (long)
+    fissix.fixes.fix_methodattrs  (methodattrs)
+    fissix.fixes.fix_ne  (ne)
+    fissix.fixes.fix_numliterals  (numliterals)
+    fissix.fixes.fix_operator  (operator)
+    fissix.fixes.fix_paren  (paren)
+    fissix.fixes.fix_reduce  (reduce)
+    fissix.fixes.fix_renames  (renames)
+    fissix.fixes.fix_repr  (repr)
+    fissix.fixes.fix_set_literal  (set_literal)
+    fissix.fixes.fix_standarderror  (standarderror)
+    fissix.fixes.fix_sys_exc  (sys_exc)
+    fissix.fixes.fix_throw  (throw)
+    fissix.fixes.fix_tuple_params  (tuple_params)
+    fissix.fixes.fix_types  (types)
+    fissix.fixes.fix_ws_comma  (ws_comma)
+    fissix.fixes.fix_xreadlines  (xreadlines)
+    libmodernize.fixes.fix_basestring  (basestring)
+    libmodernize.fixes.fix_dict_six  (dict_six)
+    libmodernize.fixes.fix_file  (file)
+    libmodernize.fixes.fix_filter  (filter)
+    libmodernize.fixes.fix_import  (import)
+    libmodernize.fixes.fix_imports_six  (imports_six)
+    libmodernize.fixes.fix_input_six  (input_six)
+    libmodernize.fixes.fix_int_long_tuple  (int_long_tuple)
+    libmodernize.fixes.fix_itertools_imports_six  (itertools_imports_six)
+    libmodernize.fixes.fix_itertools_six  (itertools_six)
+    libmodernize.fixes.fix_map  (map)
+    libmodernize.fixes.fix_metaclass  (metaclass)
+    libmodernize.fixes.fix_next  (next)
+    libmodernize.fixes.fix_print  (print)
+    libmodernize.fixes.fix_raise  (raise)
+    libmodernize.fixes.fix_raise_six  (raise_six)
+    libmodernize.fixes.fix_unichr  (unichr)
+    libmodernize.fixes.fix_unicode_type  (unicode_type)
+    libmodernize.fixes.fix_urllib_six  (urllib_six)
+    libmodernize.fixes.fix_xrange_six  (xrange_six)
+    libmodernize.fixes.fix_zip  (zip)
+ Applying the following explicit transformations:
+    (None)
+
+RefactoringTool: Skipping optional fixer: idioms
+RefactoringTool: Skipping optional fixer: set_literal
+RefactoringTool: Skipping optional fixer: ws_comma
+RefactoringTool: Refactored src/Pellmonsrv/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/daemon.py: ParseError: bad input: type=1, value='str', context=(' ', (131, 34))
+RefactoringTool: Can't parse src/Pellmonsrv/database.py: ParseError: bad input: type=1, value='e', context=(' ', (113, 17))
+RefactoringTool: Can't parse src/Pellmonsrv/pellmonsrv.py: ParseError: bad input: type=3, value="'noconf'", context=(' ', (741, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugin_categories.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/calculate/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/cleaning/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/consumption/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (209, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/customalarms/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/exec/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/heatingcircuit/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/__init__.py: ParseError: bad input: type=3, value="'wait controller'", context=(' ', (92, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/frames.py: ParseError: bad input: type=3, value="'ERRROR chiphertext too short'", context=(' ', (88, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/nbecom/nbeprotocol/language.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/protocol.py: ParseError: bad input: type=3, value="'get rsa'", context=(' ', (75, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/onewire/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (85, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/openweathermap/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/owfs/__init__.py: ParseError: bad input: type=1, value='exc_type', context=(' ', (159, 22))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/pelletcalc/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/raspberrygpio/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/scottecom/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/scottecom/menus.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/scottecom/scottecom.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/silolevel/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/testplugin/__init__.py: ParseError: bad input: type=3, value="'testplugin set: '", context=(' ', (64, 22))
+RefactoringTool: Refactored src/Pellmonsrv/yapsy/ConfigurablePluginManager.py
+RefactoringTool: Can't parse src/Pellmonsrv/yapsy/PluginManager.py: ParseError: bad input: type=1, value='candidate_filepath', context=(' ', (275, 10))
+RefactoringTool: Refactored src/Pellmonsrv/yapsy/VersionedPluginManager.py
+RefactoringTool: Files that need to be modified:
+RefactoringTool: src/Pellmonsrv/__init__.py
+RefactoringTool: src/Pellmonsrv/plugin_categories.py
+RefactoringTool: src/Pellmonsrv/plugins/calculate/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/cleaning/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/customalarms/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/exec/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/heatingcircuit/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/nbecom/nbeprotocol/language.py
+RefactoringTool: src/Pellmonsrv/plugins/openweathermap/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/pelletcalc/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/raspberrygpio/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/scottecom/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/scottecom/menus.py
+RefactoringTool: src/Pellmonsrv/plugins/scottecom/scottecom.py
+RefactoringTool: src/Pellmonsrv/plugins/silolevel/__init__.py
+RefactoringTool: src/Pellmonsrv/yapsy/ConfigurablePluginManager.py
+RefactoringTool: src/Pellmonsrv/yapsy/VersionedPluginManager.py
+RefactoringTool: There were 11 errors:
+RefactoringTool: Can't parse src/Pellmonsrv/daemon.py: ParseError: bad input: type=1, value='str', context=(' ', (131, 34))
+RefactoringTool: Can't parse src/Pellmonsrv/database.py: ParseError: bad input: type=1, value='e', context=(' ', (113, 17))
+RefactoringTool: Can't parse src/Pellmonsrv/pellmonsrv.py: ParseError: bad input: type=3, value="'noconf'", context=(' ', (741, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/consumption/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (209, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/__init__.py: ParseError: bad input: type=3, value="'wait controller'", context=(' ', (92, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/frames.py: ParseError: bad input: type=3, value="'ERRROR chiphertext too short'", context=(' ', (88, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/protocol.py: ParseError: bad input: type=3, value="'get rsa'", context=(' ', (75, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/onewire/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (85, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/owfs/__init__.py: ParseError: bad input: type=1, value='exc_type', context=(' ', (159, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/testplugin/__init__.py: ParseError: bad input: type=3, value="'testplugin set: '", context=(' ', (64, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/yapsy/PluginManager.py: ParseError: bad input: type=1, value='candidate_filepath', context=(' ', (275, 10))

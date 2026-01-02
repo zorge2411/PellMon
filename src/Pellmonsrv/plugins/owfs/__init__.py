@@ -19,7 +19,7 @@
 
 from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Item, Getsetitem
-from configparser import configparser
+from configparser import ConfigParser
 from os import path
 import traceback
 import sys

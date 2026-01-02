@@ -32,7 +32,7 @@ import dbus as Dbus
 from dbus.mainloop.glib import DBusGMainLoop
 
 import json
-import threading, Queue
+import threading, queue
 from Pellmonweb import *
 from time import mktime
 import time
@@ -129,13 +129,13 @@ class Dbus_handler:
             if new_owner == '':
                 self.remote_object = None
                 self.bustype.remove_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
-                print 'server not running'
+                print('server not running')
             else:
                 self.bustype.add_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
                 self.remote_object = self.bustype.get_object("org.pellmon.int", # Connection name
                                        "/org/pellmon/int" # Object's path
                                       )
-                print 'server is running'
+                print('server is running')
 
         Dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         Dbus.mainloop.glib.threads_init()
@@ -553,9 +553,9 @@ class PellMonWeb:
                 parameterlist = dbus.getFullDB(['',t1,t2,t3,t4])
             else:
                 parameterlist = dbus.getFullDB([level,t1,t2,t3,t4])
-            print parameterlist
+            print(parameterlist)
             # Set up a queue and start a thread to read all items to the queue, the parameter view will empty the queue bye calling /getparams/
-            paramQueue = Queue.Queue(300)
+            paramQueue = queue.Queue(300)
             # Store the queue in the session
             cherrypy.session['paramReaderQueue'] = paramQueue
             ht = threading.Thread(target=parameterReader, args=(paramQueue,parameterlist))

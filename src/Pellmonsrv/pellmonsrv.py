@@ -17,10 +17,10 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import signal, os, errno, Queue, threading, glib
+import signal, os, errno, queue, threading
 import dbus, dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
+from gi.repository import GLib, GObject
 import logging
 import logging.handlers
 import sys
@@ -441,10 +441,10 @@ class MyDaemon(Daemon):
         except:
             pass
 
-        # DBUS needs the gobject main loop, this way it seems to work...
-        gobject.threads_init()
+        # DBUS needs the GObject main loop, this way it seems to work...
+        GObject.threads_init()
         dbus.mainloop.glib.threads_init()    
-        DBUSMAINLOOP = gobject.MainLoop()
+        DBUSMAINLOOP = GLib.MainLoop()
         DBusGMainLoop(set_as_default=True)
         conf.myservice = MyDBUSService(conf.dbus)
         conf.database.dbus_service = conf.myservice

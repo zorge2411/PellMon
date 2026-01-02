@@ -23,7 +23,7 @@ from multiprocessing import Process, Queue
 from threading import Thread, Timer, Event, Lock
 import RPi.GPIO as GPIO
 from time import time, sleep
-from configparser import configparser
+from configparser import ConfigParser
 from os import path
 import os, grp, pwd
 import mmap

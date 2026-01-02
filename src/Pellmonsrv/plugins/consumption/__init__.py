@@ -20,7 +20,7 @@
 from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Item, Getsetitem
 from threading import Thread, Timer
-from configparser import configparser
+from configparser import ConfigParser
 from os import path
 import os, grp, pwd
 import time

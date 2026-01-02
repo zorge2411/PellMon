@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 from Pellmonsrv.yapsy.IPlugin import IPlugin
-from configparser import configparser
+from configparser import ConfigParser
 import os
 from logging import getLogger
 from database import Keyval_storage
