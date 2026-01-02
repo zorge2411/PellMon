@@ -152,7 +152,7 @@ class pelletcalc(protocols):
         for item in itemList:
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
             for key, value in item.items():
-                if key is not 'value':
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])

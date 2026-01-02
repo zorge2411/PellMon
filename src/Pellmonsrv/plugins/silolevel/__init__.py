@@ -92,7 +92,7 @@ class silolevelplugin(protocols):
 
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v) )
             for key, value in item.items():
-                if key is not 'value':
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     def setItem(self, item, value):
         try:
             self.updateTime = 0
-            if itemValues.has_key(item):
+            if item in itemValues:
                 itemValues[item] = value
                 return 'OK'
             else:

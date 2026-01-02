@@ -61,7 +61,7 @@ class alarmplugin(protocols):
                 itemList.append({'name':key, 'value':value, 'min':'', 'max':'', 'unit':'', 'type':alarm_type, 'description':description})
                 itemTags[key] = ['All', 'CustomAlarms', 'Basic']
 
-                if not alarms.has_key(alarm_name):
+                if alarm_name not in alarms:
                     alarms[alarm_name] = {}
                 alarm_data = key.split('_')[1]
                 if alarm_data == 'status':
@@ -69,7 +69,7 @@ class alarmplugin(protocols):
                     itemTags[value] = ['All', 'CustomAlarms', 'Basic']
 
                 if alarm_data in ['item','comparator','level','status']:
-                    if not alarms.has_key(alarm_name):
+                    if alarm_name not in alarms:
                         alarms[alarm_name] = {}
                     alarms[alarm_name][alarm_data] = value
             except Exception as e:
@@ -88,7 +88,7 @@ class alarmplugin(protocols):
 
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
             for key, value in item.items():
-                if key is not 'value':
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
@@ -110,7 +110,7 @@ class alarmplugin(protocols):
 
     def setItem(self, item, value):
         try:
-            if itemValues.has_key(item):
+            if item in itemValues:
                 itemValues[item] = value
                 return 'OK'
             else:

@@ -44,7 +44,7 @@ import pwd
 import grp
 import subprocess
 from datetime import datetime
-from cgi import escape
+from html import escape
 from threading import Timer, Lock
 import signal
 import simplejson
@@ -212,7 +212,7 @@ class PellMonWeb:
     @cherrypy.expose
     def autorefresh(self, **args):
         if cherrypy.request.method == "POST":
-            if args.has_key('autorefresh') and args.get('autorefresh') == 'yes':
+            if 'autorefresh' in args and args.get('autorefresh') == 'yes':
                 cherrypy.session['autorefresh'] = 'yes'
             else:
                 cherrypy.session['autorefresh'] = 'no'
@@ -223,15 +223,15 @@ class PellMonWeb:
     def graphsession(self, **args):
         if cherrypy.request.method == "POST":
             try:
-                if args.has_key('width'):
+                if 'width' in args:
                     cherrypy.session['width'] = int(args['width'])
-                if args.has_key('height'):
+                if 'height' in args:
                     cherrypy.session['height'] = int(args['height'])
-                if args.has_key('timespan'):
+                if 'timespan' in args:
                     cherrypy.session['timespan'] = int(args['timespan'])
-                if args.has_key('timeoffset'):
+                if 'timeoffset' in args:
                     cherrypy.session['timeoffset'] = int(args['timeoffset'])
-                if args.has_key('lines'):
+                if 'lines' in args:
                     lines = args['lines'].split(',')
                     cherrypy.session['lines'] = lines
             except:
@@ -586,7 +586,7 @@ class PellMonWeb:
                     item['description'] = ''
 
                 params[item['name']] = ' '
-                if args.has_key(item['name']):
+                if item['name'] in args:
                     if cherrypy.request.method == "POST":
                         # set parameter
                         try:
@@ -639,7 +639,7 @@ class PellMonWeb:
         autorefresh = cherrypy.session.get('autorefresh')=='yes'
         empty=True
         for key, val in polldata:
-            if colorsDict.has_key(key):
+            if key in colorsDict:
                 if cherrypy.session.get(val)=='yes':
                     empty=False
         #tmpl = lookup.get_template("index.html")
@@ -718,7 +718,7 @@ class myLookup(TemplateLookup):
             return super(myLookup, self).get_template(uri)
 
 
-parser = ConfigParser.ConfigParser()
+parser = configparser.ConfigParser()
 config_file = 'pellmon.conf'
 
 def walk_config_dir(config_dir, parser):
@@ -775,7 +775,7 @@ def run():
         try:
             config_dir = parser.get('conf', 'config_dir')
             walk_config_dir(config_dir, parser)
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             pass
 
         try:
@@ -804,16 +804,16 @@ def run():
             pass
         uid = pwd.getpwnam(args.USER).pw_uid
         gid = grp.getgrnam(args.GROUP).gr_gid
-        plugins.DropPrivileges(cherrypy.engine, uid=uid, gid=gid, umask=033).subscribe()
+        plugins.DropPrivileges(cherrypy.engine, uid=uid, gid=gid, umask=0o33).subscribe()
 
     # Load the configuration file
     try:
         parser.read(config_file)
         config_dir = parser.get('conf', 'config_dir')
         walk_config_dir(config_dir, parser)
-    except ConfigParser.NoOptionError:
+    except configparser.NoOptionError:
         pass
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         cherrypy.log("can not parse config file")
     except:
         cherrypy.log("Config file not found")
@@ -900,7 +900,7 @@ def run():
     try:
         for row, widgets in parser.items('frontpage_widgets'):
             frontpage_widgets.append([s.strip() for s in widgets.split(',')])
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         frontpage_widgets = [['systemimage', 'events'],['graph'],['consumption7d', 'silolevel']]
 
     global timeChoices

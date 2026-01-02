@@ -206,7 +206,7 @@ class Consumption_plugin(protocols):
             average = total / bars
             return json.dumps({'bardata':bardata_, 'total':total, 'average':average})
         except Exception as e:
-            print e
+            print(e)
             return str(e)
 
     def rrd_total(self, start, end, cache=True):

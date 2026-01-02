@@ -137,12 +137,12 @@ class Calc():
             self.store[var] = self.stack.pop()
         elif c == 'del':
             var = unicode(self.stack.pop())
-            if self.store.has_key(var):
+            if var in self.store:
                 del gstore[var]
         elif c == 'def':
             var = unicode(self.stack.pop())
             value = self.stack.pop()
-            if not self.store.has_key(var):
+            if var not in self.store:
                 self.store[var] = value
         elif c == 'rcl':
             var = unicode(self.stack.pop())
@@ -156,11 +156,11 @@ class Calc():
         elif c == 'gdef':
             var = unicode(self.stack.pop())
             value = self.stack.pop()
-            if not gstore.has_key(var):
+            if var not in gstore:
                 gstore[var] = value
         elif c == 'gdel':
             var = unicode(self.stack.pop())
-            if gstore.has_key(var):
+            if var in gstore:
                 del gstore[var]
         elif c == 'grcl':
             try:
@@ -242,7 +242,7 @@ class calculateplugin(protocols):
                     calc_name = key.split('_')[0]
                     calc_data = key.split('_')[1]
 
-                    if not self.calc2index.has_key(calc_name):
+                    if calc_name not in self.calc2index:
                         itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':''})
                         self.calc2index[calc_name] = len(itemList)-1
 
@@ -318,7 +318,7 @@ class calculateplugin(protocols):
             raise
 
     def getItem(self, itemName):
-        if self.name2index.has_key(itemName):
+        if itemName in self.name2index:
             item = itemList[self.name2index[itemName]]
             try:
                 calc_item = item['calc_item']

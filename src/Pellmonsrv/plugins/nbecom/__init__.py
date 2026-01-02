@@ -89,14 +89,14 @@ class nbecomplugin(protocols):
         self.proxy = Proxy.discover(self.password, 8483, serial = self.serial)
         while not self.proxy.controller_online:
             time.sleep(1)
-            print 'wait controller'
+            print('wait controller')
         logger.info('Connected to S/N %s on %s'%(self.serial, self.proxy.addr[0]))
         while True:
             try:
                 dirlist = self.proxy.dir()
                 break
             except Exception as e:
-                print repr(e), 'direrror'
+                print(repr(e), 'direrror')
                 time.sleep(1)
         def get_value(name):
             item = self.db[name]
@@ -124,7 +124,7 @@ class nbecomplugin(protocols):
                     i.update_cache(value)
                 return item.cached_value
             except Exception as e:
-                print repr(e), 'exc in getgroup', name, time.time()
+                print(repr(e), 'exc in getgroup', name, time.time())
                 raise
 
         for i in dirlist:
@@ -247,7 +247,7 @@ class nbecomplugin(protocols):
                             logger.info('type: %s, id: %s, v1: %s, v2: %s'%(etype, eid, val1, val2))
                 self.db['logged_event_id_list'].value = ';'.join(events)
             except Exception as e:
-                print repr(e)
+                print(repr(e))
                 pass
             time.sleep(1)
 
@@ -264,7 +264,7 @@ class nbecomplugin(protocols):
                 old_alarm = alarm
 
             except Exception as e:
-                print repr(e)
+                print(repr(e))
                 pass
             time.sleep(5)
 

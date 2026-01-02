@@ -204,7 +204,7 @@ class PluginManager(object):
 					logging.debug("""%s found a candidate: 
 	%s""" % (self.__class__.__name__, candidate_infofile))
 					# parse the information file to get info about the plugin
-					config_parser = ConfigParser.SafeConfigParser()
+					config_parser = configparser.ConfigParser()
 					try:
 						config_parser.read(candidate_infofile)
 					except:
@@ -320,7 +320,7 @@ class PluginManager(object):
 		"""
 		Activate a plugin corresponding to a given category + name.
 		"""
-		if self.category_mapping.has_key(category):
+		if category in self.category_mapping:
 			plugin_to_activate = None
 			for item in self.category_mapping[category]:
 				if item.name == name:
@@ -337,7 +337,7 @@ class PluginManager(object):
 		"""
 		Desactivate a plugin corresponding to a given category + name.
 		"""
-		if self.category_mapping.has_key(category):
+		if category in self.category_mapping:
 			plugin_to_deactivate = None
 			for item in self.category_mapping[category]:
 				if item.name == name:

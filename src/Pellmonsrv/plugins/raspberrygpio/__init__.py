@@ -384,7 +384,7 @@ class raspberry_gpio(protocols):
             try:
                 pin_name = key.split('_')[0]
                 pin_data = key.split('_')[1]
-                if not self.pin2index.has_key(pin_name):
+                if pin_name not in self.pin2index:
                     itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':''})
                     self.pin2index[pin_name] = len(itemList)-1
                 if pin_data == 'function':
@@ -424,7 +424,7 @@ class raspberry_gpio(protocols):
         GPIO.cleanup()
 
     def getItem(self, item):
-        if self.name2index.has_key(item):
+        if item in self.name2index:
             function = itemList[self.name2index[item]]['function']
             pin = itemList[self.name2index[item]]['pin']
             if function in['counter', 'tachometer', 'input', 'latched_input', 'output', 'timer']:
@@ -441,7 +441,7 @@ class raspberry_gpio(protocols):
             return 'error'
 
     def setItem(self, item, value):
-        if self.name2index.has_key(item):
+        if item in self.name2index:
             if itemList[self.name2index[item]]['function'] in ['counter', 'output', 'timer']:
                 pin = itemList[self.name2index[item]]['pin']
                 with self.lock:

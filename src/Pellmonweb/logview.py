@@ -21,7 +21,7 @@ import cherrypy
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from itertools import islice
-from cgi import escape
+from html import escape
 from datetime import datetime
 from dateutil import tz
 import codecs

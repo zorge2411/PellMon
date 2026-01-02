@@ -43,7 +43,7 @@ class Pellmonconf:
         filename = os.path.basename(config_file)
         self.filelist.append(filename)
         self.dirs[filename] = os.path.dirname(config_file) 
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.optionxform=str
         try:
             parser.read(config_file)
@@ -122,7 +122,7 @@ def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
     lookup = TemplateLookup(directories=[os.path.join(DATADIR, 'Pellmonweb', 'html_conf')])
     config_file = os.path.join(CONFDIR, 'pellmon.conf')
-    print config_file
+    print(config_file)
     argparser = argparse.ArgumentParser(prog='pellmonconf')
 
     argparser.add_argument('-P', '--port', default=8083, help='Port number for webinterface, default 8083')
@@ -151,9 +151,9 @@ def run():
                     }                    
                 }
 
-    print 'Open http://<ip>:%u with your webbrowser to view the configuration tool'%int(args.port)
-    print 'Run as root to be able to save changes'
-    print 'Quit with CTRL-C'
+    print('Open http://<ip>:%u with your webbrowser to view the configuration tool'%int(args.port))
+    print('Run as root to be able to save changes')
+    print('Quit with CTRL-C')
     cherrypy.config.update(global_conf)
     cherrypy.tree.mount(Pellmonconf(config_file, lookup), '/', config=app_conf)
     cherrypy.engine.start()

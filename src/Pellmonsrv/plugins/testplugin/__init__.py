@@ -54,14 +54,14 @@ class testplugin(protocols):
 
             dbitem = Getsetitem(item['name'], item['value'], lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
             for key, value in item.items():
-                if key is not 'value':
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
             self.db.insert(dbitem)
             self.itemrefs.append(dbitem)
             def mysetter(name, value):
-                print 'testplugin set: ', name, value
+                print('testplugin set: ', name, value)
             i = Storeditem('stored', 'defaultvalue', setter=mysetter)
             i.tags = ['All', 'testplugin', 'Basic'] 
             i.type = 'R/W'

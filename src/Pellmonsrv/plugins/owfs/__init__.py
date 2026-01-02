@@ -57,7 +57,7 @@ class owfsplugin(protocols):
             ow_name = key.split('_')[0]
             ow_data = key.split('_')[1]
 
-            if not self.ow2index.has_key(ow_name):
+            if ow_name not in self.ow2index:
                 itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':'', 'function':'input'})
                 self.ow2index[ow_name] = len(itemList)-1
                 
@@ -119,7 +119,7 @@ class owfsplugin(protocols):
         for item in itemList:
             dbitem = Getsetitem(item['name'], None, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
             for key, value in item.items():
-                if key is not 'value':
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             # Give it some default tags so it's visible in the web interface
             dbitem.__setattr__('tags', ['Basic', 'All', 'OWFS'])
@@ -156,7 +156,7 @@ class owfsplugin(protocols):
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                print exc_type, exc_value
+                print(exc_type, exc_value)
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
                 return str(e)
         elif not background_poll:
@@ -190,7 +190,7 @@ class owfsplugin(protocols):
                 return 'error'
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print exc_type, exc_value
+            print(exc_type, exc_value)
             traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
             return 'error'
 
@@ -199,7 +199,7 @@ class owfsplugin(protocols):
             try:
                 item = itemList[counter]
                 l = 0
-                if self.latches.has_key(counter):
+                if counter in self.latches:
                     path, server = self.latches[counter]
                     proxy = self.proxies[server]
                     try:
@@ -231,7 +231,7 @@ class owfsplugin(protocols):
                             item['toggle'] = 0
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                print exc_type, exc_value
+                print(exc_type, exc_value)
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
                 logger.debug('OWFS counter error '+str(e))
             sleep(5)

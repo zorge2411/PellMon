@@ -70,7 +70,7 @@ class onewireplugin(protocols):
             for item in self.itemList:
                 dbitem = Getsetitem(item['name'], item['value'], lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
                 for key, value in item.items():
-                    if key is not 'value':
+                    if key != 'value':
                         dbitem.__setattr__(key, value)
                 # Give it some default tags so it's visible in the web interface
                 dbitem.__setattr__('tags', ['Basic', 'All', 'Onewire'])
@@ -82,7 +82,7 @@ class onewireplugin(protocols):
             t.start()
         except Exception as e:
             logger.debug('Onewire activate failed: %s'%str(e))
-            print e
+            print(e)
 
     def getItem(self, itemName, background_poll=False):
         """ Return the cached item value, or return a fresh value when background_poll=True """
