@@ -25,3 +25,29 @@ pellmon_conf/
 version.py
 pellmoncli
 directories.py
+
+# Python 3 migration additions
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+*.egg
+*.egg-info/
+dist/
+build/
+
+# Virtual environments
+venv/
+venv-py3/
+env/
+ENV/
+
+# 2to3 backups
+*.bak
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
