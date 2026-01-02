@@ -1,0 +1,131 @@
+<%inherit file="layout.html"/>
+<%! scripts = ['js/parameters.js', 'js/reconnectingwebsocket.js', 'js/websocket.js'] %>
+<%def name="title()">
+       	${heading}
+</%def>
+
+<style>
+	dd,dt {
+		cursor: pointer;	
+	}
+	
+	.dl-horizontal dt {
+		text-align: left;
+	}
+
+	.details .form-inline .form-control {
+		width: 60%;
+	}
+
+	.form-control.error {
+		background-color: #F2DEDE;
+		color: #B94A48;
+	}
+	
+</style>
+<div class="container">
+    <h1>${heading}</h1>
+    <div class="row">
+        <div class="col-md-2">
+            <div class="navbar navbar-default">
+                <ul class="nav nav-pills nav-stacked">
+                %for tag in tags:
+                    <li class="">
+                        <a href="${webroot}/parameters/${tag}">${tag}</a>
+                    </li>
+                %endfor
+                </ul>
+            </div>
+
+            <div class="navbar navbar-default">
+                <ul class="nav">
+                      <%
+                         if level=='All':
+                            switch='Less..'
+                            link='Basic'
+                         else:
+                            switch='More..'
+                            link='All'
+                       %>
+
+                    <li><a href="${webroot}/setlevel/${link}?from_page=${from_page}">${switch}</a></li>
+                </ul>
+            </div>
+        </div>
+        <div class="col-md-10">
+	<div class="row">
+        %if len(commands)>0:
+        <div class="col-md-12">
+            <h3>Control</h3>
+		<div class="btn-group">
+            	%for key in commands:
+			<button type="button" data-name="${key['name']}" class="command btn btn-primary">${key['longname'].title()}</button>
+            	%endfor
+            	</div>
+        </div>
+        %endif
+	</div>	
+
+	<div class="row">
+        %if len(data)>0:
+            <div class="col-md-5">
+                <h3>Data</h3>
+		<dl class="dl dl-horizontal">
+                %for key in data:
+                        <dt class="editable">${key['longname']}</dt>
+			<dd class="editable">
+				<span id="${key['name']}-value" data-name="${key['name']}" class="param value"></span> ${key['unit'].decode('utf-8')}
+				<div class="details hidden">
+				   <br>ID: ${key['name']}
+					%if key['description']:
+						<p><i>${key['description'].decode('utf-8')}</i></p>
+					%endif
+				</div>
+                %endfor
+		</dl>
+            </div>
+        %endif
+
+        %if len(params)>0:
+            <div class="col-md-5">
+                <h3>Settings</h3>
+		<dl class="dl dl-horizontal">
+                %for key in params:
+                    <dt class="editable">${key['longname']}</dt>
+			        <dd> 
+				        <span id="${key['name']}-value" data-name="${key['name']}" class="editable param value" ></span> ${key['unit'].decode('utf-8')}
+				        <div style="z-index: 10000" class="details hidden">
+					        %if key['description']:
+						        <i>${key['description'].decode('utf-8')}</i><br>
+					        %endif
+					        ID: ${key['name']}<br>
+					        %if 'min' in key and 'max' in key:
+						        Valid values: ${key['min']} - ${key['max']}<br>
+					        %endif
+                            %if 'get_enum_list' in key:
+				            <div class=" form-inline">
+                                <select class="select_enum form-control" name=${key['name']} id="${key['name']}-selectbox">
+                                %for enum in key['get_enum_list']:
+                                <option value="${enum[0]}">${enum[1]}</option>
+                                %endfor
+                              </select>
+                            </div>
+                            %else:
+
+                                                <form class="save form-inline">
+                                                        <input type="text" id="${key['name']}-form" class="form-control" name="${key['name']}"/>
+                                                        <input type="submit" class="btn btn-primary" value="Set" data-loading-text="Saving..." />
+                                                </form>
+                            %endif
+
+				        </div>
+			        </dd>
+	
+                %endfor
+		</dl>
+            </div>
+        %endif
+	</div>
+        </div>
+    </div>
+</div>

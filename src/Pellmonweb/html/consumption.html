@@ -1,0 +1,28 @@
+<%inherit file="layout.html"/>
+<%! 
+    scripts = ['flot/jquery.flot.js', 'flot/jquery.flot.time.js','flot/jquery.flot.resize.js','flot/jquery.flot.navigate.js'] 
+%>
+
+<%def name="title()">
+Consumption
+</%def>
+<div class="container">
+	<div class="row">
+        <div class="col-md-6">
+            <%include file="consumption24h"/>
+        </div>
+        <div class="col-md-6">
+            <%include file="consumption7d"/>
+        </div>
+	</div>
+	<div class="row">
+        <div class="col-md-6">
+            <%include file="consumption8w"/>
+        </div>
+        <div class="col-md-6">
+            <%include file="consumption1y"/>
+        </div>
+	</div>
+</div>
+
+

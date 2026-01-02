@@ -1,0 +1,107 @@
+<%! scripts = [] %>
+<%! stylesheets = [] %>
+<!DOCTYPE html>
+<html>
+<script type="text/javascript"> var webroot = "${webroot}";</script> 
+<head>
+	<title>${next.title()}</title>
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <link rel="shortcut icon" href="${webroot}/media/img/favicon.ico">
+    <link rel="apple-touch-icon" sizes="57x57" href="${webroot}/media/img/apple-touch-icon-57x57.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="${webroot}/media/img/apple-touch-icon-114x114.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="${webroot}/media/img/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="144x144" href="${webroot}/media/img/apple-touch-icon-144x144.png">
+    <link rel="apple-touch-icon" sizes="60x60" href="${webroot}/media/img/apple-touch-icon-60x60.png">
+    <link rel="apple-touch-icon" sizes="120x120" href="${webroot}/media/img/apple-touch-icon-120x120.png">
+    <link rel="apple-touch-icon" sizes="76x76" href="${webroot}/media/img/apple-touch-icon-76x76.png">
+    <link rel="apple-touch-icon" sizes="152x152" href="${webroot}/media/img/apple-touch-icon-152x152.png">
+    <link rel="icon" type="image/png" href="${webroot}/media/img/favicon-196x196.png" sizes="196x196">
+    <link rel="icon" type="image/png" href="${webroot}/media/img/favicon-160x160.png" sizes="160x160">
+    <link rel="icon" type="image/png" href="${webroot}/media/img/favicon-96x96.png" sizes="96x96">
+    <link rel="icon" type="image/png" href="${webroot}/media/img/favicon-16x16.png" sizes="16x16">
+    <link rel="icon" type="image/png" href="${webroot}/media/img/favicon-32x32.png" sizes="32x32">
+    <meta name="msapplication-TileColor" content="#2b5797">
+    <meta name="msapplication-TileImage" content="${webroot}/media/img/mstile-144x144.png">
+    <meta name="msapplication-config" content="${webroot}/media/img/browserconfig.xml">
+
+	<link href="${webroot}/media/bs3/css/bootstrap.min.css" rel="stylesheet" media="screen">
+	<link href="${webroot}/media/css/pellmon.css" rel="stylesheet" media="screen">
+	${self.stylesheetIncludes()}
+</head>
+<body>
+	<div class="navbar navbar-default navbar-static-top">
+		<div class="container">
+			<div class="navbar-header">
+				<button data-target=".navbar-collapse" data-toggle="collapse" class="navbar-toggle" type="button">
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+					<span class="icon-bar"></span>
+				</button>
+				
+				<a href="${webroot if webroot else '/'}" class="navbar-brand"><img src="${webroot}/media/img/pellmon.svg">PellMon</a>
+    		</div>
+    		<div class="navbar-collapse collapse">
+				<ul class="nav navbar-nav">
+					<li class="">
+						<a href="${webroot}/consumptionview/consumption">Consumption</a>
+					</li>
+					<li class="">
+						<a href="${webroot}/parameters/Overview">Parameters</a>
+					</li>
+					<li class="">
+						<a href="${webroot}/logview/logView">View log</a>
+					</li>
+					<li>
+						% if username == None:
+						<a href=${webroot}/auth/login>Login</a>
+						% else:
+						<a href=${webroot}/auth/logout>Logout</a>
+						% endif
+					</li>
+				</ul>
+                <ul class="nav navbar-nav navbar-right">
+                    <li><a href="${webroot}/about">About</a></li>
+                </ul>
+			</div>
+		</div>
+	</div>
+	<!-- <div class="container"> -->
+        ${next.body()}
+	<!-- </div> -->
+    <script src="//ajax.googleapis.com/ajax/libs/jquery/1.11.0/jquery.min.js"></script>
+    <script>window.jQuery || document.write('<script src="media/jquery/jquery.min.js"><\/script>')</script>
+	<script src="${webroot}/media/bs3/js/bootstrap.min.js"></script>
+	${self.scriptIncludes()}
+</body>
+</html>
+
+<%def name="scriptIncludes()">
+<%
+    all_scripts = []
+    t = self
+    while t:
+      all_scripts = getattr(t.module, 'scripts', []) + all_scripts
+      t = t.inherits
+%>
+% for script in all_scripts:
+    <script src="${webroot}/media/${script}" type="text/javascript"></script>
+% endfor
+</%def>
+
+<%def name="stylesheetIncludes()">
+<%
+    all_stylesheets = []
+    t = self
+    while t:
+      all_stylesheets = getattr(t.module, 'stylesheets', []) + all_stylesheets
+      t = t.inherits
+%>
+% for stylesheet in all_stylesheets:
+	<link href="${stylesheet}" rel="stylesheet" media="screen">
+% endfor
+</%def>
+<%def name="title()">
+	PellMon
+</%def>
+
+

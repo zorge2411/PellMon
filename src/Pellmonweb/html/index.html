@@ -1,0 +1,24 @@
+<%inherit file="layout.html"/>
+<%! 
+    scripts = ['js/reconnectingwebsocket.js','js/index.js','js/logview.js','flot/jquery.flot.js', 'flot/jquery.flot.time.js','flot/jquery.flot.resize.js','flot/jquery.flot.navigate.js'] 
+%>
+
+<%def name="title()">
+    PellMon
+</%def>
+
+<div class="container">
+
+    %for row in widgets:
+        <div class="row">
+            <% width = 12 / len(row) %>
+            %for widget in row:
+                <div class="col-md-${width}">
+                    <%include file="${widget}"/>
+                </div>
+            %endfor
+        </div>
+    %endfor
+
+
+</div>

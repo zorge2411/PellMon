@@ -1,0 +1,10 @@
+<%inherit file="layout.html"/>
+<%! scripts = ['js/logview.js'] %>
+<%def name="title()">
+Log
+</%def>
+<div class="container">
+        <h1>Log</h1>
+        <div id="lines" data-url="${webroot}/logview/getlines?linenum=150" >
+        </div>
+</div>
