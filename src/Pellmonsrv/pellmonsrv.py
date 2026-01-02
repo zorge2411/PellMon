@@ -40,8 +40,8 @@ import sys, traceback
 import urllib.request as urllib
 import json
 from Pellmonsrv import __file__ as pluginpath
-from database import Database as _Database
-from database import init_keyval_storage
+from .database import Database as _Database
+from .database import init_keyval_storage
 try:
     from version import __version__
 except ImportError:
@@ -738,10 +738,10 @@ class config:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
         except ConfigParser.NoSectionError as e:
-            print 'noconf', e
+            print('noconf', e)
             pass
         except Exception as e:
-            print e
+            print(e)
             logger.info('invalid setting for plugin_dirs')
 
 def getgroups(user):
@@ -771,7 +771,7 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
     os.setuid(running_uid)
 
     # Set umask
-    old_umask = os.umask(033)
+    old_umask = os.umask(0o033)
 
 def mkdir_p(path):
     try:
