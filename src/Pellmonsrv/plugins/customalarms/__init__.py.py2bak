@@ -38,7 +38,7 @@ class alarmplugin(protocols):
     def activate(self, conf, glob, db, *args, **kwargs):
         protocols.activate(self, conf, glob, db, *args, **kwargs)
         self.itemrefs = []
-        for key, value in self.conf.items():
+        for key, value in self.conf.iteritems():
             try:
                 alarm_name = key.split('_')[0]
                 alarm_data = key.split('_')[1]
@@ -72,7 +72,7 @@ class alarmplugin(protocols):
                     if not alarms.has_key(alarm_name):
                         alarms[alarm_name] = {}
                     alarms[alarm_name][alarm_data] = value
-            except Exception as e:
+            except Exception,e:
                 logger.info(str(e))
             itemTags[key].append(alarm_name)
 
@@ -87,7 +87,7 @@ class alarmplugin(protocols):
                 itemValues[item['name']] = value
 
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.items():
+            for key, value in item.iteritems():
                 if key is not 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
@@ -116,7 +116,7 @@ class alarmplugin(protocols):
             else:
                 self.store_setting(item, value)
                 return 'OK'
-        except Exception as e:
+        except Exception,e:
             return 'error'
 
     def poll_thread(self):

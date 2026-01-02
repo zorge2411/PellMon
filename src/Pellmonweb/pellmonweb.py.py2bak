@@ -21,7 +21,7 @@ import os.path
 import cherrypy
 from cherrypy.lib.static import serve_file
 from cherrypy.process import plugins, servers
-import configparser
+import ConfigParser
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako import exceptions
@@ -78,14 +78,14 @@ class Sensor(object):
                 try:
                     value = dbus.getItem(param)
                     paramlist.append(dict(name=param, value=value))
-                except Exception as e:
+                except Exception, e:
                     cherrypy.log(str(e))
                     pass
             try:
                 if paramlist:
                     message = simplejson.dumps(paramlist)
                     obj.websocket.send(message)
-            except Exception as e:
+            except Exception, e:
                 pass
         t = Timer(0.1, _get_values, args=[self])
         t.start()
@@ -101,7 +101,7 @@ class Sensor(object):
                     message = simplejson.dumps(paramlist)
                     self.websocket.send(message)
                 return True
-            except Exception as e:
+            except Exception, e:
                 self.websocket = None
                 return False
 
@@ -110,7 +110,7 @@ class Sensor(object):
             message = simplejson.dumps(ml)
             self.websocket.send(message)
             return True
-        except Exception as e:
+        except Exception, e:
             self.websocket = None
             return False
 
@@ -148,7 +148,7 @@ class Dbus_handler:
 
         def on_signal(parameters):
             msg = simplejson.loads(parameters)
-            for i in range(len(Sensor.sensorlist) - 1, -1, -1):
+            for i in xrange(len(Sensor.sensorlist) - 1, -1, -1):
                 sensor = Sensor.sensorlist[i]
                 if not sensor.send(msg):
                     del Sensor.sensorlist[i]
@@ -712,7 +712,7 @@ class myLookup(TemplateLookup):
     def get_template(self, uri):
         try:
             return super(myLookup, self).get_template(uri)
-        except exceptions.TemplateLookupException as e:
+        except exceptions.TemplateLookupException, e:
             plugin = self.dbus.getPlugins(uri)
             self.put_string(uri, plugin)
             return super(myLookup, self).get_template(uri)

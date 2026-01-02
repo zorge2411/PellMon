@@ -43,7 +43,7 @@ class onewireplugin(protocols):
             itemconfigs = {}
 
             # Group item configuration values according to the part before '_' in the key
-            for key, value in conf.items():
+            for key, value in conf.iteritems():
                 lvalue, itemconfig = key.split('_')
 
                 # Use 'item' for the item name in the configuration file as usual
@@ -69,7 +69,7 @@ class onewireplugin(protocols):
             # Create dbitems from the list and insert into the database
             for item in self.itemList:
                 dbitem = Getsetitem(item['name'], item['value'], lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-                for key, value in item.items():
+                for key, value in item.iteritems():
                     if key is not 'value':
                         dbitem.__setattr__(key, value)
                 # Give it some default tags so it's visible in the web interface
@@ -98,7 +98,7 @@ class onewireplugin(protocols):
                         if match:
                             return str(float(match.group(1)) / 1000)
                     return 'error'
-                except Exception as e:
+                except Exception, e:
                     return 'error'
             else:
                 if 'value' in item:
@@ -121,7 +121,7 @@ class onewireplugin(protocols):
             try:
                 for item in self.itemList:
                     item['value'] = self.getItem(item['name'], background_poll=True)
-            except Exception as e:
+            except Exception, e:
                 logger.debug('onewire background poll error: '+str(e))
             sleep(5)
 

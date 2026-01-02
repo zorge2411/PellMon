@@ -23,7 +23,7 @@ needs.
 
 import sys, os
 from logging import getLogger
-import configparser
+import ConfigParser
 import types
 
 from IPlugin import IPlugin
@@ -274,7 +274,7 @@ class PluginManager(object):
 			try:
 				print candidate_filepath
 				execfile(candidate_filepath+".py",candidate_globals)
-			except Exception as e:
+			except Exception,e:
 				print e
 				logging.debug("Unable to execute the code in plugin: %s" % candidate_filepath)
 				logging.debug("\t The following problem occured: %s %s " % (os.linesep, e))

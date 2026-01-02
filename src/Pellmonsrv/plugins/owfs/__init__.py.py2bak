@@ -19,7 +19,7 @@
 
 from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Item, Getsetitem
-from configparser import configparser
+from ConfigParser import ConfigParser
 from os import path
 import traceback
 import sys
@@ -51,7 +51,7 @@ class owfsplugin(protocols):
         self.proxies = {}
         self.itemrefs = []
 
-        for key, value in self.conf.items():
+        for key, value in self.conf.iteritems():
             port = 4304
             server = 'localhost'
             ow_name = key.split('_')[0]
@@ -84,7 +84,7 @@ class owfsplugin(protocols):
                 if not server in self.proxies:
                     try:
                         self.proxies[server] = self.protocol.proxy(host=server, port=port)
-                    except self.protocol.ConnError as e:
+                    except self.protocol.ConnError, e:
                         self.proxies[server] = (server, port)
                     
             if ow_data == 'type' and value == 'COUNTER':
@@ -109,7 +109,7 @@ class owfsplugin(protocols):
                 if not server in self.proxies:
                     try:
                         self.proxies[server] = self.protocol.proxy(host=server, port=port)
-                    except self.protocol.ConnError as e:
+                    except self.protocol.ConnError, e:
                         self.proxies[server] = (server, port)
 
             if ow_data == 'type' and value in ['R','R/W']:
@@ -118,7 +118,7 @@ class owfsplugin(protocols):
         # Create dbitems from the list and insert into the database
         for item in itemList:
             dbitem = Getsetitem(item['name'], None, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.items():
+            for key, value in item.iteritems():
                 if key is not 'value':
                     dbitem.__setattr__(key, value)
             # Give it some default tags so it's visible in the web interface
@@ -154,7 +154,7 @@ class owfsplugin(protocols):
                         item['value'] = data.decode('ascii').strip()
                         return item['value']
                         
-            except Exception as e:
+            except Exception, e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 print exc_type, exc_value
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
@@ -188,7 +188,7 @@ class owfsplugin(protocols):
                     return 'OK'
             else:
                 return 'error'
-        except Exception as e:
+        except Exception, e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
             print exc_type, exc_value
             traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
@@ -229,7 +229,7 @@ class owfsplugin(protocols):
                             item['last_i'] = i
                             item['value'] +=1
                             item['toggle'] = 0
-            except Exception as e:
+            except Exception, e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
                 print exc_type, exc_value
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
@@ -241,7 +241,7 @@ class owfsplugin(protocols):
             try:
                 for item in itemList:
                     self.getItem(item['name'], background_poll=True)
-            except Exception as e:
+            except Exception, e:
                 logger.debug('OWFS background poll error: '+str(e))
             sleep(5)
 

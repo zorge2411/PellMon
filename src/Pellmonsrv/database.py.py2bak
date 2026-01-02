@@ -109,7 +109,7 @@ class Storeditem(Getsetitem):
                     self._value = value
                 if self.setter:
                     self.setter(self.name, value)
-        except Exception as e:
+        except Exception, e:
            print e
 
 class Database(WeakValueDictionary):
@@ -166,7 +166,7 @@ class Keyval_storage(object):
                 value, = cursor.next()
                 conn.close()
                 return value
-            except Exception as e:
+            except Exception, e:
                 print e
                 return 'error'
 

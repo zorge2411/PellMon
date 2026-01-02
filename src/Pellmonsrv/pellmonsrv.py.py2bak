@@ -24,7 +24,7 @@ import gobject
 import logging
 import logging.handlers
 import sys
-import configparser
+import ConfigParser
 import time
 from smtplib import SMTP, SMTP_SSL
 from email.mime.multipart import MIMEMultipart
@@ -37,8 +37,8 @@ from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv import Daemon
 import subprocess
 import sys, traceback
-import urllib.request as urllib
-import json
+import urllib2 as urllib
+import simplejson as json
 from Pellmonsrv import __file__ as pluginpath
 from database import Database as _Database
 from database import init_keyval_storage
@@ -118,7 +118,7 @@ class Database(threading.Thread, _Database):
                     else:
                         changed_params.append({'name':item_name, 'value':value})
                         self.values[item_name] = value
-                except Exception as e:
+                except Exception, e:
                     pass
             if changed_params:
                 if self.dbus_service:
@@ -178,7 +178,7 @@ class MyDBUSService(dbus.service.Object):
         for itemname, item in conf.database.items():
             try:
                 menutags.update(set(item.tags))
-            except AttributeError as e:
+            except AttributeError, e:
                 pass
         return sorted(list(menutags.difference(set(['All', 'Basic']))))
 
@@ -316,7 +316,7 @@ def copy_db(direction='store'):
                 copy_in_progress = True     
                 os.system('cp %s %s'%(conf.db, conf.nvdb)) 
                 logger.debug('copied %s to %s'%(conf.db, conf.nvdb))
-            except Exception as e:
+            except Exception, e:
                 logger.info(str(e))
                 logger.info('copy %s to %s failed'%(conf.db, conf.nvdb))
             finally:
@@ -326,7 +326,7 @@ def copy_db(direction='store'):
                 copy_in_progress = True     
                 os.system('cp %s %s'%(conf.nvdb, conf.db))  
                 logger.info('copied %s to %s'%(conf.nvdb, conf.db))
-            except Exception as e:
+            except Exception, e:
                 logger.info(str(e))
                 logger.info('copy %s to %s failed'%(conf.nvdb, conf.db))
             finally:
@@ -416,7 +416,7 @@ def sendmail_thread(msg, followup):
         mailserver.sendmail(msgRoot['From'], msgRoot['To'].split(","), msgRoot.as_string())
         mailserver.quit()
         logger.info('status email sent')
-    except Exception as e:
+    except Exception, e:
         logger.info('error trying to send email')
         logger.info(str(e))
     if followup and conf.email_followup:

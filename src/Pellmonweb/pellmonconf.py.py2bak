@@ -33,7 +33,7 @@ import codecs
 #from weakref import WeakValueDictionary
 #import dbparser as parser
 #import webbrowser
-import configparser
+import ConfigParser
 
 class Pellmonconf:
     def __init__(self, config_file = '', lookup = None):
@@ -95,7 +95,7 @@ class Pellmonconf:
             with codecs.open(filename, 'r', 'utf-8', 'strict') as f:
                 data = f.read()
                 return json.dumps({'filename':filename, 'data':data, 'line':int(line), 'linesep':linesep})
-        except Exception as e:
+        except Exception, e:
             return json.dumps({'error':str(e)})
 
     @cherrypy.expose

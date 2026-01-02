@@ -45,7 +45,7 @@ class testplugin(protocols):
         self.itemrefs = []
         self.itemvalues = {}
 
-        for key, value in self.conf.items():
+        for key, value in self.conf.iteritems():
             itemList.append({'name':key, 'value':value, 'min':'0', 'max':'100', 'unit':'km', 'type':'R/W'})
             itemTags[key] = ['All', 'testplugin', 'Basic']
 
@@ -53,7 +53,7 @@ class testplugin(protocols):
             self.itemvalues[item['name']] = item['value']
 
             dbitem = Getsetitem(item['name'], item['value'], lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.items():
+            for key, value in item.iteritems():
                 if key is not 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:

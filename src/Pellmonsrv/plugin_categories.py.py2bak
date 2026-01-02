@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 from Pellmonsrv.yapsy.IPlugin import IPlugin
-from configparser import configparser
+from ConfigParser import ConfigParser
 import os
 from logging import getLogger
 from database import Keyval_storage
@@ -77,6 +77,6 @@ class protocols(IPlugin):
                     self.store_setting(key, value)
                 os.rename(oldfile, oldfile + '.migrated')
                 logger.info('migrated settings from %s plugin to settings database'%plugin)
-        except Exception as e:
+        except Exception, e:
             logger.info('migration of old %s plugin settings failed'%plugin)
 

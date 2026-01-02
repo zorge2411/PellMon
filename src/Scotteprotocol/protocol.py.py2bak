@@ -19,7 +19,7 @@
 from threading import Lock
 from logging import getLogger 
 import time
-import queue
+import Queue
 import threading
 import serial
 from enumerations import dataEnumerations
@@ -49,7 +49,7 @@ class Protocol(threading.Thread):
         s.timeout  = 1        
         try:
             s.open()
-        except serial.SerialException as e:
+        except serial.SerialException, e:
             logger.info("Could not open serial port %s: %s\n" % (device, e))
             self.dummyDevice=True
             self.dataBase = self.createDataBase('6.99')
@@ -206,7 +206,7 @@ class Protocol(threading.Thread):
                     return response
                 else:
                     return "Expected value "+str(dataparam.min)+".."+str(dataparam.max)
-            except Exception as e:
+            except Exception, e:
                 return e
         else:
             return 'Not a setting value'        
