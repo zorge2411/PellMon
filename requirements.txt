@@ -1,12 +1,17 @@
 # Core dependencies - Python 3 versions
-rrdtool>=1.7.0
+# Note: Some dependencies are platform-specific and may need manual installation
+
+# Cross-platform dependencies
 pyserial>=3.5
 CherryPy>=18.8.0
-dbus-python>=1.2.18
 Mako>=1.2.0
-PyGObject>=3.42.0
 python-dateutil>=2.8.2
 argcomplete>=2.0.0
+
+# Platform-specific dependencies (Linux/Unix)
+# rrdtool>=1.7.0  # Requires system package: apt-get install python3-rrdtool
+# dbus-python>=1.2.18  # Requires system package: apt-get install python3-dbus
+# PyGObject>=3.42.0  # Requires system package: apt-get install python3-gi
 
 # Optional dependencies
 ws4py>=0.5.1
@@ -21,3 +26,4 @@ xtea>=0.7.1
 
 # Openweathermap plugin
 pyowm>=3.3.0
+
