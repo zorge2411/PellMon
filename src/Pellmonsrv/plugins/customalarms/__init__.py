@@ -38,7 +38,7 @@ class alarmplugin(protocols):
     def activate(self, conf, glob, db, *args, **kwargs):
         protocols.activate(self, conf, glob, db, *args, **kwargs)
         self.itemrefs = []
-        for key, value in self.conf.iteritems():
+        for key, value in self.conf.items():
             try:
                 alarm_name = key.split('_')[0]
                 alarm_data = key.split('_')[1]
@@ -61,7 +61,7 @@ class alarmplugin(protocols):
                 itemList.append({'name':key, 'value':value, 'min':'', 'max':'', 'unit':'', 'type':alarm_type, 'description':description})
                 itemTags[key] = ['All', 'CustomAlarms', 'Basic']
 
-                if not alarms.has_key(alarm_name):
+                if alarm_name not in alarms:
                     alarms[alarm_name] = {}
                 alarm_data = key.split('_')[1]
                 if alarm_data == 'status':
@@ -69,10 +69,10 @@ class alarmplugin(protocols):
                     itemTags[value] = ['All', 'CustomAlarms', 'Basic']
 
                 if alarm_data in ['item','comparator','level','status']:
-                    if not alarms.has_key(alarm_name):
+                    if alarm_name not in alarms:
                         alarms[alarm_name] = {}
                     alarms[alarm_name][alarm_data] = value
-            except Exception,e:
+            except Exception as e:
                 logger.info(str(e))
             itemTags[key].append(alarm_name)
 
@@ -87,8 +87,8 @@ class alarmplugin(protocols):
                 itemValues[item['name']] = value
 
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.iteritems():
-                if key is not 'value':
+            for key, value in item.items():
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
@@ -110,13 +110,13 @@ class alarmplugin(protocols):
 
     def setItem(self, item, value):
         try:
-            if itemValues.has_key(item):
+            if item in itemValues:
                 itemValues[item] = value
                 return 'OK'
             else:
                 self.store_setting(item, value)
                 return 'OK'
-        except Exception,e:
+        except Exception as e:
             return 'error'
 
     def poll_thread(self):

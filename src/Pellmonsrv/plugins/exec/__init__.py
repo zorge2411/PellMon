@@ -77,7 +77,7 @@ class execplugin(protocols):
                 self.db.insert(item)
                 self.itemrefs.append(item)
 
-            except Exception, e:
+            except Exception as e:
                 logger.info('Exec plugin config error: %s', str(e))
                 raise
 

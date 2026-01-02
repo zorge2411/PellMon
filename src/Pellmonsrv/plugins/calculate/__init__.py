@@ -137,12 +137,12 @@ class Calc():
             self.store[var] = self.stack.pop()
         elif c == 'del':
             var = unicode(self.stack.pop())
-            if self.store.has_key(var):
+            if var in self.store:
                 del gstore[var]
         elif c == 'def':
             var = unicode(self.stack.pop())
             value = self.stack.pop()
-            if not self.store.has_key(var):
+            if var not in self.store:
                 self.store[var] = value
         elif c == 'rcl':
             var = unicode(self.stack.pop())
@@ -156,11 +156,11 @@ class Calc():
         elif c == 'gdef':
             var = unicode(self.stack.pop())
             value = self.stack.pop()
-            if not gstore.has_key(var):
+            if var not in gstore:
                 gstore[var] = value
         elif c == 'gdel':
             var = unicode(self.stack.pop())
-            if gstore.has_key(var):
+            if var in gstore:
                 del gstore[var]
         elif c == 'grcl':
             try:
@@ -237,12 +237,12 @@ class calculateplugin(protocols):
         self.tasks = {}
         self.itemrefs = []
         try:
-            for key, value in self.conf.iteritems():
+            for key, value in self.conf.items():
                 try:
                     calc_name = key.split('_')[0]
                     calc_data = key.split('_')[1]
 
-                    if not self.calc2index.has_key(calc_name):
+                    if calc_name not in self.calc2index:
                         itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':''})
                         self.calc2index[calc_name] = len(itemList)-1
 
@@ -289,10 +289,10 @@ class calculateplugin(protocols):
                         try:
                             taskcycle = float(value)
                             self.tasks[calc_name] = calcthread(taskcycle, calc_name+'_prog', self)
-                        except Exception, e:
+                        except Exception as e:
                             raise e #ValueError('%s has invalid task time %s'%(key, value))
 
-                except Exception,e: 
+                except Exception as e: 
                     logger.info(str(e))
                     raise e
             for item in itemList:
@@ -305,7 +305,7 @@ class calculateplugin(protocols):
 
             for item in itemList:
                 dbitem = Getsetitem(item['name'], None, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-                for key, value in item.iteritems():
+                for key, value in item.items():
                     if key != 'value':
                         dbitem.__setattr__(key, value)
                 if dbitem.name in itemTags:
@@ -313,12 +313,12 @@ class calculateplugin(protocols):
                 self.db.insert(dbitem)
                 self.itemrefs.append(dbitem)
 
-        except Exception, e:
+        except Exception as e:
             logger.info( str(e))
             raise
 
     def getItem(self, itemName):
-        if self.name2index.has_key(itemName):
+        if itemName in self.name2index:
             item = itemList[self.name2index[itemName]]
             try:
                 calc_item = item['calc_item']
@@ -327,7 +327,7 @@ class calculateplugin(protocols):
                     try:
                         calc = Calc(prog, self.db)
                         return calc.run()
-                    except Exception, e:
+                    except Exception as e:
                         logger.info(calc_item+' error: '+repr(e))
                         return 'error'
             except:
@@ -352,7 +352,7 @@ class calculateplugin(protocols):
                 calc = Calc(prog, self.db, stack=stack)
                 calc.run()
                 return 'OK'
-            except Exception, e:
+            except Exception as e:
                 calc = Calc(prog, self.db)
                 logger.info(calc_item+' error: '+str(e))
                 return 'error'
@@ -362,7 +362,7 @@ class calculateplugin(protocols):
                 if item['type'] == 'R/W':
                     self.store_setting(item['name'], value)
                     return 'OK'
-            except Exception,e:
+            except Exception as e:
                 return 'error'
 
 class calcthread(Thread):

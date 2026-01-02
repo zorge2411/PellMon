@@ -1,2 +1,3 @@
 # -*- coding: utf-8 -*-
-from daemon import Daemon
+from .daemon import Daemon
+

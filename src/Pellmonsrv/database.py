@@ -109,8 +109,8 @@ class Storeditem(Getsetitem):
                     self._value = value
                 if self.setter:
                     self.setter(self.name, value)
-        except Exception, e:
-           print e
+        except Exception as e:
+           print(e)
 
 class Database(WeakValueDictionary):
     def __init__(self):
@@ -163,26 +163,21 @@ class Keyval_storage(object):
                 conn = sqlite3.connect(self.dbfile)
                 cursor = conn.cursor()
                 cursor.execute("SELECT value FROM keyval WHERE id=?", (item,))
-                value, = cursor.next()
+                value, = next(cursor)
                 conn.close()
                 return value
-            except Exception, e:
-                print e
+            except Exception as e:
+                print(e)
                 return 'error'
 
     def writeval(self, item, value=None, confval=None):
 
-        if type(confval) is str:
-            confval = confval.decode('utf-8')
-        else:
-            if confval is not None and type(confval) is not unicode:
-                confval = unicode(confval)
+        # In Python 3, str is already unicode
+        if confval is not None and not isinstance(confval, str):
+            confval = str(confval)
 
-        if type(value) is str:
-            value = value.decode('utf-8')
-        else:
-            if value is not None and type(value) is not unicode:
-                value = unicode(value)
+        if value is not None and not isinstance(value, str):
+            value = str(value)
 
         with self.lock:
             try:
@@ -196,7 +191,7 @@ class Keyval_storage(object):
                 else:
                     try:
                         cursor.execute("SELECT value, confvalue FROM keyval WHERE id=?", (item,))
-                        value,confvalue = cursor.next()
+                        value,confvalue = next(cursor)
                         if confvalue != confval:
                             cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, confval, confval))
                             conn.commit()

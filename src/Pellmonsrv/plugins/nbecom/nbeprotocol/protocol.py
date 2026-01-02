@@ -72,13 +72,13 @@ class Proxy:
             return False
         for retry in range(3):
             try:
-                print 'get rsa', retry
+                print('get rsa', retry)
                 r = self.get(1, 'misc.rsa_key')
                 key = base64.b64decode(r)
                 self.request.public_key = RSA.importKey(key)
                 return True 
             except Exception as e:
-                print 'other except, get_rsakey', repr(e), time.time()
+                print('other except, get_rsakey', repr(e), time.time())
                 pass # retry 3 times
             time.sleep(1)
         return False
@@ -103,7 +103,7 @@ class Proxy:
                         use_rsa = False
                     if use_rsa:
                         self.s.settimeout(5)
-                        print 'use rsa for xtea set', int(time.time()%3600)
+                        print('use rsa for xtea set', int(time.time()%3600))
                     else:
                         self.s.settimeout(1.5)
                     #print 'set value', value
@@ -112,14 +112,14 @@ class Proxy:
                         if path == 'misc.xtea_key':
                             self.request.xtea_key = xtea.new(value, mode=xtea.MODE_ECB, IV='\00'*8, rounds=64, endian='!')
                         return 'ok'
-                    print 'set error:', response.status
+                    print('set error:', response.status)
                     raise protocol_error
             except protocol_error:
                 if retry >= 1:
-                    print 'set retry', retry, int(time.time()%3600)
+                    print('set retry', retry, int(time.time()%3600))
                 if path == 'misc.xtea_key':
                     try:
-                        print 'xtea_set uncertain, del key and use rsa', time.time()
+                        print('xtea_set uncertain, del key and use rsa', time.time())
                         del self.request.xtea_key
                     except AttributeError:
                         pass
@@ -129,7 +129,7 @@ class Proxy:
                 time.sleep(2)
             else:
                 time.sleep(0.2)
-        print 'no more set retry'
+        print('no more set retry')
         raise protocol_error('set %s failed'%path)
 
     def get(self, function, path, group=False):
@@ -146,9 +146,9 @@ class Proxy:
                             return response.payload.encode('ascii').split(';')
             except: #protocol_error:
                 if retry >= 1:
-                    print 'get retry', retry, int(time.time()%3600)
+                    print('get retry', retry, int(time.time()%3600))
             time.sleep(0.2)
-        print 'no more get retry'
+        print('no more get retry')
         raise protocol_error
 
     def find_controller(self):
@@ -194,10 +194,10 @@ class Proxy:
                                         self.addr = server
                                         break
                                 except seqnum_error as e:
-                                    print 'find controller error', repr(e)
+                                    print('find controller error', repr(e))
                                     pass
                         except Exception as e:
-                            print 'find controller retry', retry, repr(e)
+                            print('find controller retry', retry, repr(e))
                             pass
                         else:
                             break
@@ -216,7 +216,7 @@ class Proxy:
                         self.set_xteakey()
 
                 if self.controller_online and not controller_online:
-                    print '-------------------lost conn'
+                    print('-------------------lost conn')
                     logger.info('Lost connection to controller')
 
                 self.controller_online = controller_online
@@ -230,7 +230,7 @@ class Proxy:
                 else:
                     time.sleep(1)
             except Exception as e:
-                print 'FC -------------------', repr(e)
+                print('FC -------------------', repr(e))
                 pass #don't ever die in this thread
 
     def dir(self):
@@ -306,15 +306,15 @@ class Proxy:
                     self.response.decode(data)
                     return self.response
                 except seqnum_error as e:
-                    print 'seqnum error', function, repr(e), int(time.time()%3600)
+                    print('seqnum error', function, repr(e), int(time.time()%3600))
                     pass #just read again on seqnum error
                 else:
                     break
         except socket.timeout as e:
-            print 'timeout, func:', function, 'missed seqnum:', self.request.sequencenumber, int(time.time()%3600)
+            print('timeout, func:', function, 'missed seqnum:', self.request.sequencenumber, int(time.time()%3600))
             raise protocol_timeout(str(e))
         except Exception as e:
-            print 'other exc', self.request.sequencenumber, int(time.time()%3600), str(e)
+            print('other exc', self.request.sequencenumber, int(time.time()%3600), str(e))
             raise protocol_error(str(e))
 
     def xtea_refresh_thread(self):
@@ -329,7 +329,7 @@ class Proxy:
                     try:
                         if self.get_rsakey():
                             self.set_xteakey()
-                        print 'xtea set'
+                        print('xtea set')
                     except Exception as e:
                         pass
             time.sleep(5)

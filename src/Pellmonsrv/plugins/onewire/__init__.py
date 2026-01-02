@@ -43,7 +43,7 @@ class onewireplugin(protocols):
             itemconfigs = {}
 
             # Group item configuration values according to the part before '_' in the key
-            for key, value in conf.iteritems():
+            for key, value in conf.items():
                 lvalue, itemconfig = key.split('_')
 
                 # Use 'item' for the item name in the configuration file as usual
@@ -69,8 +69,8 @@ class onewireplugin(protocols):
             # Create dbitems from the list and insert into the database
             for item in self.itemList:
                 dbitem = Getsetitem(item['name'], item['value'], lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-                for key, value in item.iteritems():
-                    if key is not 'value':
+                for key, value in item.items():
+                    if key != 'value':
                         dbitem.__setattr__(key, value)
                 # Give it some default tags so it's visible in the web interface
                 dbitem.__setattr__('tags', ['Basic', 'All', 'Onewire'])
@@ -82,7 +82,7 @@ class onewireplugin(protocols):
             t.start()
         except Exception as e:
             logger.debug('Onewire activate failed: %s'%str(e))
-            print e
+            print(e)
 
     def getItem(self, itemName, background_poll=False):
         """ Return the cached item value, or return a fresh value when background_poll=True """
@@ -98,7 +98,7 @@ class onewireplugin(protocols):
                         if match:
                             return str(float(match.group(1)) / 1000)
                     return 'error'
-                except Exception, e:
+                except Exception as e:
                     return 'error'
             else:
                 if 'value' in item:
@@ -121,7 +121,7 @@ class onewireplugin(protocols):
             try:
                 for item in self.itemList:
                     item['value'] = self.getItem(item['name'], background_poll=True)
-            except Exception, e:
+            except Exception as e:
                 logger.debug('onewire background poll error: '+str(e))
             sleep(5)
 

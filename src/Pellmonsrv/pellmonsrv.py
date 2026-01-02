@@ -17,14 +17,14 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import signal, os, errno, Queue, threading, glib
+import signal, os, errno, queue, threading
 import dbus, dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
-import gobject
+from gi.repository import GLib, GObject
 import logging
 import logging.handlers
 import sys
-import ConfigParser
+import configparser
 import time
 from smtplib import SMTP, SMTP_SSL
 from email.mime.multipart import MIMEMultipart
@@ -37,11 +37,11 @@ from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv import Daemon
 import subprocess
 import sys, traceback
-import urllib2 as urllib
-import simplejson as json
+import urllib.request as urllib
+import json
 from Pellmonsrv import __file__ as pluginpath
-from database import Database as _Database
-from database import init_keyval_storage
+from .database import Database as _Database
+from .database import init_keyval_storage
 try:
     from version import __version__
 except ImportError:
@@ -118,7 +118,7 @@ class Database(threading.Thread, _Database):
                     else:
                         changed_params.append({'name':item_name, 'value':value})
                         self.values[item_name] = value
-                except Exception, e:
+                except Exception as e:
                     pass
             if changed_params:
                 if self.dbus_service:
@@ -178,7 +178,7 @@ class MyDBUSService(dbus.service.Object):
         for itemname, item in conf.database.items():
             try:
                 menutags.update(set(item.tags))
-            except AttributeError, e:
+            except AttributeError as e:
                 pass
         return sorted(list(menutags.difference(set(['All', 'Basic']))))
 
@@ -316,7 +316,7 @@ def copy_db(direction='store'):
                 copy_in_progress = True     
                 os.system('cp %s %s'%(conf.db, conf.nvdb)) 
                 logger.debug('copied %s to %s'%(conf.db, conf.nvdb))
-            except Exception, e:
+            except Exception as e:
                 logger.info(str(e))
                 logger.info('copy %s to %s failed'%(conf.db, conf.nvdb))
             finally:
@@ -326,7 +326,7 @@ def copy_db(direction='store'):
                 copy_in_progress = True     
                 os.system('cp %s %s'%(conf.nvdb, conf.db))  
                 logger.info('copied %s to %s'%(conf.nvdb, conf.db))
-            except Exception, e:
+            except Exception as e:
                 logger.info(str(e))
                 logger.info('copy %s to %s failed'%(conf.nvdb, conf.db))
             finally:
@@ -416,7 +416,7 @@ def sendmail_thread(msg, followup):
         mailserver.sendmail(msgRoot['From'], msgRoot['To'].split(","), msgRoot.as_string())
         mailserver.quit()
         logger.info('status email sent')
-    except Exception, e:
+    except Exception as e:
         logger.info('error trying to send email')
         logger.info(str(e))
     if followup and conf.email_followup:
@@ -441,10 +441,10 @@ class MyDaemon(Daemon):
         except:
             pass
 
-        # DBUS needs the gobject main loop, this way it seems to work...
-        gobject.threads_init()
+        # DBUS needs the GObject main loop, this way it seems to work...
+        GObject.threads_init()
         dbus.mainloop.glib.threads_init()    
-        DBUSMAINLOOP = gobject.MainLoop()
+        DBUSMAINLOOP = GLib.MainLoop()
         DBusGMainLoop(set_as_default=True)
         conf.myservice = MyDBUSService(conf.dbus)
         conf.database.dbus_service = conf.myservice
@@ -738,10 +738,10 @@ class config:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
         except ConfigParser.NoSectionError as e:
-            print 'noconf', e
+            print('noconf', e)
             pass
         except Exception as e:
-            print e
+            print(e)
             logger.info('invalid setting for plugin_dirs')
 
 def getgroups(user):
@@ -771,7 +771,7 @@ def drop_privileges(uid_name='nobody', gid_name='nogroup'):
     os.setuid(running_uid)
 
     # Set umask
-    old_umask = os.umask(033)
+    old_umask = os.umask(0o033)
 
 def mkdir_p(path):
     try:

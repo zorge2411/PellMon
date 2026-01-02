@@ -151,8 +151,8 @@ class pelletcalc(protocols):
 
         for item in itemList:
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.iteritems():
-                if key is not 'value':
+            for key, value in item.items():
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
@@ -215,7 +215,7 @@ class pelletcalc(protocols):
             if self.feeder_time == None:
                  self.feeder_time = feeder_time
             power = float(self.getItem('power_kW'))
-        except Exception,e:
+        except Exception as e:
             return
         if self.state in ('Off', 'Ignition failed'):
             if feeder_time > self.feeder_time:
@@ -335,7 +335,7 @@ class pelletcalc(protocols):
                         self.calculate_state()
                     except KeyError:
                         logger.info("PelletCalc error, can't read 'feeder_capacity'")
-                except Exception, e:
+                except Exception as e:
                     pass
                 sleep(5)
         except KeyError:

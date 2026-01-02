@@ -85,7 +85,7 @@ class Request_frame(object):
             self.framedata += h
             if success:
                 return self.framedata
-            print 'ERRROR chiphertext too short', len(h)
+            print('ERRROR chiphertext too short', len(h))
 
     def decode(self, record):
         i = 0

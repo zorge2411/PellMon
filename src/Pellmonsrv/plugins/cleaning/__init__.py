@@ -85,7 +85,7 @@ class cleaningplugin(protocols):
         cmd = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE)
         try:
             total = str(int(float(cmd.communicate()[0].splitlines()[1].strip('"'))))
-        except Exception, e:
+        except Exception as e:
             total = '0'
         return total
 

@@ -34,7 +34,7 @@ class Heatingcircuitplugin(protocols):
 
         self.itemrefs = []
 
-        for key, value in self.conf.iteritems():
+        for key, value in self.conf.items():
             if key == 'output_open':
                 self.output_open = value
             if key == 'output_close':
@@ -85,7 +85,7 @@ class Heatingcircuitplugin(protocols):
                 out = gain_P * err
                 self.db['hc_out'].value = str(out)
                 time.sleep(1.0 - (time.time() - t))
-            except Exception,e:
+            except Exception as e:
                 logger.info(str(e))
 
     def valvecontroller(self):
@@ -117,7 +117,7 @@ class Heatingcircuitplugin(protocols):
                     # small steps are collected until there is at least one second
                     hc_out_saved += hc_out
                     sleep(100)
-            except Exception, e:
+            except Exception as e:
                 logger.info(str(e))
 
     def feedforward(self):
@@ -139,7 +139,7 @@ class Heatingcircuitplugin(protocols):
                 if firstrun:
                     self.controllerthread.start()
                     firstrun = False
-            except Exception, e:
+            except Exception as e:
                 if  self.glob['conf'].command == 'debug':
                     raise
                 logger.info(str(e))

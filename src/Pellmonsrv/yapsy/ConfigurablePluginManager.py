@@ -8,7 +8,7 @@ the ini files manipulated by Python's ConfigParser module.
 
 import sys, os
 import logging
-import ConfigParser
+import configparser
 
 from IPlugin import IPlugin
 

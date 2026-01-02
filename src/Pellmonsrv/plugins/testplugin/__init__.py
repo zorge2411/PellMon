@@ -45,7 +45,7 @@ class testplugin(protocols):
         self.itemrefs = []
         self.itemvalues = {}
 
-        for key, value in self.conf.iteritems():
+        for key, value in self.conf.items():
             itemList.append({'name':key, 'value':value, 'min':'0', 'max':'100', 'unit':'km', 'type':'R/W'})
             itemTags[key] = ['All', 'testplugin', 'Basic']
 
@@ -53,15 +53,15 @@ class testplugin(protocols):
             self.itemvalues[item['name']] = item['value']
 
             dbitem = Getsetitem(item['name'], item['value'], lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.iteritems():
-                if key is not 'value':
+            for key, value in item.items():
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
             self.db.insert(dbitem)
             self.itemrefs.append(dbitem)
             def mysetter(name, value):
-                print 'testplugin set: ', name, value
+                print('testplugin set: ', name, value)
             i = Storeditem('stored', 'defaultvalue', setter=mysetter)
             i.tags = ['All', 'testplugin', 'Basic'] 
             i.type = 'R/W'

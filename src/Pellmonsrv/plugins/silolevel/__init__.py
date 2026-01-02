@@ -26,7 +26,7 @@ from datetime import datetime, timedelta
 from logging import getLogger
 from time import mktime
 import subprocess
-import simplejson as json
+import json
 import re
 import math
 import random
@@ -70,12 +70,12 @@ class silolevelplugin(protocols):
         self.silo_level = 0
         try:
             self.feeder_time = self.glob['conf'].item_to_ds_name['feeder_time']
-        except Exception, e:
+        except Exception as e:
             logger.info('Silolevel plugin error: feeder_time is missing from the database')
             raise
         try:
             self.feeder_capacity = self.glob['conf'].item_to_ds_name['feeder_capacity']
-        except Exception, e:
+        except Exception as e:
             logger.info('Silolevel plugin error: feeder_capacity is missing from the database')
             raise
         self.itemrefs = []
@@ -91,8 +91,8 @@ class silolevelplugin(protocols):
                 value = item['value']
 
             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v) )
-            for key, value in item.iteritems():
-                if key is not 'value':
+            for key, value in item.items():
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             if dbitem.name in itemTags:
                 dbitem.__setattr__('tags', itemTags[dbitem.name])
@@ -167,7 +167,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
     def setItem(self, item, value):
         try:
             self.updateTime = 0
-            if itemValues.has_key(item):
+            if item in itemValues:
                 itemValues[item] = value
                 return 'OK'
             else:
@@ -177,7 +177,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     s = d.strftime('%d/%m/%y %H:%M')
                     self.setItem('silo_reset_time', s)
                 return 'OK'
-        except Exception,e:
+        except Exception as e:
             return 'error'
 
     def graphData(self):
@@ -228,7 +228,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
             dl = []
             dec = len(data) / maxlen
             if dec > 1:
-                for i in xrange(len(data)/dec):
+                for i in range(len(data)/dec):
                     dl.append(data[i*dec])
                 dl.append(data[-1])
                 return dl
@@ -242,7 +242,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
             reset_time=self.getItem('silo_reset_time')
             reset_time = datetime.strptime(reset_time,'%d/%m/%y %H:%M')
             reset_time = mktime(reset_time.timetuple())
-        except Exception, e:
+        except Exception as e:
             return None
         p = int(self.glob['conf'].poll_interval)
         try:
@@ -336,7 +336,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                     del futuredata['data'][-1]
                 try:
                     self.silo_days_left = str(int(((int(futuredata['data'][-1][0])/1000 - start_prediction_at) / (3600*24))))
-                except Exception, e:
+                except Exception as e:
                     self.silo_days_left = '0'
                 if level<= 0:
                     futuredata['data'] = decimateData(futuredata['data'], 50)
@@ -368,7 +368,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 else:
                      self.silo_days_left='365'
 
-        except Exception, e:
+        except Exception as e:
             self.silo_days_left='0'
             logger.info('silolevel prediction error: %s'%str(e))
 

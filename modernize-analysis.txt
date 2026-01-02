@@ -1,0 +1,1152 @@
+ Loading the following fixers:
+    fissix.fixes.fix_apply  (apply)
+    fissix.fixes.fix_except  (except)
+    fissix.fixes.fix_exec  (exec)
+    fissix.fixes.fix_execfile  (execfile)
+    fissix.fixes.fix_exitfunc  (exitfunc)
+    fissix.fixes.fix_funcattrs  (funcattrs)
+    fissix.fixes.fix_has_key  (has_key)
+    fissix.fixes.fix_idioms  (idioms)
+    fissix.fixes.fix_long  (long)
+    fissix.fixes.fix_methodattrs  (methodattrs)
+    fissix.fixes.fix_ne  (ne)
+    fissix.fixes.fix_numliterals  (numliterals)
+    fissix.fixes.fix_operator  (operator)
+    fissix.fixes.fix_paren  (paren)
+    fissix.fixes.fix_reduce  (reduce)
+    fissix.fixes.fix_renames  (renames)
+    fissix.fixes.fix_repr  (repr)
+    fissix.fixes.fix_set_literal  (set_literal)
+    fissix.fixes.fix_standarderror  (standarderror)
+    fissix.fixes.fix_sys_exc  (sys_exc)
+    fissix.fixes.fix_throw  (throw)
+    fissix.fixes.fix_tuple_params  (tuple_params)
+    fissix.fixes.fix_types  (types)
+    fissix.fixes.fix_ws_comma  (ws_comma)
+    fissix.fixes.fix_xreadlines  (xreadlines)
+    libmodernize.fixes.fix_basestring  (basestring)
+    libmodernize.fixes.fix_dict_six  (dict_six)
+    libmodernize.fixes.fix_file  (file)
+    libmodernize.fixes.fix_filter  (filter)
+    libmodernize.fixes.fix_import  (import)
+    libmodernize.fixes.fix_imports_six  (imports_six)
+    libmodernize.fixes.fix_input_six  (input_six)
+    libmodernize.fixes.fix_int_long_tuple  (int_long_tuple)
+    libmodernize.fixes.fix_itertools_imports_six  (itertools_imports_six)
+    libmodernize.fixes.fix_itertools_six  (itertools_six)
+    libmodernize.fixes.fix_map  (map)
+    libmodernize.fixes.fix_metaclass  (metaclass)
+    libmodernize.fixes.fix_next  (next)
+    libmodernize.fixes.fix_print  (print)
+    libmodernize.fixes.fix_raise  (raise)
+    libmodernize.fixes.fix_raise_six  (raise_six)
+    libmodernize.fixes.fix_unichr  (unichr)
+    libmodernize.fixes.fix_unicode_type  (unicode_type)
+    libmodernize.fixes.fix_urllib_six  (urllib_six)
+    libmodernize.fixes.fix_xrange_six  (xrange_six)
+    libmodernize.fixes.fix_zip  (zip)
+ Applying the following explicit transformations:
+    (None)
+
+RefactoringTool: Skipping optional fixer: idioms
+RefactoringTool: Skipping optional fixer: set_literal
+RefactoringTool: Skipping optional fixer: ws_comma
+RefactoringTool: Refactored src/Pellmonsrv/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/daemon.py: ParseError: bad input: type=1, value='str', context=(' ', (131, 34))
+RefactoringTool: Can't parse src/Pellmonsrv/database.py: ParseError: bad input: type=1, value='e', context=(' ', (113, 17))
+RefactoringTool: Can't parse src/Pellmonsrv/pellmonsrv.py: ParseError: bad input: type=3, value="'noconf'", context=(' ', (741, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugin_categories.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/calculate/__init__.py
+--- src/Pellmonsrv/__init__.py	(original)
++++ src/Pellmonsrv/__init__.py	(refactored)
+@@ -1,2 +1,3 @@
+ # -*- coding: utf-8 -*-
+-from daemon import Daemon
++from __future__ import absolute_import
++from .daemon import Daemon
+--- src/Pellmonsrv/plugin_categories.py	(original)
++++ src/Pellmonsrv/plugin_categories.py	(refactored)
+@@ -16,11 +16,12 @@
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+-from Pellmonsrv.yapsy.IPlugin import IPlugin
+-from ConfigParser import ConfigParser
++from __future__ import absolute_import
++from .Pellmonsrv.yapsy.IPlugin import IPlugin
++from six.moves.configparser import ConfigParser
+ import os
+ from logging import getLogger
+-from database import Keyval_storage
++from .database import Keyval_storage
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -77,6 +78,6 @@
+                     self.store_setting(key, value)
+                 os.rename(oldfile, oldfile + '.migrated')
+                 logger.info('migrated settings from %s plugin to settings database'%plugin)
+-        except Exception, e:
++        except Exception as e:
+             logger.info('migration of old %s plugin settings failed'%plugin)
+ 
+--- src/Pellmonsrv/plugins/calculate/__init__.py	(original)
++++ src/Pellmonsrv/plugins/calculate/__init__.py	(refactored)
+@@ -17,6 +17,7 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Item, Getsetitem
+ from threading import Thread, Timer
+@@ -26,6 +27,7 @@
+ import traceback
+ from time import sleep
+ from string import maketrans
++import six
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -56,19 +58,19 @@
+         if c=='/':
+             q = float(self.stack.pop())
+             d = float(self.stack.pop())
+-            self.stack.append(unicode(d/q))
++            self.stack.append(six.text_type(d/q))
+         elif c == '*':
+             d = float(self.stack.pop())
+             q = float(self.stack.pop())
+-            self.stack.append(unicode(d*q))
++            self.stack.append(six.text_type(d*q))
+         elif c=='+':
+             d = float(self.stack.pop())
+             q = float(self.stack.pop())
+-            self.stack.append(unicode(d+q))
++            self.stack.append(six.text_type(d+q))
+         elif c=='-':
+             d = float(self.stack.pop())
+             q = float(self.stack.pop())
+-            self.stack.append(unicode(q-d))
++            self.stack.append(six.text_type(q-d))
+         elif c=='get':
+             item = self.stack.pop()
+             value = self.db.get_value(item)
+@@ -81,19 +83,19 @@
+         elif c=='>':
+             item2 = self.stack.pop()
+             item1 = self.stack.pop()
+-            self.stack.append(unicode(int(float(item1) > float(item2))))
++            self.stack.append(six.text_type(int(float(item1) > float(item2))))
+         elif c=='<':
+             item2 = self.stack.pop()
+             item1 = self.stack.pop()
+-            self.stack.append(unicode(int(float(item1) < float(item2))))
++            self.stack.append(six.text_type(int(float(item1) < float(item2))))
+         elif c=='==':
+             item2 = self.stack.pop()
+             item1 = self.stack.pop()
+-            self.stack.append(unicode(int(float(item1) == float(item2))))
++            self.stack.append(six.text_type(int(float(item1) == float(item2))))
+         elif c=='!=':
+             item2 = self.stack.pop()
+             item1 = self.stack.pop()
+-            self.stack.append(unicode(int(float(item1) != float(item2))))
++            self.stack.append(six.text_type(int(float(item1) != float(item2))))
+         elif c=='?':
+             itemFalse = self.stack.pop()
+             itemTrue = self.stack.pop()
+@@ -133,38 +135,38 @@
+             else:
+                 self.stack.append(item2)
+         elif c == 'sto':
+-            var = unicode(self.stack.pop())
++            var = six.text_type(self.stack.pop())
+             self.store[var] = self.stack.pop()
+         elif c == 'del':
+-            var = unicode(self.stack.pop())
+-            if self.store.has_key(var):
++            var = six.text_type(self.stack.pop())
++            if var in self.store:
+                 del gstore[var]
+         elif c == 'def':
+-            var = unicode(self.stack.pop())
++            var = six.text_type(self.stack.pop())
+             value = self.stack.pop()
+-            if not self.store.has_key(var):
++            if var not in self.store:
+                 self.store[var] = value
+         elif c == 'rcl':
+-            var = unicode(self.stack.pop())
++            var = six.text_type(self.stack.pop())
+             try:
+                 self.stack.append(self.store[var])
+             except:
+                 raise ValueError('no variable named %s'%var)
+         elif c == 'gsto':
+-            var = unicode(self.stack.pop())
++            var = six.text_type(self.stack.pop())
+             gstore[var] = self.stack.pop()
+         elif c == 'gdef':
+-            var = unicode(self.stack.pop())
++            var = six.text_type(self.stack.pop())
+             value = self.stack.pop()
+-            if not gstore.has_key(var):
++            if var not in gstore:
+                 gstore[var] = value
+         elif c == 'gdel':
+-            var = unicode(self.stack.pop())
+-            if gstore.has_key(var):
++            var = six.text_type(self.stack.pop())
++            if var in gstore:
+                 del gstore[var]
+         elif c == 'grcl':
+             try:
+-                var = unicode(self.stack.pop())
++                var = six.text_type(self.stack.pop())
+                 self.stack.append(gstore[var])
+             except:
+                 raise ValueError('no global named %s'%var)
+@@ -183,8 +185,8 @@
+ 
+     def skip(self, stop_on):
+         try:
+-            while not self.next() in stop_on:
+-                if self.next() == 'if':
++            while not next(self) in stop_on:
++                if next(self) == 'if':
+                     self.IP += 1
+                     self.skip(('end',))
+                 self.IP += 1
+@@ -193,21 +195,21 @@
+ 
+     def run(self, stop_on = ('STOP',)):
+         try:
+-            while not self.next() in stop_on: 
+-                if self.next() == 'if':
++            while not next(self) in stop_on: 
++                if next(self) == 'if':
+                     self.IP += 1
+                     self.run(('then',))
+                     result = self.stack.pop()
+                     if int(result):
+                         self.IP += 1
+                         self.run(('end','else'))
+-                        if self.next() == 'else':
++                        if next(self) == 'else':
+                             self.skip(('end',))
+                         self.IP += 1
+                     else:
+                         self.IP += 1
+                         self.skip(('end','else'))
+-                        if self.next() == 'else':
++                        if next(self) == 'else':
+                             self.IP += 1
+                             self.run(('end',))
+                         self.IP += 1
+@@ -237,12 +239,12 @@
+         self.tasks = {}
+         self.itemrefs = []
+         try:
+-            for key, value in self.conf.iteritems():
++            for key, value in six.iteritems(self.conf):
+                 try:
+                     calc_name = key.split('_')[0]
+                     calc_data = key.split('_')[1]
+ 
+-                    if not self.calc2index.has_key(calc_name):
++                    if calc_name not in self.calc2index:
+                         itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':''})
+                         self.calc2index[calc_name] = len(itemList)-1
+ 
+@@ -289,10 +291,10 @@
+                         try:
+                             taskcycle = float(value)
+                             self.tasks[calc_name] = calcthread(taskcycle, calc_name+'_prog', self)
+-                        except Exception, e:
++                        except Exception as e:
+                             raise e #ValueError('%s has invalid task time %s'%(key, value))RefactoringTool: Refactored src/Pellmonsrv/plugins/cleaning/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/consumption/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (209, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/customalarms/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/exec/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/heatingcircuit/__init__.py
+
+ 
+-                except Exception,e: 
++                except Exception as e: 
+                     logger.info(str(e))
+                     raise e
+             for item in itemList:
+@@ -305,7 +307,7 @@
+ 
+             for item in itemList:
+                 dbitem = Getsetitem(item['name'], None, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
+-                for key, value in item.iteritems():
++                for key, value in six.iteritems(item):
+                     if key != 'value':
+                         dbitem.__setattr__(key, value)
+                 if dbitem.name in itemTags:
+@@ -313,12 +315,12 @@
+                 self.db.insert(dbitem)
+                 self.itemrefs.append(dbitem)
+ 
+-        except Exception, e:
++        except Exception as e:
+             logger.info( str(e))
+             raise
+ 
+     def getItem(self, itemName):
+-        if self.name2index.has_key(itemName):
++        if itemName in self.name2index:
+             item = itemList[self.name2index[itemName]]
+             try:
+                 calc_item = item['calc_item']
+@@ -327,7 +329,7 @@
+                     try:
+                         calc = Calc(prog, self.db)
+                         return calc.run()
+-                    except Exception, e:
++                    except Exception as e:
+                         logger.info(calc_item+' error: '+repr(e))
+                         return 'error'
+             except:
+@@ -348,11 +350,11 @@
+             calc_item = item['calc_item']
+             prog = self.getItem(calc_item)
+             try:
+-                stack = [unicode(value)]
++                stack = [six.text_type(value)]
+                 calc = Calc(prog, self.db, stack=stack)
+                 calc.run()
+                 return 'OK'
+-            except Exception, e:
++            except Exception as e:
+                 calc = Calc(prog, self.db)
+                 logger.info(calc_item+' error: '+str(e))
+                 return 'error'
+@@ -362,7 +364,7 @@
+                 if item['type'] == 'R/W':
+                     self.store_setting(item['name'], value)
+                     return 'OK'
+-            except Exception,e:
++            except Exception as e:
+                 return 'error'
+ 
+ class calcthread(Thread):
+--- src/Pellmonsrv/plugins/cleaning/__init__.py	(original)
++++ src/Pellmonsrv/plugins/cleaning/__init__.py	(refactored)
+@@ -17,6 +17,7 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Getsetitem, Storeditem, Cacheditem
+ import time
+@@ -85,7 +86,7 @@
+         cmd = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE)
+         try:
+             total = str(int(float(cmd.communicate()[0].splitlines()[1].strip('"'))))
+-        except Exception, e:
++        except Exception as e:
+             total = '0'
+         return total
+ 
+--- src/Pellmonsrv/plugins/customalarms/__init__.py	(original)
++++ src/Pellmonsrv/plugins/customalarms/__init__.py	(refactored)
+@@ -17,12 +17,14 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Item, Getsetitem
+ from threading import Thread, Timer
+ from os import path
+ import os, grp, pwd
+ from logging import getLogger
++import six
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -38,7 +40,7 @@
+     def activate(self, conf, glob, db, *args, **kwargs):
+         protocols.activate(self, conf, glob, db, *args, **kwargs)
+         self.itemrefs = []
+-        for key, value in self.conf.iteritems():
++        for key, value in six.iteritems(self.conf):
+             try:
+                 alarm_name = key.split('_')[0]
+                 alarm_data = key.split('_')[1]
+@@ -61,7 +63,7 @@
+                 itemList.append({'name':key, 'value':value, 'min':'', 'max':'', 'unit':'', 'type':alarm_type, 'description':description})
+                 itemTags[key] = ['All', 'CustomAlarms', 'Basic']
+ 
+-                if not alarms.has_key(alarm_name):
++                if alarm_name not in alarms:
+                     alarms[alarm_name] = {}
+                 alarm_data = key.split('_')[1]
+                 if alarm_data == 'status':
+@@ -69,10 +71,10 @@
+                     itemTags[value] = ['All', 'CustomAlarms', 'Basic']
+ 
+                 if alarm_data in ['item','comparator','level','status']:
+-                    if not alarms.has_key(alarm_name):
++                    if alarm_name not in alarms:
+                         alarms[alarm_name] = {}
+                     alarms[alarm_name][alarm_data] = value
+-            except Exception,e:
++            except Exception as e:
+                 logger.info(str(e))
+             itemTags[key].append(alarm_name)
+ 
+@@ -87,7 +89,7 @@
+                 itemValues[item['name']] = value
+ 
+             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
+-            for key, value in item.iteritems():
++            for key, value in six.iteritems(item):
+                 if key is not 'value':
+                     dbitem.__setattr__(key, value)
+             if dbitem.name in itemTags:
+@@ -110,13 +112,13 @@
+ 
+     def setItem(self, item, value):
+         try:
+-            if itemValues.has_key(item):
++            if item in itemValues:
+                 itemValues[item] = value
+                 return 'OK'
+             else:
+                 self.store_setting(item, value)
+                 return 'OK'
+-        except Exception,e:
++        except Exception as e:
+             return 'error'
+ 
+     def poll_thread(self):
+--- src/Pellmonsrv/plugins/exec/__init__.py	(original)
++++ src/Pellmonsrv/plugins/exec/__init__.py	(refactored)
+@@ -17,6 +17,7 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Cacheditem
+ from logging import getLogger
+@@ -77,7 +78,7 @@
+                 self.db.insert(item)
+                 self.itemrefs.append(item)
+ 
+-            except Exception, e:
++            except Exception as e:
+                 logger.info('Exec plugin config error: %s', str(e))
+                 raise
+ 
+--- src/Pellmonsrv/plugins/heatingcircuit/__init__.py	(original)
++++ src/Pellmonsrv/plugins/heatingcircuit/__init__.py	(refactored)
+@@ -17,11 +17,13 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Getsetitem, Storeditem, Cacheditem, Plainitem
+ import time
+ from logging import getLogger
+ from threading import Thread
++import six
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -34,7 +36,7 @@
+ 
+         self.itemrefs = []
+ 
+-        for key, value in self.conf.iteritems():
++        for key, value in six.iteritems(self.conf):
+             if key == 'output_open':
+                 self.output_open = value
+             if key == 'output_close':
+@@ -85,7 +87,7 @@
+                 out = gain_P * err
+                 self.db['hc_out'].value = str(out)
+                 time.sleep(1.0 - (time.time() - t))
+-            except Exception,e:
++            except Exception as e:
+                 logger.info(str(e))
+ 
+     def valvecontroller(self):
+@@ -117,7 +119,7 @@
+                     # small steps are collected until there is at least one second
+                     hc_out_saved += hc_out
+                     sleep(100)
+-            except Exception, e:
++            except Exception as e:
+                 logger.info(str(e))
+ 
+     def feedforward(self):
+@@ -134,12 +136,12 @@
+                 temp_y2 = float(self.db['curve_2y'].value)
+ 
+                 self.desired_temp = (outside_temp - temp_x1) / (temp_x2 - temp_x1) * (temp_y2 - temp_y1) + temp_y1
+-                self.db['desired_hctemp'].value = unicode(self.desired_temp)
++                self.db['desired_hctemp'].value = six.text_type(self.desired_temp)
+ 
+                 if firstrun:
+                     self.controllerthread.start()RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/__init__.py: ParseError: bad input: type=3, value="'wait controller'", context=(' ', (92, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/frames.py: ParseError: bad input: type=3, value="'ERRROR chiphertext too short'", context=(' ', (88, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/nbecom/nbeprotocol/language.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/protocol.py: ParseError: bad input: type=3, value="'get rsa'", context=(' ', (75, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/onewire/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (85, 18))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/openweathermap/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/owfs/__init__.py: ParseError: bad input: type=1, value='exc_type', context=(' ', (159, 22))
+RefactoringTool: Refactored src/Pellmonsrv/plugins/pelletcalc/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/raspberrygpio/__init__.py
+
+                     firstrun = False
+-            except Exception, e:
++            except Exception as e:
+                 if  self.glob['conf'].command == 'debug':
+                     raise
+                 logger.info(str(e))
+--- src/Pellmonsrv/plugins/nbecom/nbeprotocol/language.py	(original)
++++ src/Pellmonsrv/plugins/nbecom/nbeprotocol/language.py	(refactored)
+@@ -17,8 +17,9 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ import os
+-from langmap import langmap
++from .langmap import langmap
+ try:
+     from directories import DATADIR
+     langfile = os.path.join(DATADIR, 'Pellmonsrv', 'plugins', 'nbecom', 'lang.uk.prop')
+@@ -26,7 +27,7 @@
+     langfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'language', 'lang.uk.prop')
+ 
+ 
+-lang = [map(lambda l:l.rstrip(), l.split('=')) for l in open(langfile)]
++lang = [[l.rstrip() for l in l.split('=')] for l in open(langfile)]
+ lang_value_to_text = dict(lang)
+ 
+ def get_settings_enumerations(langtext):
+@@ -87,7 +88,7 @@
+     return lambda name, reverse=False:v2t[name] if not reverse else t2v[name]
+ 
+ def get_enumeration_list(name):
+-    return sorted(enumdicts[name][0].items(), key=lambda x:int(x[0]))
++    return sorted(list(enumdicts[name][0].items()), key=lambda x:int(x[0]))
+ 
+ def lang_longname(i_id):
+     return lang_value_to_text[langmap[i_id]]
+--- src/Pellmonsrv/plugins/openweathermap/__init__.py	(original)
++++ src/Pellmonsrv/plugins/openweathermap/__init__.py	(refactored)
+@@ -17,11 +17,13 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Getsetitem, Storeditem
+ from logging import getLogger
+ from threading import Timer
+ from time import sleep
++import six
+ 
+ 
+ logger = getLogger('pellMon')
+@@ -111,10 +113,10 @@
+                     temperature = weather.get_temperature(self.conf['unit'])
+                     wind = weather.get_wind()
+                     humidity = weather.get_humidity()
+-                    self.itemvalues['wind_speed'] = unicode(wind['speed'])
+-                    self.itemvalues['wind_direction'] = unicode(wind['deg']) 
+-                    self.itemvalues['temperature'] = unicode(temperature['temp'])
+-                    self.itemvalues['humidity'] = unicode(humidity)
++                    self.itemvalues['wind_speed'] = six.text_type(wind['speed'])
++                    self.itemvalues['wind_direction'] = six.text_type(wind['deg']) 
++                    self.itemvalues['temperature'] = six.text_type(temperature['temp'])
++                    self.itemvalues['humidity'] = six.text_type(humidity)
+                     t = float(self.itemvalues['temperature'])
+                     w = float(self.itemvalues['wind_speed'])
+                     h = float(self.itemvalues['humidity'])
+--- src/Pellmonsrv/plugins/pelletcalc/__init__.py	(original)
++++ src/Pellmonsrv/plugins/pelletcalc/__init__.py	(refactored)
+@@ -17,6 +17,7 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Item, Getsetitem
+ from multiprocessing import Process, Queue
+@@ -27,6 +28,7 @@
+ import sys
+ from logging import getLogger
+ import traceback
++import six
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -151,7 +153,7 @@
+ 
+         for item in itemList:
+             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
+-            for key, value in item.iteritems():
++            for key, value in six.iteritems(item):
+                 if key is not 'value':
+                     dbitem.__setattr__(key, value)
+             if dbitem.name in itemTags:
+@@ -215,7 +217,7 @@
+             if self.feeder_time == None:
+                  self.feeder_time = feeder_time
+             power = float(self.getItem('power_kW'))
+-        except Exception,e:
++        except Exception as e:
+             return
+         if self.state in ('Off', 'Ignition failed'):
+             if feeder_time > self.feeder_time:
+@@ -335,7 +337,7 @@
+                         self.calculate_state()
+                     except KeyError:
+                         logger.info("PelletCalc error, can't read 'feeder_capacity'")
+-                except Exception, e:
++                except Exception as e:
+                     pass
+                 sleep(5)
+         except KeyError:
+--- src/Pellmonsrv/plugins/raspberrygpio/__init__.py	(original)
++++ src/Pellmonsrv/plugins/raspberrygpio/__init__.py	(refactored)
+@@ -17,13 +17,14 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Item, Getsetitem
+ from multiprocessing import Process, Queue
+ from threading import Thread, Timer, Event, Lock
+ import RPi.GPIO as GPIO
+ from time import time, sleep
+-from ConfigParser import ConfigParser
++from six.moves.configparser import ConfigParser
+ from os import path
+ import os, grp, pwd
+ import mmap
+@@ -31,6 +32,8 @@
+ import sys
+ from logging import getLogger
+ import ctypes, os
++import six
++from six.moves import range
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -365,7 +368,7 @@
+                     self.response.put(self.pin[req[1]].read())
+                 if req[0] == 'write':
+                     self.response.put(self.pin[req[1]].write(req[2]))
+-            except Exception, e:
++            except Exception as e:
+                 self.response.put('error')
+             req=self.request.get()
+ 
+@@ -380,11 +383,11 @@
+         self.pin2index={}
+         self.name2index={}
+         self.itemrefs = []
+-        for key,value in self.conf.iteritems():
++        for key,value in six.iteritems(self.conf):
+             try:
+                 pin_name = key.split('_')[0]
+                 pin_data = key.split('_')[1]
+-                if not self.pin2index.has_key(pin_name):
++                if pin_name not in self.pin2index:
+                     itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':''})
+                     self.pin2index[pin_name] = len(itemList)-1
+                 if pin_data == 'function':
+@@ -398,7 +401,7 @@
+                     itemList[self.pin2index[pin_name]]['pin'] = int(value)
+                 elif pin_data == 'active':
+                     itemList[self.pin2index[pin_name]]['active'] = int(value)
+-            except Exception,e:
++            except Exception as e:
+                 logger.info(str(e))
+ 
+         signal.signal(signal.SIGINT, signal_handler)
+@@ -410,7 +413,7 @@
+         # Create dbitems from the list and insert into the database
+         for item in itemList:
+             dbitem = Getsetitem(item['name'], 0, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
+-            for key, value in item.iteritems():
++            for key, value in six.iteritems(item):
+                 dbitem.__setattr__(key, value)
+             # Give it some default tags so it's visible in the web interface
+             dbitem.__setattr__('tags', ['All', 'raspberryGPIO', 'Basic'])
+@@ -424,7 +427,7 @@
+         GPIO.cleanup()
+ 
+     def getItem(self, item):
+-        if self.name2index.has_key(item):
++        if item in self.name2index:
+             function = itemList[self.name2index[item]]['function']
+             pin = itemList[self.name2index[item]]['pin']
+             if function in['counter', 'tachometer', 'input', 'latched_input', 'output', 'timer']:
+@@ -432,7 +435,7 @@
+                     self.request.put(('read', pin))
+                     try:
+                         response = str(self.response.get(0.2))
+-                    except Exception, e:
++                    except Exception as e:
+                         response = 'timeout'
+                 return response
+             else:
+@@ -441,7 +444,7 @@
+             return 'error'
+ 
+     def setItem(self, item, value):
+-        if self.name2index.has_key(item):
++        if item in self.name2index:
+             if itemList[self.name2index[item]]['function'] in ['counter', 'output', 'timer']:RefactoringTool: Refactored src/Pellmonsrv/plugins/scottecom/__init__.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/scottecom/menus.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/scottecom/scottecom.py
+RefactoringTool: Refactored src/Pellmonsrv/plugins/silolevel/__init__.py
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/testplugin/__init__.py: ParseError: bad input: type=3, value="'testplugin set: '", context=(' ', (64, 22))
+RefactoringTool: Refactored src/Pellmonsrv/yapsy/ConfigurablePluginManager.py
+RefactoringTool: Can't parse src/Pellmonsrv/yapsy/PluginManager.py: ParseError: bad input: type=1, value='candidate_filepath', context=(' ', (275, 10))
+RefactoringTool: Refactored src/Pellmonsrv/yapsy/VersionedPluginManager.py
+RefactoringTool: Refactored src/Pellmonweb/__init__.py
+RefactoringTool: Refactored src/Pellmonweb/auth.py
+
+                 pin = itemList[self.name2index[item]]['pin']
+                 with self.lock:
+--- src/Pellmonsrv/plugins/scottecom/__init__.py	(original)
++++ src/Pellmonsrv/plugins/scottecom/__init__.py	(refactored)
+@@ -2,7 +2,8 @@
+ # -*- coding: utf-8 -*-
+ 
+ # This is needed to find the local module scottecom
++from __future__ import absolute_import
+ import os, sys
+ sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+ 
+-from scottecom import scottecom
++from .scottecom import scottecom
+--- src/Pellmonsrv/plugins/scottecom/menus.py	(original)
++++ src/Pellmonsrv/plugins/scottecom/menus.py	(refactored)
+@@ -16,7 +16,9 @@
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+-from datamenu import dataBaseTags
++from __future__ import absolute_import
++from .datamenu import dataBaseTags
++from six.moves import range
+ 
+ Menutags = ['Overview', 'Blower', 'Ignition', 'Feeder', 'Oxygen', 'Timer', 'Cleaning', 'Temperatures'] 
+ Tags = ['Basic', 'All', 'Settings', 'Measurements']
+--- src/Pellmonsrv/plugins/scottecom/scottecom.py	(original)
++++ src/Pellmonsrv/plugins/scottecom/scottecom.py	(refactored)
+@@ -16,13 +16,14 @@
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
++from __future__ import absolute_import
+ from Scotteprotocol import Protocol
+ import logging
+ import threading
+ from Pellmonsrv.plugin_categories import protocols
+ from Pellmonsrv.database import Item, Getsetitem
+-import menus
+-from descriptions import dataDescriptions
++from . import menus
++from .descriptions import dataDescriptions
+ 
+ class scottecom(protocols):
+     def __init__(self):
+@@ -88,7 +89,7 @@
+ 
+     def getDataBase(self):
+         db = self.protocol.getDataBase()
+-        return db.keys()
++        return list(db.keys())
+ 
+     def settings_pollthread(self, settings):
+         """Loop through all items tagged as 'Settings' and write a message to the log when their values have changed"""
+--- src/Pellmonsrv/plugins/silolevel/__init__.py	(original)
++++ src/Pellmonsrv/plugins/silolevel/__init__.py	(refactored)
+@@ -17,6 +17,7 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from Pellmonsrv.plugin_categories import protocols
+ #from threading import Thread, Timer
+ from os import path
+@@ -31,6 +32,8 @@
+ import math
+ import random
+ from Pellmonsrv.database import Item, Getsetitem
++import six
++from six.moves import range
+ 
+ logger = getLogger('pellMon')
+ 
+@@ -70,12 +73,12 @@
+         self.silo_level = 0
+         try:
+             self.feeder_time = self.glob['conf'].item_to_ds_name['feeder_time']
+-        except Exception, e:
++        except Exception as e:
+             logger.info('Silolevel plugin error: feeder_time is missing from the database')
+             raise
+         try:
+             self.feeder_capacity = self.glob['conf'].item_to_ds_name['feeder_capacity']
+-        except Exception, e:
++        except Exception as e:
+             logger.info('Silolevel plugin error: feeder_capacity is missing from the database')
+             raise
+         self.itemrefs = []
+@@ -91,7 +94,7 @@
+                 value = item['value']
+ 
+             dbitem = Getsetitem(item['name'], value, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v) )
+-            for key, value in item.iteritems():
++            for key, value in six.iteritems(item):
+                 if key is not 'value':
+                     dbitem.__setattr__(key, value)
+             if dbitem.name in itemTags:
+@@ -167,7 +170,7 @@
+     def setItem(self, item, value):
+         try:
+             self.updateTime = 0
+-            if itemValues.has_key(item):
++            if item in itemValues:
+                 itemValues[item] = value
+                 return 'OK'
+             else:
+@@ -177,7 +180,7 @@
+                     s = d.strftime('%d/%m/%y %H:%M')
+                     self.setItem('silo_reset_time', s)
+                 return 'OK'
+-        except Exception,e:
++        except Exception as e:
+             return 'error'
+ 
+     def graphData(self):
+@@ -228,7 +231,7 @@
+             dl = []
+             dec = len(data) / maxlen
+             if dec > 1:
+-                for i in xrange(len(data)/dec):
++                for i in range(len(data)/dec):
+                     dl.append(data[i*dec])
+                 dl.append(data[-1])
+                 return dl
+@@ -242,7 +245,7 @@
+             reset_time=self.getItem('silo_reset_time')
+             reset_time = datetime.strptime(reset_time,'%d/%m/%y %H:%M')
+             reset_time = mktime(reset_time.timetuple())
+-        except Exception, e:
++        except Exception as e:
+             return None
+         p = int(self.glob['conf'].poll_interval)
+         try:
+@@ -336,7 +339,7 @@
+                     del futuredata['data'][-1]
+                 try:
+                     self.silo_days_left = str(int(((int(futuredata['data'][-1][0])/1000 - start_prediction_at) / (3600*24))))
+-                except Exception, e:
++                except Exception as e:
+                     self.silo_days_left = '0'
+                 if level<= 0:
+                     futuredata['data'] = decimateData(futuredata['data'], 50)
+@@ -368,7 +371,7 @@
+                 else:
+                      self.silo_days_left='365'
+ 
+-        except Exception, e:
++        except Exception as e:
+             self.silo_days_left='0'
+             logger.info('silolevel prediction error: %s'%str(e))
+ 
+--- src/Pellmonsrv/yapsy/ConfigurablePluginManager.py	(original)
++++ src/Pellmonsrv/yapsy/ConfigurablePluginManager.py	(refactored)
+@@ -6,15 +6,16 @@
+ the ini files manipulated by Python's ConfigParser module.
+ """
+ 
++from __future__ import absolute_import
+ import sys, os
+ import logging
+-import ConfigParser
+-
+-from IPlugin import IPlugin
+-
+-
+-from PluginManager import PluginManager,PluginManagerDecorator
+-from PluginManager import PLUGIN_NAME_FORBIDEN_STRING
++import six.moves.configparser
++
++from .IPlugin import IPlugin
++
++
++from .PluginManager import PluginManager,PluginManagerDecorator
++from .PluginManager import PLUGIN_NAME_FORBIDEN_STRING
+ 
+ 
+ 
+--- src/Pellmonsrv/yapsy/VersionedPluginManager.py	(original)
++++ src/Pellmonsrv/yapsy/VersionedPluginManager.py	(refactored)
+@@ -6,12 +6,14 @@
+ of versions of plugins
+ """
+ 
++from __future__ import absolute_import
+ import sys, os
+ import logging
+ from distutils.version import StrictVersion
+ 
+-from PluginManager import PluginManager, PluginInfo, PluginManagerDecorator
+-from IPlugin import IPlugin
++from .PluginManager import PluginManager, PluginInfo, PluginManagerDecorator
++from .IPlugin import IPlugin
++import six
+ 
+ class VersionedPluginInfo(PluginInfo):
+ 	"""
+@@ -110,7 +112,7 @@
+ 		
+ 		# Search through all the loaded plugins to find the latest
+ 		# version of each.
+-		for categ, items in self._component.category_mapping.iteritems():
++		for categ, items in six.iteritems(self._component.category_mapping):
+ 			unique_items = {}
+ 			for item in items:
+ 				if item.name in unique_items:
+@@ -119,4 +121,4 @@
+ 						unique_items[item.name] = item
+ 				else:
+ 					unique_items[item.name] = item
+-			self.latest_mapping[categ] = unique_items.values()
++			self.latest_mapping[categ] = list(unique_items.values())
+--- src/Pellmonweb/__init__.py	(original)
++++ src/Pellmonweb/__init__.py	(refactored)
+@@ -1,3 +1,4 @@
+-from auth import AuthController, require, member_of, name_is
+-from logview import LogViewer
+-from consumption import Consumption
++from __future__ import absolute_import
++from .auth import AuthController, require, member_of, name_is
++from .logview import LogViewer
++from .consumption import Consumption
+--- src/Pellmonweb/auth.py	(original)
++++ src/Pellmonweb/auth.py	(refactored)
+@@ -23,11 +23,12 @@
+ """
+ 
+ 
++from __future__ import absolute_import
+ import cherrypy
+ from cgi import escape
+ from mako.template import Template
+ from mako.lookup import TemplateLookup
+-import urllib
++import six.moves.urllib.request, six.moves.urllib.parse, six.moves.urllib.error
+ import os
+ 
+ 
+@@ -46,7 +47,7 @@
+     conditions that the user must fulfill"""RefactoringTool: Refactored src/Pellmonweb/consumption.py
+RefactoringTool: Refactored src/Pellmonweb/logview.py
+RefactoringTool: Can't parse src/Pellmonweb/pellmonconf.py: ParseError: bad input: type=1, value='config_file', context=(' ', (125, 10))
+RefactoringTool: Can't parse src/Pellmonweb/pellmonweb.py: ParseError: bad input: type=3, value="'server not running'", context=(' ', (132, 22))
+RefactoringTool: Refactored src/Scotteprotocol/__init__.py
+RefactoringTool: Refactored src/Scotteprotocol/datamap.py
+RefactoringTool: Refactored src/Scotteprotocol/frames.py
+RefactoringTool: Refactored src/Scotteprotocol/protocol.py
+RefactoringTool: Files that need to be modified:
+RefactoringTool: src/Pellmonsrv/__init__.py
+RefactoringTool: src/Pellmonsrv/plugin_categories.py
+RefactoringTool: src/Pellmonsrv/plugins/calculate/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/cleaning/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/customalarms/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/exec/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/heatingcircuit/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/nbecom/nbeprotocol/language.py
+RefactoringTool: src/Pellmonsrv/plugins/openweathermap/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/pelletcalc/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/raspberrygpio/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/scottecom/__init__.py
+RefactoringTool: src/Pellmonsrv/plugins/scottecom/menus.py
+RefactoringTool: src/Pellmonsrv/plugins/scottecom/scottecom.py
+RefactoringTool: src/Pellmonsrv/plugins/silolevel/__init__.py
+RefactoringTool: src/Pellmonsrv/yapsy/ConfigurablePluginManager.py
+RefactoringTool: src/Pellmonsrv/yapsy/VersionedPluginManager.py
+RefactoringTool: src/Pellmonweb/__init__.py
+RefactoringTool: src/Pellmonweb/auth.py
+RefactoringTool: src/Pellmonweb/consumption.py
+RefactoringTool: src/Pellmonweb/logview.py
+RefactoringTool: src/Scotteprotocol/__init__.py
+RefactoringTool: src/Scotteprotocol/datamap.py
+RefactoringTool: src/Scotteprotocol/frames.py
+RefactoringTool: src/Scotteprotocol/protocol.py
+RefactoringTool: There were 13 errors:
+RefactoringTool: Can't parse src/Pellmonsrv/daemon.py: ParseError: bad input: type=1, value='str', context=(' ', (131, 34))
+RefactoringTool: Can't parse src/Pellmonsrv/database.py: ParseError: bad input: type=1, value='e', context=(' ', (113, 17))
+RefactoringTool: Can't parse src/Pellmonsrv/pellmonsrv.py: ParseError: bad input: type=3, value="'noconf'", context=(' ', (741, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/consumption/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (209, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/__init__.py: ParseError: bad input: type=3, value="'wait controller'", context=(' ', (92, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/frames.py: ParseError: bad input: type=3, value="'ERRROR chiphertext too short'", context=(' ', (88, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/nbecom/nbeprotocol/protocol.py: ParseError: bad input: type=3, value="'get rsa'", context=(' ', (75, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/onewire/__init__.py: ParseError: bad input: type=1, value='e', context=(' ', (85, 18))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/owfs/__init__.py: ParseError: bad input: type=1, value='exc_type', context=(' ', (159, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/plugins/testplugin/__init__.py: ParseError: bad input: type=3, value="'testplugin set: '", context=(' ', (64, 22))
+RefactoringTool: Can't parse src/Pellmonsrv/yapsy/PluginManager.py: ParseError: bad input: type=1, value='candidate_filepath', context=(' ', (275, 10))
+RefactoringTool: Can't parse src/Pellmonweb/pellmonconf.py: ParseError: bad input: type=1, value='config_file', context=(' ', (125, 10))
+RefactoringTool: Can't parse src/Pellmonweb/pellmonweb.py: ParseError: bad input: type=3, value="'server not running'", context=(' ', (132, 22))
+
+     conditions = cherrypy.request.config.get('auth.require', None)
+     # format GET params
+-    get_parmas = urllib.quote(cherrypy.request.request_line.split()[1])
++    get_parmas = six.moves.urllib.parse.quote(cherrypy.request.request_line.split()[1])
+     if conditions is not None:
+         username = cherrypy.session.get(SESSION_KEY)
+         if username:
+--- src/Pellmonweb/consumption.py	(original)
++++ src/Pellmonweb/consumption.py	(refactored)
+@@ -15,6 +15,7 @@
+     You should have received a copy of the GNU General Public License
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
++from __future__ import absolute_import
+ from os import path
+ import cherrypy
+ from mako.lookup import TemplateLookup
+--- src/Pellmonweb/logview.py	(original)
++++ src/Pellmonweb/logview.py	(refactored)
+@@ -16,6 +16,7 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ import os
+ import cherrypy
+ from mako.template import Template
+@@ -80,5 +81,5 @@
+                     timelines.append((seconds, line))
+                 tmpl = self.lookup.get_template("loglines.html")
+                 return tmpl.render(lines=timelines, webroot=cherrypy.request.script_name)
+-            except Exception,e:
++            except Exception as e:
+                 return str(e)
+--- src/Scotteprotocol/__init__.py	(original)
++++ src/Scotteprotocol/__init__.py	(refactored)
+@@ -1,3 +1,4 @@
+ # -*- coding: utf-8 -*-
+-from protocol import Protocol
++from __future__ import absolute_import
++from .protocol import Protocol
+ 
+--- src/Scotteprotocol/datamap.py	(original)
++++ src/Scotteprotocol/datamap.py	(refactored)
+@@ -17,8 +17,9 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from collections import namedtuple
+-from frames import *
++from .frames import *
+ 
+ # 'param' type is for setting values that can be read and written
+ # 'data' type is for read-only measurement values
+--- src/Scotteprotocol/frames.py	(original)
++++ src/Scotteprotocol/frames.py	(refactored)
+@@ -16,7 +16,8 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
+-from protocol import Frame
++from __future__ import absolute_import
++from .protocol import Frame
+ 
+ # 'FrameXXX' defines the serial bus response frame format
+ # [list of character count per value], 'string with the frame address'
+--- src/Scotteprotocol/protocol.py	(original)
++++ src/Scotteprotocol/protocol.py	(refactored)
+@@ -16,14 +16,15 @@
+     along with this program.  If not, see <http://www.gnu.org/licenses/>.
+ """
+ 
++from __future__ import absolute_import
+ from threading import Lock
+ from logging import getLogger 
+ import time
+-import Queue
++import six.moves.queue
+ import threading
+ import serial
+-from enumerations import dataEnumerations
+-from transformations import dataTransformations
++from .enumerations import dataEnumerations
++from .transformations import dataTransformations
+ logger = getLogger('pellMon')
+ 
+ class Protocol(threading.Thread):
+@@ -49,7 +50,7 @@
+         s.timeout  = 1        
+         try:
+             s.open()
+-        except serial.SerialException, e:
++        except serial.SerialException as e:
+             logger.info("Could not open serial port %s: %s\n" % (device, e))
+             self.dummyDevice=True
+             self.dataBase = self.createDataBase('6.99')
+@@ -58,7 +59,7 @@
+         self.ser = s
+             
+         # message queue, used to send frame polling commands to pollThread
+-        self.q = Queue.Queue(300)
++        self.q = six.moves.queue.Queue(300)
+         self.dataBase = self.createDataBase('4.99')
+         
+         # Create and start poll_thread
+@@ -129,7 +130,7 @@
+             readTime = dataparam.frame.readtime
+             if time.time()-readTime > 8.0 or writeTime>readTime or time.time()-writeTime < 4.0:
+                 try:
+-                    responseQueue = Queue.Queue(3)
++                    responseQueue = six.moves.queue.Queue(3)
+                     try:  # Send "read parameter value" message to pollThread
+                         if writeTime>readTime or time.time()-writeTime < 4.0:
+                             self.q.put(("FORCE_GET", dataparam.frame,responseQueue))
+@@ -197,7 +198,7 @@
+                 if value >= dataparam.min and value <= dataparam.max:
+                     s=("{:0>4.0f}".format(value * pow(10, decimals)))
+                     # Send "write parameter value" message to pollThread
+-                    responseQueue = Queue.Queue() 
++                    responseQueue = six.moves.queue.Queue() 
+                     self.q.put(("PUT", dataparam.address + s, responseQueue))
+                     response = responseQueue.get()
+                     if response == self.addCheckSum('OK'):
+@@ -206,14 +207,14 @@
+                     return response
+                 else:
+                     return "Expected value "+str(dataparam.min)+".."+str(dataparam.max)
+-            except Exception, e:
++            except Exception as e:
+                 return e
+         else:
+             return 'Not a setting value'        
+             
+     def createDataBase(self, version_string):
+         """return a dictionary of parameters supported on version_string"""
+-        from datamap import dataBaseMap 
++        from .datamap import dataBaseMap 
+         db={}
+         for param_name in dataBaseMap:
+             mappings = dataBaseMap[param_name]

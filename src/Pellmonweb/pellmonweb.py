@@ -21,7 +21,7 @@ import os.path
 import cherrypy
 from cherrypy.lib.static import serve_file
 from cherrypy.process import plugins, servers
-import ConfigParser
+import configparser
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from mako import exceptions
@@ -32,7 +32,7 @@ import dbus as Dbus
 from dbus.mainloop.glib import DBusGMainLoop
 
 import json
-import threading, Queue
+import threading, queue
 from Pellmonweb import *
 from time import mktime
 import time
@@ -44,7 +44,7 @@ import pwd
 import grp
 import subprocess
 from datetime import datetime
-from cgi import escape
+from html import escape
 from threading import Timer, Lock
 import signal
 import simplejson
@@ -78,14 +78,14 @@ class Sensor(object):
                 try:
                     value = dbus.getItem(param)
                     paramlist.append(dict(name=param, value=value))
-                except Exception, e:
+                except Exception as e:
                     cherrypy.log(str(e))
                     pass
             try:
                 if paramlist:
                     message = simplejson.dumps(paramlist)
                     obj.websocket.send(message)
-            except Exception, e:
+            except Exception as e:
                 pass
         t = Timer(0.1, _get_values, args=[self])
         t.start()
@@ -101,7 +101,7 @@ class Sensor(object):
                     message = simplejson.dumps(paramlist)
                     self.websocket.send(message)
                 return True
-            except Exception, e:
+            except Exception as e:
                 self.websocket = None
                 return False
 
@@ -110,7 +110,7 @@ class Sensor(object):
             message = simplejson.dumps(ml)
             self.websocket.send(message)
             return True
-        except Exception, e:
+        except Exception as e:
             self.websocket = None
             return False
 
@@ -129,13 +129,13 @@ class Dbus_handler:
             if new_owner == '':
                 self.remote_object = None
                 self.bustype.remove_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
-                print 'server not running'
+                print('server not running')
             else:
                 self.bustype.add_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
                 self.remote_object = self.bustype.get_object("org.pellmon.int", # Connection name
                                        "/org/pellmon/int" # Object's path
                                       )
-                print 'server is running'
+                print('server is running')
 
         Dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         Dbus.mainloop.glib.threads_init()
@@ -148,7 +148,7 @@ class Dbus_handler:
 
         def on_signal(parameters):
             msg = simplejson.loads(parameters)
-            for i in xrange(len(Sensor.sensorlist) - 1, -1, -1):
+            for i in range(len(Sensor.sensorlist) - 1, -1, -1):
                 sensor = Sensor.sensorlist[i]
                 if not sensor.send(msg):
                     del Sensor.sensorlist[i]
@@ -212,7 +212,7 @@ class PellMonWeb:
     @cherrypy.expose
     def autorefresh(self, **args):
         if cherrypy.request.method == "POST":
-            if args.has_key('autorefresh') and args.get('autorefresh') == 'yes':
+            if 'autorefresh' in args and args.get('autorefresh') == 'yes':
                 cherrypy.session['autorefresh'] = 'yes'
             else:
                 cherrypy.session['autorefresh'] = 'no'
@@ -223,15 +223,15 @@ class PellMonWeb:
     def graphsession(self, **args):
         if cherrypy.request.method == "POST":
             try:
-                if args.has_key('width'):
+                if 'width' in args:
                     cherrypy.session['width'] = int(args['width'])
-                if args.has_key('height'):
+                if 'height' in args:
                     cherrypy.session['height'] = int(args['height'])
-                if args.has_key('timespan'):
+                if 'timespan' in args:
                     cherrypy.session['timespan'] = int(args['timespan'])
-                if args.has_key('timeoffset'):
+                if 'timeoffset' in args:
                     cherrypy.session['timeoffset'] = int(args['timeoffset'])
-                if args.has_key('lines'):
+                if 'lines' in args:
                     lines = args['lines'].split(',')
                     cherrypy.session['lines'] = lines
             except:
@@ -553,9 +553,9 @@ class PellMonWeb:
                 parameterlist = dbus.getFullDB(['',t1,t2,t3,t4])
             else:
                 parameterlist = dbus.getFullDB([level,t1,t2,t3,t4])
-            print parameterlist
+            print(parameterlist)
             # Set up a queue and start a thread to read all items to the queue, the parameter view will empty the queue bye calling /getparams/
-            paramQueue = Queue.Queue(300)
+            paramQueue = queue.Queue(300)
             # Store the queue in the session
             cherrypy.session['paramReaderQueue'] = paramQueue
             ht = threading.Thread(target=parameterReader, args=(paramQueue,parameterlist))
@@ -586,7 +586,7 @@ class PellMonWeb:
                     item['description'] = ''
 
                 params[item['name']] = ' '
-                if args.has_key(item['name']):
+                if item['name'] in args:
                     if cherrypy.request.method == "POST":
                         # set parameter
                         try:
@@ -639,7 +639,7 @@ class PellMonWeb:
         autorefresh = cherrypy.session.get('autorefresh')=='yes'
         empty=True
         for key, val in polldata:
-            if colorsDict.has_key(key):
+            if key in colorsDict:
                 if cherrypy.session.get(val)=='yes':
                     empty=False
         #tmpl = lookup.get_template("index.html")
@@ -712,13 +712,13 @@ class myLookup(TemplateLookup):
     def get_template(self, uri):
         try:
             return super(myLookup, self).get_template(uri)
-        except exceptions.TemplateLookupException, e:
+        except exceptions.TemplateLookupException as e:
             plugin = self.dbus.getPlugins(uri)
             self.put_string(uri, plugin)
             return super(myLookup, self).get_template(uri)
 
 
-parser = ConfigParser.ConfigParser()
+parser = configparser.ConfigParser()
 config_file = 'pellmon.conf'
 
 def walk_config_dir(config_dir, parser):
@@ -775,7 +775,7 @@ def run():
         try:
             config_dir = parser.get('conf', 'config_dir')
             walk_config_dir(config_dir, parser)
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             pass
 
         try:
@@ -804,16 +804,16 @@ def run():
             pass
         uid = pwd.getpwnam(args.USER).pw_uid
         gid = grp.getgrnam(args.GROUP).gr_gid
-        plugins.DropPrivileges(cherrypy.engine, uid=uid, gid=gid, umask=033).subscribe()
+        plugins.DropPrivileges(cherrypy.engine, uid=uid, gid=gid, umask=0o33).subscribe()
 
     # Load the configuration file
     try:
         parser.read(config_file)
         config_dir = parser.get('conf', 'config_dir')
         walk_config_dir(config_dir, parser)
-    except ConfigParser.NoOptionError:
+    except configparser.NoOptionError:
         pass
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         cherrypy.log("can not parse config file")
     except:
         cherrypy.log("Config file not found")
@@ -900,7 +900,7 @@ def run():
     try:
         for row, widgets in parser.items('frontpage_widgets'):
             frontpage_widgets.append([s.strip() for s in widgets.split(',')])
-    except ConfigParser.NoSectionError:
+    except configparser.NoSectionError:
         frontpage_widgets = [['systemimage', 'events'],['graph'],['consumption7d', 'silolevel']]
 
     global timeChoices

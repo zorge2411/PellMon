@@ -21,7 +21,7 @@ import cherrypy
 from mako.template import Template
 from mako.lookup import TemplateLookup
 from itertools import islice
-from cgi import escape
+from html import escape
 from datetime import datetime
 from dateutil import tz
 import codecs
@@ -80,5 +80,5 @@ class LogViewer(object):
                     timelines.append((seconds, line))
                 tmpl = self.lookup.get_template("loglines.html")
                 return tmpl.render(lines=timelines, webroot=cherrypy.request.script_name)
-            except Exception,e:
+            except Exception as e:
                 return str(e)

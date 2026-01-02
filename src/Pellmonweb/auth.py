@@ -24,7 +24,7 @@
 
 
 import cherrypy
-from cgi import escape
+from html import escape
 from mako.template import Template
 from mako.lookup import TemplateLookup
 import urllib

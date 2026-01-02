@@ -19,7 +19,7 @@
 
 from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Item, Getsetitem
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 from os import path
 import traceback
 import sys
@@ -51,13 +51,13 @@ class owfsplugin(protocols):
         self.proxies = {}
         self.itemrefs = []
 
-        for key, value in self.conf.iteritems():
+        for key, value in self.conf.items():
             port = 4304
             server = 'localhost'
             ow_name = key.split('_')[0]
             ow_data = key.split('_')[1]
 
-            if not self.ow2index.has_key(ow_name):
+            if ow_name not in self.ow2index:
                 itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':'', 'function':'input'})
                 self.ow2index[ow_name] = len(itemList)-1
                 
@@ -84,7 +84,7 @@ class owfsplugin(protocols):
                 if not server in self.proxies:
                     try:
                         self.proxies[server] = self.protocol.proxy(host=server, port=port)
-                    except self.protocol.ConnError, e:
+                    except self.protocol.ConnError as e:
                         self.proxies[server] = (server, port)
                     
             if ow_data == 'type' and value == 'COUNTER':
@@ -109,7 +109,7 @@ class owfsplugin(protocols):
                 if not server in self.proxies:
                     try:
                         self.proxies[server] = self.protocol.proxy(host=server, port=port)
-                    except self.protocol.ConnError, e:
+                    except self.protocol.ConnError as e:
                         self.proxies[server] = (server, port)
 
             if ow_data == 'type' and value in ['R','R/W']:
@@ -118,8 +118,8 @@ class owfsplugin(protocols):
         # Create dbitems from the list and insert into the database
         for item in itemList:
             dbitem = Getsetitem(item['name'], None, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.iteritems():
-                if key is not 'value':
+            for key, value in item.items():
+                if key != 'value':
                     dbitem.__setattr__(key, value)
             # Give it some default tags so it's visible in the web interface
             dbitem.__setattr__('tags', ['Basic', 'All', 'OWFS'])
@@ -154,9 +154,9 @@ class owfsplugin(protocols):
                         item['value'] = data.decode('ascii').strip()
                         return item['value']
                         
-            except Exception, e:
+            except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                print exc_type, exc_value
+                print(exc_type, exc_value)
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
                 return str(e)
         elif not background_poll:
@@ -188,9 +188,9 @@ class owfsplugin(protocols):
                     return 'OK'
             else:
                 return 'error'
-        except Exception, e:
+        except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print exc_type, exc_value
+            print(exc_type, exc_value)
             traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
             return 'error'
 
@@ -199,7 +199,7 @@ class owfsplugin(protocols):
             try:
                 item = itemList[counter]
                 l = 0
-                if self.latches.has_key(counter):
+                if counter in self.latches:
                     path, server = self.latches[counter]
                     proxy = self.proxies[server]
                     try:
@@ -229,9 +229,9 @@ class owfsplugin(protocols):
                             item['last_i'] = i
                             item['value'] +=1
                             item['toggle'] = 0
-            except Exception, e:
+            except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                print exc_type, exc_value
+                print(exc_type, exc_value)
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
                 logger.debug('OWFS counter error '+str(e))
             sleep(5)
@@ -241,7 +241,7 @@ class owfsplugin(protocols):
             try:
                 for item in itemList:
                     self.getItem(item['name'], background_poll=True)
-            except Exception, e:
+            except Exception as e:
                 logger.debug('OWFS background poll error: '+str(e))
             sleep(5)
 

@@ -23,10 +23,10 @@ needs.
 
 import sys, os
 from logging import getLogger
-import ConfigParser
+import configparser
 import types
 
-from IPlugin import IPlugin
+from .IPlugin import IPlugin
 logging = getLogger('pellMon')
 
 # A forbiden string that can later be used to describe lists of
@@ -204,12 +204,12 @@ class PluginManager(object):
 					logging.debug("""%s found a candidate: 
 	%s""" % (self.__class__.__name__, candidate_infofile))
 					# parse the information file to get info about the plugin
-					config_parser = ConfigParser.SafeConfigParser()
+					config_parser = configparser.ConfigParser()
 					try:
 						config_parser.read(candidate_infofile)
 					except:
 						logging.debug("Could not parse the plugin file %s" % candidate_infofile)					
- 						continue
+						continue
 					# check if the basic info is available
 					if not config_parser.has_section("Core"):
 						continue
@@ -272,10 +272,11 @@ class PluginManager(object):
 			# specific dictionnary
 			candidate_globals = {"__file__":candidate_filepath+".py"}
 			try:
-				print candidate_filepath
-				execfile(candidate_filepath+".py",candidate_globals)
-			except Exception,e:
-				print e
+				print(candidate_filepath)
+				with open(candidate_filepath+".py") as f:
+					exec(compile(f.read(), candidate_filepath+".py", 'exec'), candidate_globals)
+			except Exception as e:
+				print(e)
 				logging.debug("Unable to execute the code in plugin: %s" % candidate_filepath)
 				logging.debug("\t The following problem occured: %s %s " % (os.linesep, e))
 
@@ -319,7 +320,7 @@ class PluginManager(object):
 		"""
 		Activate a plugin corresponding to a given category + name.
 		"""
-		if self.category_mapping.has_key(category):
+		if category in self.category_mapping:
 			plugin_to_activate = None
 			for item in self.category_mapping[category]:
 				if item.name == name:
@@ -336,7 +337,7 @@ class PluginManager(object):
 		"""
 		Desactivate a plugin corresponding to a given category + name.
 		"""
-		if self.category_mapping.has_key(category):
+		if category in self.category_mapping:
 			plugin_to_deactivate = None
 			for item in self.category_mapping[category]:
 				if item.name == name:

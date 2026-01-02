@@ -23,7 +23,7 @@ from multiprocessing import Process, Queue
 from threading import Thread, Timer, Event, Lock
 import RPi.GPIO as GPIO
 from time import time, sleep
-from ConfigParser import ConfigParser
+from configparser import ConfigParser
 from os import path
 import os, grp, pwd
 import mmap
@@ -365,7 +365,7 @@ class root(Process):
                     self.response.put(self.pin[req[1]].read())
                 if req[0] == 'write':
                     self.response.put(self.pin[req[1]].write(req[2]))
-            except Exception, e:
+            except Exception as e:
                 self.response.put('error')
             req=self.request.get()
 
@@ -380,11 +380,11 @@ class raspberry_gpio(protocols):
         self.pin2index={}
         self.name2index={}
         self.itemrefs = []
-        for key,value in self.conf.iteritems():
+        for key,value in self.conf.items():
             try:
                 pin_name = key.split('_')[0]
                 pin_data = key.split('_')[1]
-                if not self.pin2index.has_key(pin_name):
+                if pin_name not in self.pin2index:
                     itemList.append({'min':'', 'max':'', 'unit':'', 'type':'R', 'description':''})
                     self.pin2index[pin_name] = len(itemList)-1
                 if pin_data == 'function':
@@ -398,7 +398,7 @@ class raspberry_gpio(protocols):
                     itemList[self.pin2index[pin_name]]['pin'] = int(value)
                 elif pin_data == 'active':
                     itemList[self.pin2index[pin_name]]['active'] = int(value)
-            except Exception,e:
+            except Exception as e:
                 logger.info(str(e))
 
         signal.signal(signal.SIGINT, signal_handler)
@@ -410,7 +410,7 @@ class raspberry_gpio(protocols):
         # Create dbitems from the list and insert into the database
         for item in itemList:
             dbitem = Getsetitem(item['name'], 0, lambda i:self.getItem(i), lambda i,v:self.setItem(i,v))
-            for key, value in item.iteritems():
+            for key, value in item.items():
                 dbitem.__setattr__(key, value)
             # Give it some default tags so it's visible in the web interface
             dbitem.__setattr__('tags', ['All', 'raspberryGPIO', 'Basic'])
@@ -424,7 +424,7 @@ class raspberry_gpio(protocols):
         GPIO.cleanup()
 
     def getItem(self, item):
-        if self.name2index.has_key(item):
+        if item in self.name2index:
             function = itemList[self.name2index[item]]['function']
             pin = itemList[self.name2index[item]]['pin']
             if function in['counter', 'tachometer', 'input', 'latched_input', 'output', 'timer']:
@@ -432,7 +432,7 @@ class raspberry_gpio(protocols):
                     self.request.put(('read', pin))
                     try:
                         response = str(self.response.get(0.2))
-                    except Exception, e:
+                    except Exception as e:
                         response = 'timeout'
                 return response
             else:
@@ -441,7 +441,7 @@ class raspberry_gpio(protocols):
             return 'error'
 
     def setItem(self, item, value):
-        if self.name2index.has_key(item):
+        if item in self.name2index:
             if itemList[self.name2index[item]]['function'] in ['counter', 'output', 'timer']:
                 pin = itemList[self.name2index[item]]['pin']
                 with self.lock:
