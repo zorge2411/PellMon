@@ -38,7 +38,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 Plans:
 **Wave 1**
 
-- [ ] 01-01-PLAN.md — Harness foundation: `requirements-dev.txt`, `pytest.ini`, `tests/` tree, shared fixtures, mocked-transport smoke test (TEST-01)
+- [x] 01-01-PLAN.md — Harness foundation: `requirements-dev.txt`, `pytest.ini`, `tests/` tree, shared fixtures, mocked-transport smoke test (TEST-01)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Harness & Verification Infrastructure | 0/3 | Planned | - |
+| 1. Test Harness & Verification Infrastructure | 1/3 | In Progress|  |
 | 2. Exception Visibility Retrofit | 0/TBD | Not started | - |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
