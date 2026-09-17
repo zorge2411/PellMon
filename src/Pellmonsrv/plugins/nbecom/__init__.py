@@ -89,14 +89,14 @@ class nbecomplugin(protocols):
         self.proxy = Proxy.discover(self.password, 8483, serial = self.serial)
         while not self.proxy.controller_online:
             time.sleep(1)
-            print('wait controller')
+            logger.debug('wait controller')
         logger.info('Connected to S/N %s on %s'%(self.serial, self.proxy.addr[0]))
         while True:
             try:
                 dirlist = self.proxy.dir()
                 break
-            except Exception as e:
-                print(repr(e), 'direrror')
+            except Exception:
+                logger.exception('error requesting directory list')
                 time.sleep(1)
         def get_value(name):
             item = self.db[name]
@@ -123,8 +123,8 @@ class nbecomplugin(protocols):
                     i = self.db[n]
                     i.update_cache(value)
                 return item.cached_value
-            except Exception as e:
-                print(repr(e), 'exc in getgroup', name, time.time())
+            except Exception:
+                logger.exception('exc in getgroup for %s', name)
                 raise
 
         for i in dirlist:
@@ -246,8 +246,8 @@ class nbecomplugin(protocols):
                         else:
                             logger.info('type: %s, id: %s, v1: %s, v2: %s'%(etype, eid, val1, val2))
                 self.db['logged_event_id_list'].value = ';'.join(events)
-            except Exception as e:
-                print(repr(e))
+            except Exception:
+                logger.exception('error in eventlogger loop')
                 pass
             time.sleep(1)
 
@@ -263,8 +263,8 @@ class nbecomplugin(protocols):
                     self.settings_changed('alarm', old_alarm, alarm, 'alarm')
                 old_alarm = alarm
 
-            except Exception as e:
-                print(repr(e))
+            except Exception:
+                logger.exception('error in alarm_poller loop')
                 pass
             time.sleep(5)
 

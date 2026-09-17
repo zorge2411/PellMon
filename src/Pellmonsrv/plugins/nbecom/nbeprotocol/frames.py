@@ -20,6 +20,9 @@
 import time
 from protocolexceptions import *
 from random import SystemRandom
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 START = b'\x02'
 END = b'\x04'
@@ -85,7 +88,7 @@ class Request_frame(object):
             self.framedata += h
             if success:
                 return self.framedata
-            print('ERRROR chiphertext too short', len(h))
+            logger.error('ciphertext too short: %d', len(h))
 
     def decode(self, record):
         i = 0
