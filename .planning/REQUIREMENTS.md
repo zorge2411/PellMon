@@ -9,9 +9,9 @@ Requirements for the "finish the migration and get it production-ready" mileston
 
 ### Test Infrastructure (TEST)
 
-- [ ] **TEST-01**: Developer can run a pytest suite locally that exercises protocol encode/decode logic without physical hardware attached (mocked serial via pyserial `loop://`, mocked UDP sockets)
-- [ ] **TEST-02**: Developer can run a broadened import-check that imports every plugin package (not just the 4 core modules `test-imports.py` currently covers), so a plugin with broken imports fails the check instead of being silently skipped
-- [ ] **TEST-03**: Developer can run a pytest suite covering `database.py` (SQLite keyval storage get/set/init, including the fallback table-creation path) and `Pellmonweb/auth.py` (credential check, session login flow)
+- [x] **TEST-01**: Developer can run a pytest suite locally that exercises protocol encode/decode logic without physical hardware attached (mocked serial via pyserial `loop://`, mocked UDP sockets)
+- [x] **TEST-02**: Developer can run a broadened import-check that imports every plugin package (not just the 4 core modules `test-imports.py` currently covers), so a plugin with broken imports fails the check instead of being silently skipped
+- [x] **TEST-03**: Developer can run a pytest suite covering `database.py` (SQLite keyval storage get/set/init, including the fallback table-creation path) and `Pellmonweb/auth.py` (credential check, session login flow)
 
 ### Failure Visibility (OBS)
 
@@ -92,9 +92,9 @@ Which phases cover which requirements. Updated during roadmap creation.
 
 | Requirement | Phase | Status |
 |-------------|-------|--------|
-| TEST-01 | Phase 1 | Pending |
-| TEST-02 | Phase 1 | Pending |
-| TEST-03 | Phase 1 | Pending |
+| TEST-01 | Phase 1 | Complete |
+| TEST-02 | Phase 1 | Complete |
+| TEST-03 | Phase 1 | Complete |
 | OBS-01 | Phase 2 | Pending |
 | OBS-02 | Phase 2 | Pending |
 | OBS-03 | Phase 2 | Pending |

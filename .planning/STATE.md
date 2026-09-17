@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: executing
-stopped_at: Phase 1 context gathered
-last_updated: "2026-09-17T05:22:04.376Z"
+status: ready_to_plan
+stopped_at: Phase 1 complete (3/3) — ready to discuss Phase 2
+last_updated: 2026-09-17T10:24:01.641Z
 last_activity: 2026-09-17 -- Phase 1 execution started
 progress:
   total_phases: 5
   completed_phases: 0
   total_plans: 3
-  completed_plans: 0
+  completed_plans: 3
   percent: 0
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 1 — Test Harness & Verification Infrastructure
+**Current focus:** Phase 2 — exception visibility retrofit
 
 ## Current Position
 
-Phase: 1 (Test Harness & Verification Infrastructure) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 1
-Last activity: 2026-09-17 -- Phase 1 execution started
+Phase: 2
+Plan: Not started
+Status: Ready to plan
+Last activity: 2026-09-17
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -36,7 +36,7 @@ Progress: [░░░░░░░░░░] 0%
 
 **Velocity:**
 
-- Total plans completed: 0
+- Total plans completed: 3
 - Average duration: - min
 - Total execution time: 0 hours
 
@@ -44,7 +44,7 @@ Progress: [░░░░░░░░░░] 0%
 
 | Phase | Plans | Total | Avg/Plan |
 |-------|-------|-------|----------|
-| - | - | - | - |
+| 1 | 3 | - | - |
 
 **Recent Trend:**
 
