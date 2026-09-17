@@ -207,8 +207,8 @@ class PluginManager(object):
 					config_parser = configparser.ConfigParser()
 					try:
 						config_parser.read(candidate_infofile)
-					except:
-						logging.debug("Could not parse the plugin file %s" % candidate_infofile)					
+					except Exception:
+						logging.debug("Could not parse the plugin file %s", candidate_infofile, exc_info=True)
 						continue
 					# check if the basic info is available
 					if not config_parser.has_section("Core"):
@@ -272,13 +272,10 @@ class PluginManager(object):
 			# specific dictionnary
 			candidate_globals = {"__file__":candidate_filepath+".py"}
 			try:
-				print(candidate_filepath)
 				with open(candidate_filepath+".py") as f:
 					exec(compile(f.read(), candidate_filepath+".py", 'exec'), candidate_globals)
-			except Exception as e:
-				print(e)
-				logging.debug("Unable to execute the code in plugin: %s" % candidate_filepath)
-				logging.debug("\t The following problem occured: %s %s " % (os.linesep, e))
+			except Exception:
+				logging.exception("Unable to execute the code in plugin: %s", candidate_filepath)
 
 			# now try to find and initialise the first subclass of the correct plugin interface
 			for element in candidate_globals.values():
@@ -286,7 +283,7 @@ class PluginManager(object):
 				for category_name in self.categories_interfaces.keys():
 					try:
 						is_correct_subclass = issubclass(element, self.categories_interfaces[category_name])
-					except:
+					except TypeError:
 						continue
 					if is_correct_subclass:
 						if element is not self.categories_interfaces[category_name]:
