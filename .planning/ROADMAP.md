@@ -66,10 +66,10 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 02-02-PLAN.md — OBS-01: yapsy `PluginManager.py` plugin-load/descriptor/probe dispositions + caplog test
-- [ ] 02-03-PLAN.md — OBS-01/OBS-02: `pellmonsrv.py` module logger, activation-loop + Poller Category A conversions, 2 prints removed + caplog tests
-- [ ] 02-04-PLAN.md — OBS-02: `plugins/calculate/__init__.py` 5 Category A conversions + caplog tests via test-only `maketrans` shim
-- [ ] 02-05-PLAN.md — OBS-03: 39-print sweep across 11 files, shared `pellMon` logger added to 5 logger-less modules
+- [x] 02-02-PLAN.md — OBS-01: yapsy `PluginManager.py` plugin-load/descriptor/probe dispositions + caplog test
+- [x] 02-03-PLAN.md — OBS-01/OBS-02: `pellmonsrv.py` module logger, activation-loop + Poller Category A conversions, 2 prints removed + caplog tests
+- [x] 02-04-PLAN.md — OBS-02: `plugins/calculate/__init__.py` 5 Category A conversions + caplog tests via test-only `maketrans` shim
+- [x] 02-05-PLAN.md — OBS-03: 39-print sweep across 11 files, shared `pellMon` logger added to 5 logger-less modules
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
@@ -126,7 +126,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
-| 2. Exception Visibility Retrofit | 1/6 | In Progress|  |
+| 2. Exception Visibility Retrofit | 5/6 | In Progress|  |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
