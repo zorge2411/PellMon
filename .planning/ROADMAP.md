@@ -57,7 +57,23 @@ Plans:
   3. A deliberately triggered protocol-parsing or database-write failure in `pellmonsrv.py` or `plugins/calculate/__init__.py` logs a full traceback instead of being swallowed. (`Scotteprotocol/protocol.py` is excluded here — confirmed unreachable via import today, since `Scotteprotocol/__init__.py:2`'s broken import fails before `protocol.py` is ever loaded; its exception-visibility work is deferred to Phase 3, after the import fix lands.)
   4. A repo-wide search finds no remaining ad hoc `print()` calls in `src/` outside of intentional CLI output; runtime code uses `logging.getLogger(__name__)` at appropriate levels.
 
-**Plans**: TBD
+**Plans**: 6 plans (3 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 02-01-PLAN.md — Pre-change outcome baseline (`before.xml`), JUnit outcome-diff tool, daemon-import stub fixture (OBS-01, OBS-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 02-02-PLAN.md — OBS-01: yapsy `PluginManager.py` plugin-load/descriptor/probe dispositions + caplog test
+- [ ] 02-03-PLAN.md — OBS-01/OBS-02: `pellmonsrv.py` module logger, activation-loop + Poller Category A conversions, 2 prints removed + caplog tests
+- [ ] 02-04-PLAN.md — OBS-02: `plugins/calculate/__init__.py` 5 Category A conversions + caplog tests via test-only `maketrans` shim
+- [ ] 02-05-PLAN.md — OBS-03: 39-print sweep across 11 files, shared `pellMon` logger added to 5 logger-less modules
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 02-06-PLAN.md — Phase gate: AST-based print-enforcement test, `after.xml` capture + outcome-parity diff, ROADMAP alignment
 
 ### Phase 3: Import Strategy & Plugin Loading Fixes
 
@@ -110,7 +126,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
-| 2. Exception Visibility Retrofit | 0/TBD | Not started | - |
+| 2. Exception Visibility Retrofit | 0/6 | Planned     | - |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
