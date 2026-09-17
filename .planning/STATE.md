@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
+status: executing
 stopped_at: Phase 2 context gathered
-last_updated: "2026-09-17T12:30:59.066Z"
-last_activity: 2026-09-17
+last_updated: "2026-09-17T12:56:53.853Z"
+last_activity: 2026-09-17 -- Phase 2 planning complete
 progress:
   total_phases: 5
   completed_phases: 1
-  total_plans: 3
+  total_plans: 9
   completed_plans: 3
   percent: 20
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 
 Phase: 2
 Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-17
+Status: Ready to execute
+Last activity: 2026-09-17 -- Phase 2 planning complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -63,6 +63,8 @@ Recent decisions affecting current work:
 - Roadmap: Merged research's suggested Phase 5 (Security) and Phase 6 (CI/Deployment) into a single Phase 5 — both are independent of the protocol work and fit coarse granularity (3-5 phases) without breaking the required "security fixes after exception-visibility retrofit" ordering.
 - Roadmap: Standard/horizontal phase structure used instead of MVP vertical slices — this is a bug-fix/hardening migration where phases are strictly dependency-ordered (test harness before fixes are trustworthy, import fixes before protocol code is reachable), not independently shippable user-facing feature slices.
 - Phase 1 planning: Decision-coverage gate (`check.decision-coverage-plan`) reported D-01..D-05 as uncovered — this is a false negative. The mechanical grep only scans `must_haves`/`truths` XML fields, but the planner cited decisions inline in task `<action>` bodies instead (confirmed: `01-01-PLAN.md` lines 97, 138 cite D-02/D-01 verbatim). The independent gsd-plan-checker LLM review separately confirmed "Context Compliance: PASS — D-01 through D-05 each traced to an implementing task." Overridden and proceeded without re-planning.
+- Phase 2 planning: Same decision-coverage gate false negative recurred for D-01..D-05 (same root cause — grep-based, only scans must_haves/truths). The independent gsd-plan-checker LLM review confirmed "Context compliance (D-01 through D-05): All five locked decisions are followed exactly as specified" with per-decision evidence (shared logger, 3-file scope, per-site Category A/B dispositions, print-sweep boundary, `logger.exception` idiom). Overridden and proceeded without re-planning. Plan-checker also found 1 blocker (RESEARCH.md Open Questions not marked resolved — fixed) and 2 warnings (02-05 touches 11 files, mitigated per checker's own note; REQUIREMENTS.md OBS-02/OBS-03 wording drift vs. locked CONTEXT.md decisions — fixed by syncing REQUIREMENTS.md to drop the Scotteprotocol mention and the `__name__`-logger wording).
+- Research (Phase 2): Found a second, independent import-time bug in `plugins/calculate/__init__.py` — `from string import maketrans` at line 28 raises `ImportError` on Linux/WSL, distinct from the known `unicode()` bug at line 351. Tracked as new requirement `PROTO-05` (Phase 4). Also confirmed `Scotteprotocol/protocol.py` is unreachable via import today (fails in `Scotteprotocol/__init__.py:2` before reaching `protocol.py`'s own bug), so ROADMAP Phase 2 success criterion 3 and REQUIREMENTS.md OBS-02 were amended to exclude it — that file's exception-visibility work is deferred to Phase 3, bundled with IMPORT-01.
 
 ### Pending Todos
 
