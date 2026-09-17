@@ -13,7 +13,7 @@ The Python 2→3 port was declared "complete" on the strength of a shallow impor
 
 Decimal phases appear between their surrounding integers in numeric order.
 
-- [ ] **Phase 1: Test Harness & Verification Infrastructure** - Build a hardware-free pytest suite (mocked serial/UDP) and a broadened import-check so every later phase has a real pass/fail signal instead of "it imports."
+- [x] **Phase 1: Test Harness & Verification Infrastructure** - Build a hardware-free pytest suite (mocked serial/UDP) and a broadened import-check so every later phase has a real pass/fail signal instead of "it imports." (completed 2026-09-17)
 - [ ] **Phase 2: Exception Visibility Retrofit** - Replace bare `except:` with logged, traceback-visible failures in plugin loading and protocol/database paths, behavior-preserving, verified against Phase 1's harness.
 - [ ] **Phase 3: Import Strategy & Plugin Loading Fixes** - Fix the broken implicit relative imports so ScotteCom and NBEcom actually load and activate under Python 3.
 - [ ] **Phase 4: Protocol Module Hardening (Bytes/Str Semantics)** - Fix the confirmed bytes/str `TypeError` and related protocol bugs, add constructor-injectable transports, verify with round-trip tests.
@@ -42,8 +42,8 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 01-02-PLAN.md — Unit coverage for `database.py` `Keyval_storage` and `Pellmonweb/auth.py` `AuthController` (TEST-03)
-- [ ] 01-03-PLAN.md — Descriptor-driven two-layer plugin import-check, socket-guardrail enforcement test, expected-red baseline doc (TEST-02)
+- [x] 01-02-PLAN.md — Unit coverage for `database.py` `Keyval_storage` and `Pellmonweb/auth.py` `AuthController` (TEST-03)
+- [x] 01-03-PLAN.md — Descriptor-driven two-layer plugin import-check, socket-guardrail enforcement test, expected-red baseline doc (TEST-02)
 
 ### Phase 2: Exception Visibility Retrofit
 
@@ -109,7 +109,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Harness & Verification Infrastructure | 1/3 | In Progress|  |
+| 1. Test Harness & Verification Infrastructure | 3/3 | Complete   | 2026-09-17 |
 | 2. Exception Visibility Retrofit | 0/TBD | Not started | - |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
