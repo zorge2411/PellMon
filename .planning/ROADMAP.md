@@ -54,7 +54,7 @@ Plans:
 
   1. Re-running Phase 1's test suite and import-check before and after this phase produces identical pass/fail and plugin-activation results — only log output changes.
   2. A deliberately triggered plugin import/activation failure produces a full traceback via `logger.exception(...)` in the logs instead of being silently skipped by a bare `except:` in the yapsy plugin manager.
-  3. A deliberately triggered protocol-parsing or database-write failure in `pellmonsrv.py`, `Scotteprotocol/protocol.py`, or `plugins/calculate/__init__.py` logs a full traceback instead of being swallowed.
+  3. A deliberately triggered protocol-parsing or database-write failure in `pellmonsrv.py` or `plugins/calculate/__init__.py` logs a full traceback instead of being swallowed. (`Scotteprotocol/protocol.py` is excluded here — confirmed unreachable via import today, since `Scotteprotocol/__init__.py:2`'s broken import fails before `protocol.py` is ever loaded; its exception-visibility work is deferred to Phase 3, after the import fix lands.)
   4. A repo-wide search finds no remaining ad hoc `print()` calls in `src/` outside of intentional CLI output; runtime code uses `logging.getLogger(__name__)` at appropriate levels.
 
 **Plans**: TBD
@@ -77,7 +77,7 @@ Plans:
 
 **Goal**: Scotte and NBE protocol modules correctly separate bytes and str at I/O boundaries and are independently testable without hardware.
 **Depends on**: Phase 3
-**Requirements**: PROTO-01, PROTO-02, PROTO-03, PROTO-04
+**Requirements**: PROTO-01, PROTO-02, PROTO-03, PROTO-04, PROTO-05
 **Success Criteria** (what must be TRUE):
 
   1. NBEcom `Proxy.get()` splits response payloads correctly without raising `TypeError`, verified by a mocked-UDP round-trip test.

@@ -24,6 +24,7 @@ The daemon must actually talk to real burner hardware through its protocol plugi
 - [ ] Fix bytes/str `TypeError` in NBEcom `Proxy.get()` (`nbeprotocol/protocol.py:144,146`)
 - [ ] Fix `unbuffered text I/O` crash in daemonizer (`src/Pellmonsrv/daemon.py:69`)
 - [ ] Fix leftover Python 2 `unicode()` call in Calculate plugin (`src/Pellmonsrv/plugins/calculate/__init__.py:351`)
+- [ ] **New (found by Phase 2's research, not previously known):** Fix leftover Python 2 `from string import maketrans` in Calculate plugin (`src/Pellmonsrv/plugins/calculate/__init__.py:28`) — raises `ImportError` on Linux/WSL, a second independent import-time bug distinct from the `unicode()` bug above; tracked as `PROTO-05`
 - [ ] Remove `.py2bak` backup files once each module's port is confirmed stable
 - [ ] **New (found by Phase 1's code review, not previously known):** `Keyval_storage.writeval()` confval-upsert path in `src/Pellmonsrv/database.py:196,199` binds `(item, confval, confval)` instead of `(item, value, confval)` — silently overwrites the `value` column with `confval`'s content. `tests/Pellmonsrv/test_database.py::test_writeval_with_confval_sets_both_columns` only asserts `confvalue` today and needs strengthening to catch this once fixed.
 - [ ] Fix plaintext password logging on failed web login (`src/Pellmonweb/auth.py:147,150`)

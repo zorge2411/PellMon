@@ -32,6 +32,7 @@ Requirements for the "finish the migration and get it production-ready" mileston
 - [ ] **PROTO-02**: Calculate plugin's `setItem()` no longer raises `NameError` from the leftover Python 2 `unicode()` call (`plugins/calculate/__init__.py:351`)
 - [ ] **PROTO-03**: Daemon can redirect stderr to a log file in daemonized mode without raising `ValueError: can't have unbuffered text I/O` (`daemon.py:69`)
 - [ ] **PROTO-04**: Scotte and NBE protocol modules have a hardware-mock boundary (constructor-injectable transport) so encode/decode round-trip tests can run without physical hardware, verified via the TEST-01 suite
+- [ ] **PROTO-05**: Calculate plugin imports successfully on Linux (fixes the Python-2-only `from string import maketrans` at `plugins/calculate/__init__.py:28`, which raises `ImportError` on Linux/WSL — found by Phase 2 research; distinct from PROTO-02's `unicode()` bug in the same file)
 
 ### Security (SEC)
 
@@ -106,6 +107,7 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROTO-02 | Phase 4 | Pending |
 | PROTO-03 | Phase 4 | Pending |
 | PROTO-04 | Phase 4 | Pending |
+| PROTO-05 | Phase 4 | Pending |
 | SEC-01 | Phase 5 | Pending |
 | SEC-02 | Phase 5 | Pending |
 | SEC-03 | Phase 5 | Pending |
@@ -117,8 +119,8 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OPS-06 | Phase 5 | Pending |
 
 **Coverage:**
-- v1 requirements: 23 total
-- Mapped to phases: 23
+- v1 requirements: 24 total
+- Mapped to phases: 24
 - Unmapped: 0 ✓
 
 ---
