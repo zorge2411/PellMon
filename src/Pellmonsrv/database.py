@@ -17,6 +17,9 @@
 from weakref import WeakValueDictionary
 import time
 import sqlite3, threading
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 class Keyval_storage:
     keyval_storage = None
@@ -109,8 +112,8 @@ class Storeditem(Getsetitem):
                     self._value = value
                 if self.setter:
                     self.setter(self.name, value)
-        except Exception as e:
-           print(e)
+        except Exception:
+           logger.exception('error setting value for %s'%self.name)
 
 class Database(WeakValueDictionary):
     def __init__(self):
@@ -166,8 +169,8 @@ class Keyval_storage(object):
                 value, = next(cursor)
                 conn.close()
                 return value
-            except Exception as e:
-                print(e)
+            except Exception:
+                logger.exception('error reading value for %s'%item)
                 return 'error'
 
     def writeval(self, item, value=None, confval=None):

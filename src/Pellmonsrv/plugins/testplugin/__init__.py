@@ -61,7 +61,7 @@ class testplugin(protocols):
             self.db.insert(dbitem)
             self.itemrefs.append(dbitem)
             def mysetter(name, value):
-                print('testplugin set: ', name, value)
+                logger.debug('testplugin set: %s %s', name, value)
             i = Storeditem('stored', 'defaultvalue', setter=mysetter)
             i.tags = ['All', 'testplugin', 'Basic'] 
             i.type = 'R/W'
