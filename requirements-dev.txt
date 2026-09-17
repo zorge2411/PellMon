@@ -1,0 +1,5 @@
+# Test/dev-only dependencies -- NOT installed in production Docker image
+pytest>=9.0,<10
+pytest-mock>=3.15
+pytest-socket>=0.8
+pytest-cov>=7.1
