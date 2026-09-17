@@ -62,7 +62,7 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 02-01-PLAN.md — Pre-change outcome baseline (`before.xml`), JUnit outcome-diff tool, daemon-import stub fixture (OBS-01, OBS-02)
+- [x] 02-01-PLAN.md — Pre-change outcome baseline (`before.xml`), JUnit outcome-diff tool, daemon-import stub fixture (OBS-01, OBS-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
@@ -126,7 +126,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
-| 2. Exception Visibility Retrofit | 0/6 | Planned     | - |
+| 2. Exception Visibility Retrofit | 1/6 | In Progress|  |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
