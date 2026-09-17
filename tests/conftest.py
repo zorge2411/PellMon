@@ -50,6 +50,10 @@ def cherrypy_request_ctx(mocker):
     fake_request.headers = {"Remote-Addr": "127.0.0.1"}
     fake_request.script_name = ""
     mocker.patch.object(cherrypy, "request", fake_request)
-    mocker.patch.object(cherrypy, "session", {})
+    # cherrypy.session is only a real module attribute once a request/session
+    # context is active (it's set dynamically by the SessionTool) -- outside
+    # a live request it doesn't exist yet, so mock.patch needs create=True or
+    # it raises AttributeError before the test body even runs.
+    mocker.patch.object(cherrypy, "session", {}, create=True)
     mocker.patch.object(cherrypy, "log")
     return fake_request
