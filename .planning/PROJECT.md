@@ -15,16 +15,17 @@ The daemon must actually talk to real burner hardware through its protocol plugi
 - ✓ Plugin-based daemon architecture (yapsy plugin discovery, D-Bus IPC, in-memory Item database, RRD persistence) — existing, core modules import cleanly under Python 3.14/3.13 per `test-imports.py`
 - ✓ CherryPy + Mako web frontend (dashboard, websockets, graphs, log viewer, config UI) — existing, imports cleanly under Python 3
 - ✓ Docker Compose deployment path (Debian bookworm-slim, two-service D-Bus setup) — existing, already built for the Python 3 port
+- ✓ Automated test coverage for protocol/hardware modules and `database.py`/`auth.py` (mocked serial via `loop://`, mocked UDP, descriptor-driven plugin import-check, socket-block enforcement) — Phase 1. Independently confirmed: 29 passing, 2 expected-red failures (ScotteCom/NBEcom import bugs, owned by Phase 3), 8 platform skips.
 
 ### Active
 
-- [ ] Fix broken implicit relative imports in `Scotteprotocol/` and `scottecom` plugin so ScotteCom actually loads under Python 3 (`src/Scotteprotocol/__init__.py:2`, `frames.py:19`, `datamap.py:21`, `protocol.py:25,216`, `scottecom/menus.py:19`)
-- [ ] Fix broken implicit relative imports in `nbecom/nbeprotocol/` so NBEcom actually loads under Python 3 (`nbeprotocol/protocol.py:27,28,30`, `frames.py:21`)
+- [ ] Fix broken implicit relative imports in `Scotteprotocol/` and `scottecom` plugin so ScotteCom actually loads under Python 3 (`src/Scotteprotocol/__init__.py:2`, `frames.py:19`, `datamap.py:21`, `protocol.py:25,216`, `scottecom/menus.py:19`) — Phase 1's `tests/test_plugin_imports.py::test_plugin_module_imports[scottecom]` now proves this fails (`ModuleNotFoundError: No module named 'protocol'`)
+- [ ] Fix broken implicit relative imports in `nbecom/nbeprotocol/` so NBEcom actually loads under Python 3 (`nbeprotocol/protocol.py:27,28,30`, `frames.py:21`) — Phase 1's `tests/test_plugin_imports.py::test_nbecom_deferred_protocol_import` now proves this fails (`ModuleNotFoundError: No module named 'frames'`)
 - [ ] Fix bytes/str `TypeError` in NBEcom `Proxy.get()` (`nbeprotocol/protocol.py:144,146`)
 - [ ] Fix `unbuffered text I/O` crash in daemonizer (`src/Pellmonsrv/daemon.py:69`)
 - [ ] Fix leftover Python 2 `unicode()` call in Calculate plugin (`src/Pellmonsrv/plugins/calculate/__init__.py:351`)
 - [ ] Remove `.py2bak` backup files once each module's port is confirmed stable
-- [ ] Add automated test coverage for protocol/hardware modules (Scotteprotocol and nbeprotocol frame encode/decode round-trips, mocked serial/UDP I/O) so plugin activation isn't only verified by hand
+- [ ] **New (found by Phase 1's code review, not previously known):** `Keyval_storage.writeval()` confval-upsert path in `src/Pellmonsrv/database.py:196,199` binds `(item, confval, confval)` instead of `(item, value, confval)` — silently overwrites the `value` column with `confval`'s content. `tests/Pellmonsrv/test_database.py::test_writeval_with_confval_sets_both_columns` only asserts `confvalue` today and needs strengthening to catch this once fixed.
 - [ ] Fix plaintext password logging on failed web login (`src/Pellmonweb/auth.py:147,150`)
 - [ ] Hash stored/compared web-auth credentials instead of plaintext comparison (`src/Pellmonweb/auth.py`)
 - [ ] Fix shell-injection surface in Exec plugin readscript path — use `shell=False` like the writescript path already does (`src/Pellmonsrv/plugins/exec/__init__.py:86`)
@@ -58,7 +59,7 @@ The daemon must actually talk to real burner hardware through its protocol plugi
 |----------|-----------|---------|
 | Treat "migration complete" commit as unverified for plugin code | `test-imports.py` never imports plugin packages; ScotteCom/NBEcom are confirmed broken by static analysis | — Pending |
 | Production-readiness scope includes security fixes (password logging, plaintext auth, shell injection) | User asked to get the migration "production-ready," and these are pre-existing issues surfaced during codebase mapping that block that goal | — Pending |
-| Add mocked/unit-level protocol tests rather than requiring physical hardware for verification | No CI or test suite exists today; hardware isn't available in this dev environment | — Pending |
+| Add mocked/unit-level protocol tests rather than requiring physical hardware for verification | No CI or test suite exists today; hardware isn't available in this dev environment | ✓ Good — Phase 1 delivered this, verified independently |
 
 ## Evolution
 
@@ -78,4 +79,4 @@ This document evolves at phase transitions and milestone boundaries.
 4. Update Context with current state
 
 ---
-*Last updated: 2026-09-17 after initialization*
+*Last updated: 2026-09-17 after Phase 1 (Test Harness & Verification Infrastructure) completion*
