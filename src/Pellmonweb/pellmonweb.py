@@ -33,6 +33,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 
 import json
 import threading, queue
+from logging import getLogger
 from Pellmonweb import *
 from time import mktime
 import time
@@ -50,6 +51,8 @@ import signal
 import simplejson
 import re
 import random
+
+logger = getLogger('pellMon')
 
 try:
     from Pellmonsrv.version import __version__
@@ -129,13 +132,13 @@ class Dbus_handler:
             if new_owner == '':
                 self.remote_object = None
                 self.bustype.remove_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
-                print('server not running')
+                logger.info('D-Bus server not running')
             else:
                 self.bustype.add_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
                 self.remote_object = self.bustype.get_object("org.pellmon.int", # Connection name
                                        "/org/pellmon/int" # Object's path
                                       )
-                print('server is running')
+                logger.info('D-Bus server is running')
 
         Dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         Dbus.mainloop.glib.threads_init()
@@ -553,7 +556,7 @@ class PellMonWeb:
                 parameterlist = dbus.getFullDB(['',t1,t2,t3,t4])
             else:
                 parameterlist = dbus.getFullDB([level,t1,t2,t3,t4])
-            print(parameterlist)
+            logger.debug('parameterlist: %s', parameterlist)
             # Set up a queue and start a thread to read all items to the queue, the parameter view will empty the queue bye calling /getparams/
             paramQueue = queue.Queue(300)
             # Store the queue in the session
