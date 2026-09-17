@@ -2,14 +2,14 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
+status: executing
 stopped_at: Phase 1 context gathered
-last_updated: "2026-09-17T04:59:56.760Z"
-last_activity: 2026-09-17 — Roadmap created, 23/23 v1 requirements mapped across 5 phases
+last_updated: "2026-09-17T05:21:09.435Z"
+last_activity: 2026-09-17 -- Phase 1 planning complete
 progress:
   total_phases: 5
   completed_phases: 0
-  total_plans: 0
+  total_plans: 3
   completed_plans: 0
   percent: 0
 ---
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 
 Phase: 1 of 5 (Test Harness & Verification Infrastructure)
 Plan: 0 of TBD in current phase
-Status: Ready to plan
-Last activity: 2026-09-17 — Roadmap created, 23/23 v1 requirements mapped across 5 phases
+Status: Ready to execute
+Last activity: 2026-09-17 -- Phase 1 planning complete
 
 Progress: [░░░░░░░░░░] 0%
 
@@ -62,6 +62,7 @@ Recent decisions affecting current work:
 
 - Roadmap: Merged research's suggested Phase 5 (Security) and Phase 6 (CI/Deployment) into a single Phase 5 — both are independent of the protocol work and fit coarse granularity (3-5 phases) without breaking the required "security fixes after exception-visibility retrofit" ordering.
 - Roadmap: Standard/horizontal phase structure used instead of MVP vertical slices — this is a bug-fix/hardening migration where phases are strictly dependency-ordered (test harness before fixes are trustworthy, import fixes before protocol code is reachable), not independently shippable user-facing feature slices.
+- Phase 1 planning: Decision-coverage gate (`check.decision-coverage-plan`) reported D-01..D-05 as uncovered — this is a false negative. The mechanical grep only scans `must_haves`/`truths` XML fields, but the planner cited decisions inline in task `<action>` bodies instead (confirmed: `01-01-PLAN.md` lines 97, 138 cite D-02/D-01 verbatim). The independent gsd-plan-checker LLM review separately confirmed "Context Compliance: PASS — D-01 through D-05 each traced to an implementing task." Overridden and proceeded without re-planning.
 
 ### Pending Todos
 
