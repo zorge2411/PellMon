@@ -440,17 +440,19 @@ See Architecture Patterns section above (Patterns 1-6) — all code examples are
 | A1 | `pytest.ini`'s `[pytest] pythonpath = src` is the right mechanism (vs. a `conftest.py`-based `sys.path.insert`) given no packaging metadata exists | Pitfall 4 / Recommended Project Structure | Low — both approaches work; if the planner/executor finds `pythonpath` behaves unexpectedly with the Autotools `.in`-templated modules (`directories.py.in`), falling back to a `conftest.py` `sys.path.insert(0, "src")` at collection time is a safe, well-known alternative |
 | A2 | `directories.py` (generated from `directories.py.in` by Autotools, not present in a fresh checkout) is not required for the specific modules under test in this phase (`database.py`, `auth.py`, plugin `.pellmon-plugin` scan) | Standard Stack / Recommended Project Structure | Medium — if `Pellmonsrv/pellmonsrv.py` or another eagerly-imported module transitively imports `directories` at package-`__init__` time and it's missing, `import Pellmonsrv.plugins.<x>` could fail for an unrelated reason (missing generated file, not a real code bug), producing false negatives in the TEST-02 import-check. **The planner should have the first execution task verify a fresh venv can `import Pellmonsrv.database` and `import Pellmonsrv.plugins.testplugin` cleanly before building the full suite on top of that assumption** — `directories.py` generation may need a one-time manual step or a test-local stub. |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **Does `Pellmonsrv/__init__.py` or any module imported before plugin discovery require `directories.py` (Autotools-generated, not present in this checkout) at import time?**
    - What we know: `directories.py.in` is a template substituted by `configure`; `STRUCTURE.md` confirms it supplies `DATADIR`/`CONFDIR`/`LOCALSTATEDIR`. `pellmonsrv.py`'s import section (per `CONVENTIONS.md`) uses a `try/except ImportError` guard around similar optional generated modules (`version`).
    - What's unclear: Whether `directories.py` itself has the same optional-import guard, or is a hard import that would break `import Pellmonsrv.plugins.*` in a fresh dev checkout with no Autotools run.
    - Recommendation: First plan task should be a spike: `python -c "import sys; sys.path.insert(0,'src'); import Pellmonsrv.database"` in a clean shell, before committing to the full test suite design. If it fails, either generate a minimal `directories.py` stub for `tests/` or add the same `try/except ImportError` guard pattern.
+   - **RESOLVED:** Confirmed during planning — `src/Pellmonsrv/directories.py` does not exist in this checkout, yet `Pellmonsrv.database`, `Pellmonsrv.plugins.testplugin`, and `Pellmonweb.auth` all import cleanly without it. No stub needed. 01-01-PLAN.md's `<environment_facts>` block records this, and Task 1 re-verifies it live in the executor's environment as a cheap re-confirmation.
 
 2. **Should the `pytest-cov` `--cov` flags go into default `addopts` in `pytest.ini` this phase, or be left as an opt-in `pytest --cov=...` invocation?**
    - What we know: `pytest-cov` is in the approved Standard Stack and CONTEXT.md's D-02 lists it as a required dev dependency.
    - What's unclear: CONTEXT.md doesn't lock in whether coverage is enforced/reported by default or left manual for now — this is Claude's Discretion territory not explicitly discussed.
    - Recommendation: Leave `--cov` out of default `addopts` for this phase (keep `pytest` output clean/fast while the suite is being built); coverage reporting/thresholds are more naturally tied to `OPS-01`'s CI pipeline (Phase 5).
+   - **RESOLVED:** 01-01-PLAN.md follows this recommendation verbatim — `--cov` is left out of `pytest.ini`'s default `addopts`; coverage enforcement is deferred to Phase 5's CI work.
 
 ## Environment Availability
 
