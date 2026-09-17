@@ -292,8 +292,8 @@ class calculateplugin(protocols):
                         except Exception as e:
                             raise e #ValueError('%s has invalid task time %s'%(key, value))
 
-                except Exception as e: 
-                    logger.info(str(e))
+                except Exception as e:
+                    logger.exception('calculate plugin activation error')
                     raise e
             for item in itemList:
                 if item['type'] == 'R/W':
@@ -313,8 +313,8 @@ class calculateplugin(protocols):
                 self.db.insert(dbitem)
                 self.itemrefs.append(dbitem)
 
-        except Exception as e:
-            logger.info( str(e))
+        except Exception:
+            logger.exception('calculate plugin activation error')
             raise
 
     def getItem(self, itemName):
@@ -327,8 +327,8 @@ class calculateplugin(protocols):
                     try:
                         calc = Calc(prog, self.db)
                         return calc.run()
-                    except Exception as e:
-                        logger.info(calc_item+' error: '+repr(e))
+                    except Exception:
+                        logger.exception('%s error'%calc_item)
                         return 'error'
             except:
                 if item['type'] == 'R':
@@ -352,9 +352,9 @@ class calculateplugin(protocols):
                 calc = Calc(prog, self.db, stack=stack)
                 calc.run()
                 return 'OK'
-            except Exception as e:
+            except Exception:
                 calc = Calc(prog, self.db)
-                logger.info(calc_item+' error: '+str(e))
+                logger.exception('%s error'%calc_item)
                 return 'error'
         except:  
             try:
@@ -378,6 +378,6 @@ class calcthread(Thread):
             try:
                 prog = Calc(self.plugin_object.getItem(self.progitem), self.plugin_object.db)
                 prog.run()
-            except Exception as e:
-                logger.info('error in ' + self.progitem +str(e))
+            except Exception:
+                logger.exception('error in %s'%self.progitem)
             sleep(self.cycle)
