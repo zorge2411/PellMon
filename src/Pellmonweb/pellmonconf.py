@@ -34,6 +34,9 @@ import codecs
 #import dbparser as parser
 #import webbrowser
 import configparser
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 class Pellmonconf:
     def __init__(self, config_file = '', lookup = None):
@@ -122,7 +125,7 @@ def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
     lookup = TemplateLookup(directories=[os.path.join(DATADIR, 'Pellmonweb', 'html_conf')])
     config_file = os.path.join(CONFDIR, 'pellmon.conf')
-    print(config_file)
+    logger.debug('config file: %s', config_file)
     argparser = argparse.ArgumentParser(prog='pellmonconf')
 
     argparser.add_argument('-P', '--port', default=8083, help='Port number for webinterface, default 8083')
@@ -151,6 +154,8 @@ def run():
                     }                    
                 }
 
+    # Intentional CLI output (D-04): this is the manually-invoked standalone
+    # tool's startup banner, deliberately excluded from the OBS-03 print sweep.
     print('Open http://<ip>:%u with your webbrowser to view the configuration tool'%int(args.port))
     print('Run as root to be able to save changes')
     print('Quit with CTRL-C')

@@ -156,7 +156,7 @@ class owfsplugin(protocols):
                         
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                print(exc_type, exc_value)
+                logger.exception('OWFS getItem error for %s'%itemName)
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
                 return str(e)
         elif not background_poll:
@@ -190,7 +190,7 @@ class owfsplugin(protocols):
                 return 'error'
         except Exception as e:
             exc_type, exc_value, exc_traceback = sys.exc_info()
-            print(exc_type, exc_value)
+            logger.exception('OWFS setItem error for %s'%itemName)
             traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
             return 'error'
 
@@ -231,7 +231,7 @@ class owfsplugin(protocols):
                             item['toggle'] = 0
             except Exception as e:
                 exc_type, exc_value, exc_traceback = sys.exc_info()
-                print(exc_type, exc_value)
+                logger.exception('OWFS counter_thread error for counter %s'%counter)
                 traceback.print_tb(exc_traceback, limit=10, file=sys.stdout)
                 logger.debug('OWFS counter error '+str(e))
             sleep(5)

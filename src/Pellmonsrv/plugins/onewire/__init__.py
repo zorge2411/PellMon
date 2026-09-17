@@ -82,7 +82,7 @@ class onewireplugin(protocols):
             t.start()
         except Exception as e:
             logger.debug('Onewire activate failed: %s'%str(e))
-            print(e)
+            logger.exception('Onewire activate failed')
 
     def getItem(self, itemName, background_poll=False):
         """ Return the cached item value, or return a fresh value when background_poll=True """
