@@ -23,6 +23,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib, GObject
 import logging
 import logging.handlers
+logger = logging.getLogger('pellMon')
 import sys
 import configparser
 import time
@@ -89,12 +90,12 @@ class Database(threading.Thread, _Database):
                     plugin.plugin_object.activate(conf.plugin_conf[plugin.name], globals(), self)
                     self.protocols.append(plugin)
                     activated_plugins.append(plugin.name)
-                except Exception as e:
+                except Exception:
                     failed_plugins.append(plugin.name)
                     if conf.command == 'debug':
                         raise
                     else:
-                        logger.info('%s plugin error: %s'%(plugin_name, str(e))   )
+                        logger.exception('%s plugin error'%plugin_name)
         if activated_plugins:
             logger.info('Activated plugins: %s'%', '.join(activated_plugins))
         if failed_plugins:
@@ -248,17 +249,17 @@ class Poller(threading.Thread):
                                         value = 'U'
                                 except:
                                     pass
-                    except IOError as e:
+                    except IOError:
                         #logger.info('IOError: %s,  Trying Z01...'%str(e))
 #                        import traceback
 #                        traceback.print_exc()
                         try:
                             # Strange fix for stange problem with some scotte burners
                             conf.database['oxygen_regulation'].value
-                        except Exception as e:
-                            logger.info('error in retry %s'%str(e) )
-                    except Exception as e:
-                        logger.debug('error polling %s: %s'%(data['name'], str(e)) )
+                        except Exception:
+                            logger.exception('error in retry for %s'%data['name'])
+                    except Exception:
+                        logger.exception('error polling %s'%data['name'])
                         
                     itemlist.append(value)
                     lastupdate[data['name']] = value
@@ -278,8 +279,8 @@ class Poller(threading.Thread):
                 else:
                     self.timesync_wait += 1
                     
-            except Exception as e:
-                logger.info('error in polling %s'%str(e) )
+            except Exception:
+                logger.exception('error in polling')
             time.sleep(1)
             self.ev.clear()
 
@@ -335,9 +336,9 @@ def copy_db(direction='store'):
 def db_copy_thread():
     """Run periodically at db_store_interval to call copy_db""" 
     try:
-        copy_db('store')    
-    except:
-        pass
+        copy_db('store')
+    except Exception:
+        logger.exception('unexpected error in db_copy_thread')
     ht = threading.Timer(conf.db_store_interval, db_copy_thread)
     ht.setDaemon(True)
     ht.start()
@@ -738,11 +739,10 @@ class config:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
         except ConfigParser.NoSectionError as e:
-            print('noconf', e)
+            logger.debug('no plugin_dirs section: %s'%str(e))
             pass
-        except Exception as e:
-            print(e)
-            logger.info('invalid setting for plugin_dirs')
+        except Exception:
+            logger.exception('invalid setting for plugin_dirs')
 
 def getgroups(user):
     gids = [g.gr_gid for g in grp.getgrall() if user in g.gr_mem]
