@@ -16,8 +16,8 @@ Requirements for the "finish the migration and get it production-ready" mileston
 ### Failure Visibility (OBS)
 
 - [ ] **OBS-01**: Plugin import/activation failures are logged with a full traceback (`logger.exception(...)`) instead of being silently swallowed by bare `except:` clauses in the yapsy plugin manager
-- [ ] **OBS-02**: Protocol parsing and database write failures are logged with `logger.exception(...)` instead of bare `except:` swallowing, in the highest-occurrence files (`pellmonsrv.py`, `Scotteprotocol/protocol.py`, `plugins/calculate/__init__.py`)
-- [ ] **OBS-03**: Remaining ad hoc `print`/inconsistent logging calls are replaced with `logging.getLogger(__name__)` calls at appropriate levels across `src/`
+- [ ] **OBS-02**: Protocol parsing and database write failures are logged with `logger.exception(...)` instead of bare `except:` swallowing, in `pellmonsrv.py` and `plugins/calculate/__init__.py`. (`Scotteprotocol/protocol.py` is excluded from Phase 2 — confirmed unreachable via import today since `Scotteprotocol/__init__.py:2`'s broken import fails first; its exception-visibility work is deferred to Phase 3, bundled with `IMPORT-01`'s relative-import fix.)
+- [ ] **OBS-03**: Remaining ad hoc `print`/inconsistent logging calls are replaced with `logging.getLogger('pellMon')` calls at appropriate levels across `src/` (matches the codebase's existing shared-logger convention per `CONVENTIONS.md`, rather than introducing `__name__`-based per-module loggers)
 
 ### Import Strategy & Plugin Loading (IMPORT)
 
