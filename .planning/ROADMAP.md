@@ -29,7 +29,12 @@ Decimal phases appear between their surrounding integers in numeric order.
   2. Running the broadened import-check imports every plugin package (including `scottecom` and `nbecom`, not just the 4 core modules `test-imports.py` covers today) and fails with a nonzero exit when any plugin's import is broken.
   3. Developer can run a `pytest` suite covering `database.py` (SQLite keyval get/set/init, including the fallback table-creation path) and `Pellmonweb/auth.py` (credential check, session login flow), and it passes against current behavior.
   4. A real (unmocked) socket call made accidentally during a test run causes that test to fail loudly instead of hanging or silently succeeding.
-**Plans**: TBD
+**Plans**: 3 plans (2 waves)
+
+Plans:
+- [ ] 01-01-PLAN.md — Harness foundation: `requirements-dev.txt`, `pytest.ini`, `tests/` tree, shared fixtures, mocked-transport smoke test (TEST-01)
+- [ ] 01-02-PLAN.md — Unit coverage for `database.py` `Keyval_storage` and `Pellmonweb/auth.py` `AuthController` (TEST-03)
+- [ ] 01-03-PLAN.md — Descriptor-driven two-layer plugin import-check, socket-guardrail enforcement test, expected-red baseline doc (TEST-02)
 
 ### Phase 2: Exception Visibility Retrofit
 **Goal**: Plugin, protocol, and database failures are logged with full tracebacks instead of being silently swallowed — a purely observability change, with no logic altered.
@@ -83,7 +88,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
-| 1. Test Harness & Verification Infrastructure | 0/TBD | Not started | - |
+| 1. Test Harness & Verification Infrastructure | 0/3 | Planned | - |
 | 2. Exception Visibility Retrofit | 0/TBD | Not started | - |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
