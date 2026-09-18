@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -21,11 +21,8 @@ from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Item, Getsetitem, Storeditem, Cacheditem
 from logging import getLogger
 
-import os, sys, time
+import os, time
 import threading
-
-
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 
 logger = getLogger('pellMon')
 
@@ -35,9 +32,9 @@ class nbecomplugin(protocols):
 
     def activate(self, conf, glob, db, **kwargs):
         global Proxy
-        from nbeprotocol.protocol import Proxy
+        from .nbeprotocol.protocol import Proxy
         global event_text, state_text, lang_longname, lang_description, set_langfile_location
-        from nbeprotocol.language import event_text, state_text, lang_longname, lang_description
+        from .nbeprotocol.language import event_text, state_text, lang_longname, lang_description
         self.db_ready = False
 
         protocols.activate(self, conf, glob, db, **kwargs)

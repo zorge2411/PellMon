@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -24,10 +24,10 @@ from Crypto.PublicKey import RSA
 import base64
 import threading
 import errno
-from frames import Request_frame, Response_frame
-from protocolexceptions import *
+from .frames import Request_frame, Response_frame
+from .protocolexceptions import *
 from logging import getLogger
-import language
+from . import language
 import xtea
 
 logger = getLogger('pellMon')
@@ -85,7 +85,7 @@ class Proxy:
 
     
     def set_xteakey(self):
-        xtea_key = ''.join([chr(SystemRandom().randrange(128)) for x in range(16)])
+        xtea_key = bytes([SystemRandom().randrange(256) for x in range(16)]).decode('latin-1')
         try:
             self.set('misc.xtea_key', xtea_key)
         except protocol_error:
@@ -110,7 +110,7 @@ class Proxy:
                     response = self.make_request(2, path+'='+value, encrypt=True)
                     if response.status == 0:
                         if path == 'misc.xtea_key':
-                            self.request.xtea_key = xtea.new(value, mode=xtea.MODE_ECB, IV='\00'*8, rounds=64, endian='!')
+                            self.request.xtea_key = xtea.new(value.encode('latin-1'), mode=xtea.MODE_ECB, IV=b'\00'*8, rounds=64, endian='!')
                         return 'ok'
                     logger.debug('set error: %s', response.status)
                     raise protocol_error
