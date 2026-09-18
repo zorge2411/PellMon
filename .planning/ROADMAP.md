@@ -139,7 +139,18 @@ Plans:
   4. Sending SIGTERM to `pellmonsrv` or `pellmonweb` closes serial ports, releases D-Bus names, and flushes RRD writes cleanly, and `docker-compose.yml` defines a healthcheck for both services reflecting actual readiness.
   5. Dependency versions in `requirements.txt` are pinned (not `>=` floors), all `.py2bak` files have been removed from `src/`, and the README documents that production deployment is Linux-only.
 
-**Plans**: TBD
+**Plans**: 4 plans (2 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 05-01-PLAN.md — Authentication security & Exec command injection fix (SEC-01, SEC-02, SEC-03)
+- [ ] 05-02-PLAN.md — GitHub Actions CI & Docker Compose healthchecks (OPS-01, OPS-03)
+- [ ] 05-03-PLAN.md — Graceful SIGTERM lifecycle handling for server and web (OPS-02)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 05-04-PLAN.md — Pinned dependencies, .py2bak cleanup, Linux-only documentation & full gate (OPS-04, OPS-05, OPS-06)
 
 ## Progress
 
@@ -152,4 +163,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Exception Visibility Retrofit | 6/6 | Complete    | 2026-09-18 |
 | 3. Import Strategy & Plugin Loading Fixes | 4/4 | Complete    | 2026-09-18 |
 | 4. Protocol Module Hardening | 4/4 | Complete    | 2026-09-18 |
-| 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
+| 5. Security, CI & Deployment Hardening | 0/4 | Ready | - |
+
