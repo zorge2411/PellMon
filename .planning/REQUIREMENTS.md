@@ -21,10 +21,10 @@ Requirements for the "finish the migration and get it production-ready" mileston
 
 ### Import Strategy & Plugin Loading (IMPORT)
 
-- [ ] **IMPORT-01**: ScotteCom plugin loads and activates successfully under Python 3 (fixes broken implicit relative imports in `Scotteprotocol/__init__.py`, `frames.py`, `datamap.py`, `protocol.py`, and `scottecom/menus.py`)
-- [ ] **IMPORT-02**: NBEcom plugin loads and activates successfully under Python 3 (fixes broken implicit relative imports in `nbecom/nbeprotocol/protocol.py` and `frames.py`)
-- [ ] **IMPORT-03**: All intra-package imports in `src/` use explicit relative imports (PEP 328) instead of `sys.path.append` shims, with absolute imports only at the yapsy `exec()`-loaded plugin `__init__.py` boundary (which cannot resolve relative imports)
-- [ ] **IMPORT-04**: No duplicate-module-name collision risk remains between `Scotteprotocol` and `nbecom/nbeprotocol` packages (resolved as a consequence of explicit relative/absolute import fixes)
+- [x] **IMPORT-01**: ScotteCom plugin loads and activates successfully under Python 3 (fixes broken implicit relative imports in `Scotteprotocol/__init__.py`, `frames.py`, `datamap.py`, `protocol.py`, and `scottecom/menus.py`)
+- [x] **IMPORT-02**: NBEcom plugin loads and activates successfully under Python 3 (fixes broken implicit relative imports in `nbecom/nbeprotocol/protocol.py` and `frames.py`)
+- [x] **IMPORT-03**: All intra-package imports in `src/` use explicit relative imports (PEP 328) instead of `sys.path.append` shims, with absolute imports only at the yapsy `exec()`-loaded plugin `__init__.py` boundary (which cannot resolve relative imports)
+- [x] **IMPORT-04**: No duplicate-module-name collision risk remains between `Scotteprotocol` and `nbecom/nbeprotocol` packages (resolved as a consequence of explicit relative/absolute import fixes)
 
 ### Protocol Correctness (PROTO)
 
@@ -99,10 +99,10 @@ Which phases cover which requirements. Updated during roadmap creation.
 | OBS-01 | Phase 2 | Complete |
 | OBS-02 | Phase 2 | Complete |
 | OBS-03 | Phase 2 | Complete |
-| IMPORT-01 | Phase 3 | Pending |
-| IMPORT-02 | Phase 3 | Pending |
-| IMPORT-03 | Phase 3 | Pending |
-| IMPORT-04 | Phase 3 | Pending |
+| IMPORT-01 | Phase 3 | Complete |
+| IMPORT-02 | Phase 3 | Complete |
+| IMPORT-03 | Phase 3 | Complete |
+| IMPORT-04 | Phase 3 | Complete |
 | PROTO-01 | Phase 4 | Pending |
 | PROTO-02 | Phase 4 | Pending |
 | PROTO-03 | Phase 4 | Pending |

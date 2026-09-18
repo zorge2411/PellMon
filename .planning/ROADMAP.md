@@ -15,7 +15,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Test Harness & Verification Infrastructure** - Build a hardware-free pytest suite (mocked serial/UDP) and a broadened import-check so every later phase has a real pass/fail signal instead of "it imports." (completed 2026-09-17)
 - [x] **Phase 2: Exception Visibility Retrofit** - Replace bare `except:` with logged, traceback-visible failures in plugin loading and protocol/database paths, behavior-preserving, verified against Phase 1's harness. (completed 2026-09-18)
-- [ ] **Phase 3: Import Strategy & Plugin Loading Fixes** - Fix the broken implicit relative imports so ScotteCom and NBEcom actually load and activate under Python 3.
+- [x] **Phase 3: Import Strategy & Plugin Loading Fixes** - Fix the broken implicit relative imports so ScotteCom and NBEcom actually load and activate under Python 3. (completed 2026-09-18)
 - [ ] **Phase 4: Protocol Module Hardening (Bytes/Str Semantics)** - Fix the confirmed bytes/str `TypeError` and related protocol bugs, add constructor-injectable transports, verify with round-trip tests.
 - [ ] **Phase 5: Security, CI & Deployment Hardening** - Close credential/logging/shell-injection security gaps and lock in a CI pipeline plus graceful shutdown, healthchecks, pinned deps, and cleanup.
 
@@ -93,13 +93,13 @@ Phase 3 inherits the exception-visibility sweep of `src/Scotteprotocol/protocol.
 Plans:
 **Wave 1**
 
-- [ ] 03-01-PLAN.md — Scotteprotocol & ScotteCom relative import fixes + exception visibility retrofit (IMPORT-01, OBS-02)
-- [ ] 03-02-PLAN.md — NBEcom & nbeprotocol relative import fixes (IMPORT-02)
-- [ ] 03-03-PLAN.md — Yapsy relative imports + sys.path shim removal gate (IMPORT-03)
+- [x] 03-01-PLAN.md — Scotteprotocol & ScotteCom relative import fixes + exception visibility retrofit (IMPORT-01, OBS-02)
+- [x] 03-02-PLAN.md — NBEcom & nbeprotocol relative import fixes (IMPORT-02)
+- [x] 03-03-PLAN.md — Yapsy relative imports + sys.path shim removal gate (IMPORT-03)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 03-04-PLAN.md — Protocol coexistence verification & test baseline clearance (IMPORT-04)
+- [x] 03-04-PLAN.md — Protocol coexistence verification & test baseline clearance (IMPORT-04)
 
 ### Phase 4: Protocol Module Hardening (Bytes/Str Semantics)
 
@@ -139,6 +139,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
 | 2. Exception Visibility Retrofit | 6/6 | Complete    | 2026-09-18 |
-| 3. Import Strategy & Plugin Loading Fixes | 0/4 | Ready       | - |
+| 3. Import Strategy & Plugin Loading Fixes | 4/4 | Complete    | 2026-09-18 |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
