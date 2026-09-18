@@ -37,7 +37,7 @@ class Proxy:
         'sun', 'vacuum', 'misc', 'alarm', 'manual')
 #    consumption_data = ('total_hours', 'total_days', 'total_months', 'total_years', 'dhw_hours', 'dhw_days', 'dhw_months', 'dhw_years', 'counter')
 
-    def __init__(self, password, port=1920, addr=None, serial=None):
+    def __init__(self, password, port=1920, addr=None, serial=None, transport=None, start_threads=True):
         self.password = password
         self.discover_addr = (addr, port)
         self.lock = threading.Lock()
@@ -45,24 +45,28 @@ class Proxy:
         self.controller_online = False
         self.connected = False
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if addr == '<broadcast>':
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        s.settimeout(0.5)
-        self.s = s
+        if transport is not None:
+            self.s = transport
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if addr == '<broadcast>':
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.settimeout(0.5)
+            self.s = s
         self.request = Request_frame()
         self.response = Response_frame(self.request)
         self.request.pincode = self.password
         self.request.sequencenumber = randrange(0,100)
 
-        self.t = threading.Thread(target=lambda:self.find_controller())
-        self.t.setDaemon(True)
-        self.t.start()
+        if start_threads:
+            self.t = threading.Thread(target=lambda:self.find_controller())
+            self.t.setDaemon(True)
+            self.t.start()
 
-        self.t = threading.Thread(target=lambda:self.xtea_refresh_thread())
-        self.t.setDaemon(True)
-        self.t.start()
+            self.t = threading.Thread(target=lambda:self.xtea_refresh_thread())
+            self.t.setDaemon(True)
+            self.t.start()
 
 
     def get_rsakey(self):
@@ -141,9 +145,9 @@ class Proxy:
                     response = self.make_request(function, path)
                     if response.status == 0:
                         if not group:
-                            return response.payload.encode('ascii').split('=', 1)[1]
+                            return response.payload.split('=', 1)[1]
                         else:
-                            return response.payload.encode('ascii').split(';')
+                            return response.payload.split(';')
             except: #protocol_error:
                 if retry >= 1:
                     logger.debug('get retry %s', retry)
