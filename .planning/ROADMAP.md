@@ -88,7 +88,18 @@ Phase 3 inherits the exception-visibility sweep of `src/Scotteprotocol/protocol.
   3. A repo-wide search finds no remaining `sys.path.append` shims in `src/`; intra-package imports use explicit relative imports (PEP 328), with absolute imports used only at the yapsy `exec()`-loaded plugin `__init__.py` boundary.
   4. `Scotteprotocol` and `nbecom/nbeprotocol` load together (both plugins active in the same daemon process) with no duplicate-module-name collision.
 
-**Plans**: TBD
+**Plans**: 4 plans (2 waves)
+
+Plans:
+**Wave 1**
+
+- [ ] 03-01-PLAN.md — Scotteprotocol & ScotteCom relative import fixes + exception visibility retrofit (IMPORT-01, OBS-02)
+- [ ] 03-02-PLAN.md — NBEcom & nbeprotocol relative import fixes (IMPORT-02)
+- [ ] 03-03-PLAN.md — Yapsy relative imports + sys.path shim removal gate (IMPORT-03)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 03-04-PLAN.md — Protocol coexistence verification & test baseline clearance (IMPORT-04)
 
 ### Phase 4: Protocol Module Hardening (Bytes/Str Semantics)
 
@@ -128,6 +139,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 |-------|----------------|--------|-----------|
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
 | 2. Exception Visibility Retrofit | 6/6 | Complete    | 2026-09-18 |
-| 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
+| 3. Import Strategy & Plugin Loading Fixes | 0/4 | Ready       | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
