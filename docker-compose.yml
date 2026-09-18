@@ -1,0 +1,133 @@
+# PellMon Docker Compose Configuration
+#
+# Usage:
+#   docker-compose build            # Build image first
+#   docker-compose up -d            # Start all services
+#   docker-compose logs -f          # Follow logs
+#   docker-compose down             # Stop all services
+
+services:
+  # ===========================================
+  # PellMon Server (pellmonsrv)
+  # Main service that communicates with pellet burner
+  # ===========================================
+  pellmonsrv:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pellmon:latest
+    container_name: pellmonsrv
+    restart: unless-stopped
+
+    # Required for D-Bus and serial port access
+    privileged: true
+
+    environment:
+      - TZ=${TZ:-Europe/Stockholm}
+      # Use a shared session bus socket
+      - DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket
+
+    volumes:
+      # Configuration file
+      - ./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro
+      - ./config/conf.d:/etc/pellmon/conf.d:ro
+
+      # Data persistence (RRD database)
+      - pellmon-data:/var/lib/pellmon
+
+      # Logs
+      - pellmon-logs:/var/log/pellmon
+
+      # Shared socket location (using the pellmon run directory)
+      - pellmon-run:/var/run/pellmon
+
+      # Serial device access (adjust as needed)
+      - /dev:/dev:ro
+
+    # Start private D-Bus daemon and then run pellmonsrv
+    # We use sh to chain the commands
+    command: >
+      sh -c "rm -f /var/run/pellmon/bus_socket &&
+             dbus-daemon --session --address=unix:path=/var/run/pellmon/bus_socket --fork &&
+             exec python3 -m Pellmonsrv.pellmonsrv -C /etc/pellmon/pellmon.conf -D SESSION debug"
+
+    networks:
+      - pellmon-network
+
+    healthcheck:
+      test: [ "CMD-SHELL", "dbus-send --session --address=unix:path=/var/run/pellmon/bus_socket --dest=org.pellmon.int --print-reply /org/pellmon/int org.freedesktop.DBus.Peer.Ping > /dev/null 2>&1 || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+
+  # ===========================================
+  # PellMon Web Interface (pellmonweb)
+  # Web dashboard for monitoring and control
+  # ===========================================
+  pellmonweb:
+    # Use the same image built by pellmonsrv (no separate build)
+    image: pellmon:latest
+    container_name: pellmonweb
+    restart: unless-stopped
+
+    depends_on:
+      pellmonsrv:
+        condition: service_healthy
+
+    environment:
+      - TZ=${TZ:-Europe/Stockholm}
+      # Connect to the same shared socket
+      - DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket
+
+    ports:
+      # Web interface
+      - "${PELLMON_WEB_PORT:-8081}:8081"
+      # WebSocket (optional)
+      - "${PELLMON_WS_PORT:-8082}:8082"
+
+    volumes:
+      # Configuration
+      - ./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro
+      - ./config/conf.d:/etc/pellmon/conf.d:ro
+
+      # Shared data with server
+      - pellmon-data:/var/lib/pellmon:ro
+
+      # Logs
+      - pellmon-logs:/var/log/pellmon
+
+      # Shared socket location
+      - pellmon-run:/var/run/pellmon
+
+    # Use python3 for system Python
+    # Connect to SESSION bus (default)
+    command: [ "python3", "-m", "Pellmonweb.pellmonweb", "-C", "/etc/pellmon/pellmon.conf", "-d", "SESSION" ]
+
+    networks:
+      - pellmon-network
+
+    healthcheck:
+      test: [ "CMD", "curl", "-f", "http://localhost:8081/" ]
+      interval: 15s
+      timeout: 5s
+      retries: 3
+      start_period: 10s
+
+# ===========================================
+# Named volumes for data persistence
+# ===========================================
+volumes:
+  pellmon-data:
+    driver: local
+  pellmon-logs:
+    driver: local
+  pellmon-run:
+    driver: local
+
+# ===========================================
+# Network configuration
+# ===========================================
+networks:
+  pellmon-network:
+    driver: bridge
