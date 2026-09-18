@@ -41,7 +41,7 @@ class Protocol(threading.Thread):
             self.dataBase = self.createDataBase('6.99' if not version_string else version_string)
             self.q = queue.Queue(300)
             threading.Thread.__init__(self)
-            self.setDaemon(True)
+            self.daemon = True
             if start_thread:
                 self.start()
             return
@@ -344,18 +344,20 @@ class Protocol(threading.Thread):
         if not self.checksum:
             return s
         else:
+            if isinstance(s, bytes):
+                s = s.decode('latin-1')
             x=0;
             logger.debug('addchecksum:')
             for c in s: x=x^ord(c)
             rs=s+chr(x)
-            if isinstance(rs, bytes):
-                rs = rs.decode('latin-1')
             logger.debug(rs)
             return rs
 
     def checkCheckSum(self, s):
         x=0;
         if self.checksum:
+            if isinstance(s, bytes):
+                s = s.decode('latin-1')
             for c in s: 
                 x=x^ord(c)
         return x
