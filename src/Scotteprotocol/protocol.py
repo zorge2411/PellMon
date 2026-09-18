@@ -22,8 +22,8 @@ import time
 import queue
 import threading
 import serial
-from enumerations import dataEnumerations
-from transformations import dataTransformations
+from .enumerations import dataEnumerations
+from .transformations import dataTransformations
 logger = getLogger('pellMon')
 
 class Protocol(threading.Thread):
@@ -58,7 +58,7 @@ class Protocol(threading.Thread):
         self.ser = s
             
         # message queue, used to send frame polling commands to pollThread
-        self.q = Queue.Queue(300)
+        self.q = queue.Queue(300)
         self.dataBase = self.createDataBase('4.99')
         
         # Create and start poll_thread
@@ -129,7 +129,7 @@ class Protocol(threading.Thread):
             readTime = dataparam.frame.readtime
             if time.time()-readTime > 8.0 or writeTime>readTime or time.time()-writeTime < 4.0:
                 try:
-                    responseQueue = Queue.Queue(3)
+                    responseQueue = queue.Queue(3)
                     try:  # Send "read parameter value" message to pollThread
                         if writeTime>readTime or time.time()-writeTime < 4.0:
                             self.q.put(("FORCE_GET", dataparam.frame,responseQueue))
@@ -197,7 +197,7 @@ class Protocol(threading.Thread):
                 if value >= dataparam.min and value <= dataparam.max:
                     s=("{:0>4.0f}".format(value * pow(10, decimals)))
                     # Send "write parameter value" message to pollThread
-                    responseQueue = Queue.Queue() 
+                    responseQueue = queue.Queue() 
                     self.q.put(("PUT", dataparam.address + s, responseQueue))
                     response = responseQueue.get()
                     if response == self.addCheckSum('OK'):
@@ -213,7 +213,7 @@ class Protocol(threading.Thread):
             
     def createDataBase(self, version_string):
         """return a dictionary of parameters supported on version_string"""
-        from datamap import dataBaseMap 
+        from .datamap import dataBaseMap 
         db={}
         for param_name in dataBaseMap:
             mappings = dataBaseMap[param_name]
@@ -236,15 +236,15 @@ class Protocol(threading.Thread):
                 self.ser.flushInput()
                 if self.frame_term_crlf:
                     s += '\r\n'
-                self.ser.write(s)   
+                self.ser.write(s.encode('latin-1'))
                 logger.debug('serial written'+s)        
                 line=""
                 if not self.frame_term_crlf:
                     try:
                         if self.checksum:
-                            line=str(self.ser.read(3))
+                            line=self.ser.read(3).decode('latin-1')
                         else:
-                            line=str(self.ser.read(2))
+                            line=self.ser.read(2).decode('latin-1')
                         logger.debug('serial read'+line)
                     except: 
                         logger.debug('Serial read error')
@@ -272,9 +272,9 @@ class Protocol(threading.Thread):
                         logger.debug('serial write')
                         if self.frame_term_crlf:
                             sendFrame += '\r\n'
-                        self.ser.write(sendFrame)   
+                        self.ser.write(sendFrame.encode('latin-1'))
                         logger.debug('serial written')  
-                        line=str(self.ser.read(frame.getLength(self))) 
+                        line=self.ser.read(frame.getLength(self)).decode('latin-1')
                         logger.debug('serial read'+line)
                     except:
                         logger.debug('Serial read error')
@@ -296,9 +296,9 @@ class Protocol(threading.Thread):
                             logger.debug('serial write')
                             if self.frame_term_crlf:
                                 sendFrame += '\r\n'
-                            self.ser.write(sendFrame)
+                            self.ser.write(sendFrame.encode('latin-1'))
                             logger.debug('serial written')
-                            line=str(self.ser.read(frame.getLength(self)))
+                            line=self.ser.read(frame.getLength(self)).decode('latin-1')
                             logger.debug('answer: '+line)
                         except:
                             logger.debug('Serial read error')
@@ -327,6 +327,8 @@ class Protocol(threading.Thread):
             logger.debug('addchecksum:')
             for c in s: x=x^ord(c)
             rs=s+chr(x)
+            if isinstance(rs, bytes):
+                rs = rs.decode('latin-1')
             logger.debug(rs)
             return rs
 

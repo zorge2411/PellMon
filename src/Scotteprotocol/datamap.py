@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: iso-8859-15 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -18,7 +18,7 @@
 """
 
 from collections import namedtuple
-from frames import *
+from .frames import *
 
 # 'param' type is for setting values that can be read and written
 # 'data' type is for read-only measurement values
