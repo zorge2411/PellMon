@@ -6,13 +6,11 @@ plugin from its `.pellmon-plugin` descriptor and import-checks it, plus
 probes NBEcom's deferred (activate-time) protocol import explicitly so it
 cannot false-pass.
 
-Two cases are *expected* to FAIL at the end of Phase 1 -- this is the
-ROADMAP Phase 1 success criterion 2 deliverable, not a defect:
-  - test_plugin_module_imports[scottecom]     (IMPORT-01, Phase 3)
-  - test_nbecom_deferred_protocol_import       (IMPORT-02, Phase 3)
-Both are marked `known_broken` so they are filtered out of the green
-baseline gate (`pytest -m "not known_broken"`) but still show up under the
-full-truth run (`pytest -v`). See tests/README.md.
+Two cases previously failed as the Phase 1 expected-red baseline:
+  - test_plugin_module_imports[scottecom]     (IMPORT-01, resolved in Phase 3)
+  - test_nbecom_deferred_protocol_import       (IMPORT-02, resolved in Phase 3)
+Phase 3 fixed the underlying PEP 328 explicit relative imports and package
+structure, so both tests now pass cleanly under Python 3 with 0 known_broken.
 """
 
 import configparser
@@ -37,8 +35,8 @@ PLATFORM_UNAVAILABLE = {
 }
 
 # Plugin modules with a confirmed, still-unfixed Python 3 import defect.
-# Owner: IMPORT-01 (Phase 3). Do NOT widen this to hide other failures.
-KNOWN_BROKEN_MODULES = {"scottecom"}
+# Resolved in Phase 3 (IMPORT-01, IMPORT-02) -- empty baseline.
+KNOWN_BROKEN_MODULES = set()
 
 
 def discover_plugin_modules():
@@ -97,16 +95,15 @@ def test_plugin_module_imports(module_name):
         raise
 
 
-@pytest.mark.known_broken
 def test_nbecom_deferred_protocol_import():
     """Layer 2: NBEcom's protocol import is deferred.
 
-    `nbecom` passes Layer 1 because `from nbeprotocol.protocol import Proxy`
+    `nbecom` passes Layer 1 because `from .nbeprotocol.protocol import Proxy`
     lives inside `nbecomplugin.activate()`
-    (src/Pellmonsrv/plugins/nbecom/__init__.py:38), not at module level, so
-    a naive per-module import loop gives it a false pass. This probe
-    imports the deferred target directly, which is what actually surfaces
-    IMPORT-02. Expected to FAIL until Phase 3.
+    (src/Pellmonsrv/plugins/nbecom/__init__.py), not at module level, so
+    a naive per-module import loop would give it a false pass. This probe
+    imports the deferred target directly. Previously failed under Python 2
+    relative import syntax; now cleanly resolved in Phase 3 (IMPORT-02).
     """
     importlib.import_module("Pellmonsrv.plugins.nbecom.nbeprotocol.protocol")
 
