@@ -50,7 +50,7 @@ class Protocol(threading.Thread):
         try:
             s.open()
         except serial.SerialException as e:
-            logger.info("Could not open serial port %s: %s\n" % (device, e))
+            logger.exception("Could not open serial port %s: %s\n", device, e)
             self.dummyDevice=True
             self.dataBase = self.createDataBase('6.99')
             return 
@@ -70,41 +70,41 @@ class Protocol(threading.Thread):
             try:
                 version_string = self.getItem('version').lstrip()
                 logger.info('chip version detected as: %s'%version_string)
-            except:
+            except (OSError, KeyError, IndexError, ValueError, TypeError):
                 self.checksum=False
                 logger.info('protocol checksums turned off')
                 try:
                     version_string = self.getItem('version').lstrip()
                     logger.info('chip version detected as: %s'%version_string)
-                except:
+                except (OSError, KeyError, IndexError, ValueError, TypeError):
                     self.frame_term_crlf= True
                     try:
                         version_string = self.getItem('version').lstrip()
                         logger.info('chip version detected with checksums of and crlf on as: %s'%version_string)
-                    except:
+                    except (OSError, KeyError, IndexError, ValueError, TypeError):
                         version_string = '4.00'
                         logger.info("can't read program version, assuming 4.00")
                         try:
                             testread = self.getItem('power').lstrip()
                             logger.info('Connected with protocol checksums turned off and crlf on')
-                        except:
+                        except (OSError, KeyError, IndexError, ValueError, TypeError):
                             logger.info('Not connected? Check the cables')
         else:
             logger.info('chip version from config: %s'%version_string)
             try:
                 testread = self.getItem('power').lstrip()
                 logger.info('Connected')
-            except:
+            except (OSError, KeyError, IndexError, ValueError, TypeError):
                 self.checksum=False
                 try:
                     testread = self.getItem('power').lstrip()
                     logger.info('Connected with protocol checksums turned off')
-                except:
+                except (OSError, KeyError, IndexError, ValueError, TypeError):
                     self.frame_term_crlf= True
                     try:
                         testread = self.getItem('power').lstrip()
                         logger.info('Connected with protocol checksums turned off and crlf on')
-                    except:
+                    except (OSError, KeyError, IndexError, ValueError, TypeError):
                         logger.info('Not connected? Check the cables')
 
         self.dataBase = self.createDataBase(version_string)
@@ -137,14 +137,14 @@ class Protocol(threading.Thread):
                             self.q.put(("GET", dataparam.frame,responseQueue))
                         try:  # and wait for a response                 
                             ok=responseQueue.get(True, 5)
-                        except:
+                        except queue.Empty:
                             ok=False
                             logger.debug('GetItem: Response timeout')
-                    except:
+                    except queue.Full:
                         ok=False
                         logger.info('Getitem: MessageQueue full')
-                except:
-                    logger.info('Getitem: Create responsequeue failed') 
+                except Exception:
+                    logger.exception('Getitem: Create responsequeue failed') 
                     ok=False
             if (ok):
                 if dataparam.decimals == -1: # not a number, return as is
@@ -153,17 +153,17 @@ class Protocol(threading.Thread):
                     value = dataparam.frame.get(dataparam.index)
                     try:
                         return dataEnumerations[param][int(value)]
-                    except:                        
+                    except (KeyError, ValueError, IndexError, TypeError):                        
                         try:
                             formatStr="{:0."+str(dataparam.decimals)+"f}"
                             data = formatStr.format( float(value) / pow(10, dataparam.decimals)  )
                             try:
                                 if not raw:
                                     data = dataTransformations[param].decode(value)
-                            except:
+                            except (KeyError, ValueError, TypeError, AttributeError):
                                 pass
                             return data
-                        except:
+                        except (ValueError, TypeError):
                             raise IOError(0, "Getitem result is not a number")
             else:
                 raise IOError(0, "GetItem failed")
@@ -174,7 +174,7 @@ class Protocol(threading.Thread):
         try:
             if not raw:
                 s = dataTransformations[param].encode(s)
-        except:
+        except (KeyError, ValueError, TypeError, AttributeError):
             pass
         if self.dummyDevice:
             return 'OK'
@@ -184,7 +184,7 @@ class Protocol(threading.Thread):
             try:
                 try:
                     value=float(s)
-                except:
+                except (ValueError, TypeError):
                     return "not a number"
                 if hasattr(dataparam, 'frame'):
                     # Save time when this index was written
@@ -206,8 +206,12 @@ class Protocol(threading.Thread):
                     return response
                 else:
                     return "Expected value "+str(dataparam.min)+".."+str(dataparam.max)
+            except (KeyError, ValueError, TypeError, IndexError) as e:
+                logger.debug('Value/lookup error in setItem: %s', e)
+                return str(e)
             except Exception as e:
-                return e
+                logger.exception('Unexpected error in setItem: %s', e)
+                return str(e)
         else:
             return 'Not a setting value'        
             
@@ -246,8 +250,10 @@ class Protocol(threading.Thread):
                         else:
                             line=self.ser.read(2).decode('latin-1')
                         logger.debug('serial read'+line)
-                    except: 
-                        logger.debug('Serial read error')
+                    except (serial.SerialException, OSError) as e: 
+                        logger.exception('Serial read error: %s', e)
+                    except Exception:
+                        logger.exception('Unexpected error during serial read')
                     if line:
                         # Send back the response
                         commandqueue[2].put(line)
@@ -276,8 +282,10 @@ class Protocol(threading.Thread):
                         logger.debug('serial written')  
                         line=self.ser.read(frame.getLength(self)).decode('latin-1')
                         logger.debug('serial read'+line)
-                    except:
-                        logger.debug('Serial read error')
+                    except (serial.SerialException, OSError) as e:
+                        logger.exception('Serial communication error: %s', e)
+                    except Exception:
+                        logger.exception('Unexpected error during serial communication')
                     result = False
                     if line:    
                         logger.debug('Got answer, parsing') 
@@ -285,8 +293,8 @@ class Protocol(threading.Thread):
                         if result:
                             try:
                                 responsequeue.put(result)
-                            except:
-                                logger.debug('command response queue put 1 fail')    
+                            except Exception:
+                                logger.exception('command response queue put 1 fail')    
                     else:
                         logger.debug('Timeout')
                     if not result:           
@@ -300,21 +308,23 @@ class Protocol(threading.Thread):
                             logger.debug('serial written')
                             line=self.ser.read(frame.getLength(self)).decode('latin-1')
                             logger.debug('answer: '+line)
-                        except:
-                            logger.debug('Serial read error')
+                        except (serial.SerialException, OSError) as e:
+                            logger.exception('Serial communication error on retry: %s', e)
+                        except Exception:
+                            logger.exception('Unexpected error during serial communication retry')
                         if line:
                             logger.debug('Got answer, parsing')
                             result=commandqueue[1].parse(line, self)
                             try:
                                 responsequeue.put(result)
-                            except:
-                                logger.debug('command response queue put 1 fail')
+                            except Exception:
+                                logger.exception('command response queue put 1 fail')
                         else:   
                             try:
                                 logger.debug('Try to put False, answer was empty')
                                 responsequeue.put(False)
-                            except:
-                                logger.debug('command response queue put 2 fail')
+                            except Exception:
+                                logger.exception('command response queue put 2 fail')
                             logger.info('Timeout again, give up and return fail')
                 else: 
                     responsequeue.put(True) 
