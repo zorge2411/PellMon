@@ -36,18 +36,18 @@ Requirements for the "finish the migration and get it production-ready" mileston
 
 ### Security (SEC)
 
-- [ ] **SEC-01**: Web UI login failures no longer log the submitted plaintext password (`Pellmonweb/auth.py:147,150`)
-- [ ] **SEC-02**: Web UI credentials are hashed (not compared in plaintext), with a one-time migration path for existing plaintext passwords in `config/pellmon.conf`
-- [ ] **SEC-03**: Exec plugin's readscript path uses `shell=False` with an argument list, matching the safer pattern already used by the writescript path (`plugins/exec/__init__.py:86`)
+- [x] **SEC-01**: Web UI login failures no longer log the submitted plaintext password (`Pellmonweb/auth.py:147,150`)
+- [x] **SEC-02**: Web UI credentials are hashed (not compared in plaintext), with a one-time migration path for existing plaintext passwords in `config/pellmon.conf`
+- [x] **SEC-03**: Exec plugin's readscript path uses `shell=False` with an argument list, matching the safer pattern already used by the writescript path (`plugins/exec/__init__.py:86`)
 
 ### Deployment & Cleanup Hardening (OPS)
 
-- [ ] **OPS-01**: A CI pipeline (GitHub Actions, Linux runner) runs the pytest suite and the broadened import-check on every pull request before merge to `master`/`python3-migration`
-- [ ] **OPS-02**: Both `pellmonsrv` and `pellmonweb` handle SIGTERM gracefully (close serial ports, release D-Bus names, flush RRD writes) so `docker compose down`/restart doesn't leave locked resources
-- [ ] **OPS-03**: `docker-compose.yml`/`Dockerfile` define a healthcheck for both services so Compose can tell when the stack is actually ready, not just started
-- [ ] **OPS-04**: Dependency versions are pinned (lockfile or `==` pins) instead of `>=` floors, so builds are reproducible
-- [ ] **OPS-05**: All `.py2bak` backup files are removed from `src/` once each corresponding module's Python 3 behavior is confirmed by the test suite
-- [ ] **OPS-06**: README documents that production deployment is Linux-only (D-Bus, GLib, rrdtool, serial, GPIO dependencies), so this isn't discovered by a Windows crash
+- [x] **OPS-01**: A CI pipeline (GitHub Actions, Linux runner) runs the pytest suite and the broadened import-check on every pull request before merge to `master`/`python3-migration`
+- [x] **OPS-02**: Both `pellmonsrv` and `pellmonweb` handle SIGTERM gracefully (close serial ports, release D-Bus names, flush RRD writes) so `docker compose down`/restart doesn't leave locked resources
+- [x] **OPS-03**: `docker-compose.yml`/`Dockerfile` define a healthcheck for both services so Compose can tell when the stack is actually ready, not just started
+- [x] **OPS-04**: Dependency versions are pinned (lockfile or `==` pins) instead of `>=` floors, so builds are reproducible
+- [x] **OPS-05**: All `.py2bak` backup files are removed from `src/` once each corresponding module's Python 3 behavior is confirmed by the test suite
+- [x] **OPS-06**: README documents that production deployment is Linux-only (D-Bus, GLib, rrdtool, serial, GPIO dependencies), so this isn't discovered by a Windows crash
 
 ## v2 Requirements
 
@@ -108,15 +108,15 @@ Which phases cover which requirements. Updated during roadmap creation.
 | PROTO-03 | Phase 4 | Complete |
 | PROTO-04 | Phase 4 | Complete |
 | PROTO-05 | Phase 4 | Complete |
-| SEC-01 | Phase 5 | Pending |
-| SEC-02 | Phase 5 | Pending |
-| SEC-03 | Phase 5 | Pending |
-| OPS-01 | Phase 5 | Pending |
-| OPS-02 | Phase 5 | Pending |
-| OPS-03 | Phase 5 | Pending |
-| OPS-04 | Phase 5 | Pending |
-| OPS-05 | Phase 5 | Pending |
-| OPS-06 | Phase 5 | Pending |
+| SEC-01 | Phase 5 | Complete |
+| SEC-02 | Phase 5 | Complete |
+| SEC-03 | Phase 5 | Complete |
+| OPS-01 | Phase 5 | Complete |
+| OPS-02 | Phase 5 | Complete |
+| OPS-03 | Phase 5 | Complete |
+| OPS-04 | Phase 5 | Complete |
+| OPS-05 | Phase 5 | Complete |
+| OPS-06 | Phase 5 | Complete |
 
 **Coverage:**
 - v1 requirements: 24 total

@@ -17,7 +17,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 2: Exception Visibility Retrofit** - Replace bare `except:` with logged, traceback-visible failures in plugin loading and protocol/database paths, behavior-preserving, verified against Phase 1's harness. (completed 2026-09-18)
 - [x] **Phase 3: Import Strategy & Plugin Loading Fixes** - Fix the broken implicit relative imports so ScotteCom and NBEcom actually load and activate under Python 3. (completed 2026-09-18)
 - [x] **Phase 4: Protocol Module Hardening (Bytes/Str Semantics)** - Fix the confirmed bytes/str `TypeError` and related protocol bugs, add constructor-injectable transports, verify with round-trip tests. (completed 2026-09-18)
-- [ ] **Phase 5: Security, CI & Deployment Hardening** - Close credential/logging/shell-injection security gaps and lock in a CI pipeline plus graceful shutdown, healthchecks, pinned deps, and cleanup.
+- [x] **Phase 5: Security, CI & Deployment Hardening** - Close credential/logging/shell-injection security gaps and lock in a CI pipeline plus graceful shutdown, healthchecks, pinned deps, and cleanup. (completed 2026-09-18)
 
 ## Phase Details
 
@@ -144,13 +144,13 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 05-01-PLAN.md — Authentication security & Exec command injection fix (SEC-01, SEC-02, SEC-03)
-- [ ] 05-02-PLAN.md — GitHub Actions CI & Docker Compose healthchecks (OPS-01, OPS-03)
-- [ ] 05-03-PLAN.md — Graceful SIGTERM lifecycle handling for server and web (OPS-02)
+- [x] 05-01-PLAN.md — Authentication security & Exec command injection fix (SEC-01, SEC-02, SEC-03)
+- [x] 05-02-PLAN.md — GitHub Actions CI & Docker Compose healthchecks (OPS-01, OPS-03)
+- [x] 05-03-PLAN.md — Graceful SIGTERM lifecycle handling for server and web (OPS-02)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 05-04-PLAN.md — Pinned dependencies, .py2bak cleanup, Linux-only documentation & full gate (OPS-04, OPS-05, OPS-06)
+- [x] 05-04-PLAN.md — Pinned dependencies, .py2bak cleanup, Linux-only documentation & full gate (OPS-04, OPS-05, OPS-06)
 
 ## Progress
 
@@ -163,5 +163,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 2. Exception Visibility Retrofit | 6/6 | Complete    | 2026-09-18 |
 | 3. Import Strategy & Plugin Loading Fixes | 4/4 | Complete    | 2026-09-18 |
 | 4. Protocol Module Hardening | 4/4 | Complete    | 2026-09-18 |
-| 5. Security, CI & Deployment Hardening | 0/4 | Ready | - |
+| 5. Security, CI & Deployment Hardening | 4/4 | Complete | 2026-09-18 |
 
