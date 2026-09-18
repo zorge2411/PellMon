@@ -28,11 +28,11 @@ Requirements for the "finish the migration and get it production-ready" mileston
 
 ### Protocol Correctness (PROTO)
 
-- [ ] **PROTO-01**: NBEcom `Proxy.get()` correctly splits response payloads without raising `TypeError` (fixes the bytes/str mixing bug at `nbeprotocol/protocol.py:144,146`)
-- [ ] **PROTO-02**: Calculate plugin's `setItem()` no longer raises `NameError` from the leftover Python 2 `unicode()` call (`plugins/calculate/__init__.py:351`)
-- [ ] **PROTO-03**: Daemon can redirect stderr to a log file in daemonized mode without raising `ValueError: can't have unbuffered text I/O` (`daemon.py:69`)
-- [ ] **PROTO-04**: Scotte and NBE protocol modules have a hardware-mock boundary (constructor-injectable transport) so encode/decode round-trip tests can run without physical hardware, verified via the TEST-01 suite
-- [ ] **PROTO-05**: Calculate plugin imports successfully on Linux (fixes the Python-2-only `from string import maketrans` at `plugins/calculate/__init__.py:28`, which raises `ImportError` on Linux/WSL — found by Phase 2 research; distinct from PROTO-02's `unicode()` bug in the same file)
+- [x] **PROTO-01**: NBEcom `Proxy.get()` correctly splits response payloads without raising `TypeError` (fixes the bytes/str mixing bug at `nbeprotocol/protocol.py:144,146`)
+- [x] **PROTO-02**: Calculate plugin's `setItem()` no longer raises `NameError` from the leftover Python 2 `unicode()` call (`plugins/calculate/__init__.py:351`)
+- [x] **PROTO-03**: Daemon can redirect stderr to a log file in daemonized mode without raising `ValueError: can't have unbuffered text I/O` (`daemon.py:69`)
+- [x] **PROTO-04**: Scotte and NBE protocol modules have a hardware-mock boundary (constructor-injectable transport) so encode/decode round-trip tests can run without physical hardware, verified via the TEST-01 suite
+- [x] **PROTO-05**: Calculate plugin imports successfully on Linux (fixes the Python-2-only `from string import maketrans` at `plugins/calculate/__init__.py:28`, which raises `ImportError` on Linux/WSL — found by Phase 2 research; distinct from PROTO-02's `unicode()` bug in the same file)
 
 ### Security (SEC)
 
@@ -103,11 +103,11 @@ Which phases cover which requirements. Updated during roadmap creation.
 | IMPORT-02 | Phase 3 | Complete |
 | IMPORT-03 | Phase 3 | Complete |
 | IMPORT-04 | Phase 3 | Complete |
-| PROTO-01 | Phase 4 | Pending |
-| PROTO-02 | Phase 4 | Pending |
-| PROTO-03 | Phase 4 | Pending |
-| PROTO-04 | Phase 4 | Pending |
-| PROTO-05 | Phase 4 | Pending |
+| PROTO-01 | Phase 4 | Complete |
+| PROTO-02 | Phase 4 | Complete |
+| PROTO-03 | Phase 4 | Complete |
+| PROTO-04 | Phase 4 | Complete |
+| PROTO-05 | Phase 4 | Complete |
 | SEC-01 | Phase 5 | Pending |
 | SEC-02 | Phase 5 | Pending |
 | SEC-03 | Phase 5 | Pending |

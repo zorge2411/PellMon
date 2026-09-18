@@ -16,7 +16,7 @@ Decimal phases appear between their surrounding integers in numeric order.
 - [x] **Phase 1: Test Harness & Verification Infrastructure** - Build a hardware-free pytest suite (mocked serial/UDP) and a broadened import-check so every later phase has a real pass/fail signal instead of "it imports." (completed 2026-09-17)
 - [x] **Phase 2: Exception Visibility Retrofit** - Replace bare `except:` with logged, traceback-visible failures in plugin loading and protocol/database paths, behavior-preserving, verified against Phase 1's harness. (completed 2026-09-18)
 - [x] **Phase 3: Import Strategy & Plugin Loading Fixes** - Fix the broken implicit relative imports so ScotteCom and NBEcom actually load and activate under Python 3. (completed 2026-09-18)
-- [ ] **Phase 4: Protocol Module Hardening (Bytes/Str Semantics)** - Fix the confirmed bytes/str `TypeError` and related protocol bugs, add constructor-injectable transports, verify with round-trip tests.
+- [x] **Phase 4: Protocol Module Hardening (Bytes/Str Semantics)** - Fix the confirmed bytes/str `TypeError` and related protocol bugs, add constructor-injectable transports, verify with round-trip tests. (completed 2026-09-18)
 - [ ] **Phase 5: Security, CI & Deployment Hardening** - Close credential/logging/shell-injection security gaps and lock in a CI pipeline plus graceful shutdown, healthchecks, pinned deps, and cleanup.
 
 ## Phase Details
@@ -118,13 +118,13 @@ Plans:
 Plans:
 **Wave 1**
 
-- [ ] 04-01-PLAN.md — Calculate plugin & daemon runtime hardening (PROTO-02, PROTO-03, PROTO-05)
-- [ ] 04-02-PLAN.md — NBE protocol bytes/str hardening & transport injection (PROTO-01, PROTO-04)
-- [ ] 04-03-PLAN.md — Scotte protocol transport injection & frame round-trip tests (PROTO-04)
+- [x] 04-01-PLAN.md — Calculate plugin & daemon runtime hardening (PROTO-02, PROTO-03, PROTO-05)
+- [x] 04-02-PLAN.md — NBE protocol bytes/str hardening & transport injection (PROTO-01, PROTO-04)
+- [x] 04-03-PLAN.md — Scotte protocol transport injection & frame round-trip tests (PROTO-04)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 04-04-PLAN.md — Database keyval confval fix & full verification gate (All PROTO criteria + tech debt)
+- [x] 04-04-PLAN.md — Database keyval confval fix & full verification gate (All PROTO criteria + tech debt)
 
 ### Phase 5: Security, CI & Deployment Hardening
 
@@ -151,5 +151,5 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
 | 2. Exception Visibility Retrofit | 6/6 | Complete    | 2026-09-18 |
 | 3. Import Strategy & Plugin Loading Fixes | 4/4 | Complete    | 2026-09-18 |
-| 4. Protocol Module Hardening | 0/4 | Ready       | - |
+| 4. Protocol Module Hardening | 4/4 | Complete    | 2026-09-18 |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
