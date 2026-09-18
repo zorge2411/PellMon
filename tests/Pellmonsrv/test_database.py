@@ -58,17 +58,18 @@ def test_readval_missing_key_returns_error_string(tmp_path):
 
 
 def test_writeval_with_confval_sets_both_columns(tmp_path):
-    """On a fresh store the row does not exist yet, so the nested bare
-    except: upsert path at database.py:198-200 runs.
-    """
+    """Verify writeval preserves existing value column when updating confval."""
     dbfile = str(tmp_path / "test.db")
     store = Keyval_storage(dbfile)
-    store.writeval("ckey", value="v1", confval="c1")
+    store.writeval("test_item", "initial_value")
+    store.writeval("test_item", confval="new_conf")
 
     conn = sqlite3.connect(dbfile)
     cursor = conn.cursor()
-    cursor.execute("SELECT confvalue FROM keyval WHERE id=?", ("ckey",))
-    confvalue, = next(cursor)
+    cursor.execute("SELECT value, confvalue FROM keyval WHERE id=?", ("test_item",))
+    value, confvalue = next(cursor)
     conn.close()
 
-    assert confvalue == "c1"
+    assert value == "initial_value"
+    assert confvalue == "new_conf"
+

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -196,7 +196,7 @@ class Keyval_storage(object):
                         cursor.execute("SELECT value, confvalue FROM keyval WHERE id=?", (item,))
                         value,confvalue = next(cursor)
                         if confvalue != confval:
-                            cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, confval, confval))
+                            cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, value, confval))
                             conn.commit()
                     except:
                         cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, confval, confval))
