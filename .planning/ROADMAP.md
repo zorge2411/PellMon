@@ -14,7 +14,7 @@ The Python 2→3 port was declared "complete" on the strength of a shallow impor
 Decimal phases appear between their surrounding integers in numeric order.
 
 - [x] **Phase 1: Test Harness & Verification Infrastructure** - Build a hardware-free pytest suite (mocked serial/UDP) and a broadened import-check so every later phase has a real pass/fail signal instead of "it imports." (completed 2026-09-17)
-- [ ] **Phase 2: Exception Visibility Retrofit** - Replace bare `except:` with logged, traceback-visible failures in plugin loading and protocol/database paths, behavior-preserving, verified against Phase 1's harness.
+- [x] **Phase 2: Exception Visibility Retrofit** - Replace bare `except:` with logged, traceback-visible failures in plugin loading and protocol/database paths, behavior-preserving, verified against Phase 1's harness. (completed 2026-09-18)
 - [ ] **Phase 3: Import Strategy & Plugin Loading Fixes** - Fix the broken implicit relative imports so ScotteCom and NBEcom actually load and activate under Python 3.
 - [ ] **Phase 4: Protocol Module Hardening (Bytes/Str Semantics)** - Fix the confirmed bytes/str `TypeError` and related protocol bugs, add constructor-injectable transports, verify with round-trip tests.
 - [ ] **Phase 5: Security, CI & Deployment Hardening** - Close credential/logging/shell-injection security gaps and lock in a CI pipeline plus graceful shutdown, healthchecks, pinned deps, and cleanup.
@@ -73,7 +73,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 02-06-PLAN.md — Phase gate: AST-based print-enforcement test, `after.xml` capture + outcome-parity diff, ROADMAP alignment
+- [x] 02-06-PLAN.md — Phase gate: AST-based print-enforcement test, `after.xml` capture + outcome-parity diff, ROADMAP alignment
 
 ### Phase 3: Import Strategy & Plugin Loading Fixes
 
@@ -127,7 +127,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | Phase | Plans Complete | Status | Completed |
 |-------|----------------|--------|-----------|
 | 1. Test Harness & Verification Infrastructure | 3/3 | Complete    | 2026-09-17 |
-| 2. Exception Visibility Retrofit | 5/6 | In Progress|  |
+| 2. Exception Visibility Retrofit | 6/6 | Complete    | 2026-09-18 |
 | 3. Import Strategy & Plugin Loading Fixes | 0/TBD | Not started | - |
 | 4. Protocol Module Hardening | 0/TBD | Not started | - |
 | 5. Security, CI & Deployment Hardening | 0/TBD | Not started | - |
