@@ -78,10 +78,6 @@ def calculate_module():
         sys.modules[name] = _STUB_BUILDERS[name]()
         injected_module_keys.append(name)
 
-    had_maketrans = hasattr(string, "maketrans")
-    if not had_maketrans:
-        string.maketrans = str.maketrans
-
     calculate_keys_before = {
         k for k in sys.modules
         if k == "Pellmonsrv.plugins.calculate" or k.startswith("Pellmonsrv.plugins.calculate.")
@@ -99,8 +95,6 @@ def calculate_module():
             sys.modules.pop(key, None)
         for key in injected_module_keys:
             sys.modules.pop(key, None)
-        if not had_maketrans:
-            del string.maketrans
 
 
 @pytest.fixture
@@ -125,19 +119,17 @@ def plugin(calculate_module):
     calculate_module.itemValues.clear()
 
 
-def test_setitem_namerror_visibility(calculate_module, plugin, caplog):
-    """setItem() on a calculated item still returns 'error' (logic
-    unchanged), but the real underlying NameError from the Python-2-only
-    `unicode(value)` call (line 351, PROTO-02) now reaches the log with a
-    full traceback instead of being silently swallowed by a one-line
-    `logger.info` call.
+def test_setitem_calc_failure_visibility(calculate_module, plugin, caplog):
+    """setItem() on a calculated item whose calc program raises still
+    returns 'error', and the underlying calc execution failure reaches the
+    log with a full traceback and the calc_item name in the message.
     """
     calculate_module.itemList.append({
         'name': 'calc_result', 'value': '', 'calc_item': 'calc_prog',
         'min': '', 'max': '', 'unit': '', 'type': 'R/W', 'description': '',
     })
     calculate_module.itemList.append({
-        'name': 'calc_prog', 'value': '1 1 +', 'min': '', 'max': '',
+        'name': 'calc_prog', 'value': '/', 'min': '', 'max': '',
         'unit': '', 'type': 'R', 'description': '',
     })
     plugin.name2index['calc_result'] = 0
@@ -152,7 +144,7 @@ def test_setitem_namerror_visibility(calculate_module, plugin, caplog):
     assert matching, "expected at least one ERROR record with exc_info attached"
     record = matching[0]
     assert record.levelno == logging.ERROR
-    assert record.exc_info[0] is NameError
+    assert 'calc_prog' in record.getMessage()
 
 
 def test_getitem_calc_failure_visibility(calculate_module, plugin, caplog):
