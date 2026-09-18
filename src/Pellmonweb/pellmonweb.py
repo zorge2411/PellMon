@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -53,6 +53,13 @@ import re
 import random
 
 logger = getLogger('pellMon')
+main_loop = None
+
+def signal_handler(signal_num, frame=None):
+    logger.info('Signal %d received, exiting pellmonweb gracefully', signal_num)
+    cherrypy.engine.exit()
+    if main_loop is not None:
+        main_loop.quit()
 
 try:
     from Pellmonsrv.version import __version__
@@ -159,49 +166,49 @@ class Dbus_handler:
     def getItem(self, itm):
         with self.lock:
             try:
-                return self.remote_object.GetItem(itm, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetItem(itm, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
     
     def setItem(self, item, value):
         with self.lock:
             try:
-                return self.remote_object.SetItem(item, value, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.SetItem(item, value, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
 
     def getdb(self):
         with self.lock:
             try:
-                return self.remote_object.GetDB(utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetDB(dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
 
     def getDBwithTags(self, tags):
         with self.lock:
             try:
-                return self.remote_object.GetDBwithTags(tags, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetDBwithTags(tags, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
 
     def getFullDB(self, tags):
         with self.lock:
             try:
-                return self.remote_object.GetFullDB(tags, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetFullDB(tags, dbus_interface ='org.pellmon.int')
             except :
                 raise DbusNotConnected("server not running")
 
     def getMenutags(self):
         with self.lock:
             try:
-                return self.remote_object.getMenutags(utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.getMenutags(dbus_interface ='org.pellmon.int')
             except :
                 raise DbusNotConnected("server not running")
 
     def getPlugins(self, name):
         with self.lock:
             try:
-                return self.remote_object.getPlugins(name, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.getPlugins(name, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
         
@@ -665,7 +672,7 @@ class PellMonWeb:
         parameterdict = {p['name']: p for p in parameterlist}
         for l in graph_lines:
             try:
-                l['label'] = unicode(parameterdict[l['name']]['label'].replace(' ', '&nbsp;'))
+                l['label'] = str(parameterdict[l['name']]['label'].replace(' ', '\u0026nbsp;'))
             except KeyError:
                 l['label'] = l['name']
 
@@ -885,7 +892,7 @@ def run():
     try:
         logfile = parser.get('conf', 'logfile')
     except:
-        logfile = None
+        logfile = '/var/log/pellmon/pellmon.log'
 
     try:
         webroot = parser.get ('conf', 'webroot') 
@@ -927,7 +934,7 @@ def run():
     if websockets:
         #make sure WebSocketPlugin runs after daemonizer plugin (priority 65)
         #see cherrypy plugin documentation for default plugin priorities
-        WebSocketPlugin.start.__func__.priority = 66
+        WebSocketPlugin.start.priority = 66
         WebSocketPlugin(cherrypy.engine).subscribe()
         cherrypy.tools.websocket = WebSocketTool()
     try:
@@ -987,7 +994,7 @@ def run():
     except:
         pass
 
-    GObject.threads_init()
+
 
     # Always start the engine; this will start all other services
     try:
@@ -1016,12 +1023,15 @@ def run():
                 pass
             return True
 
-        # Use our own signal handler to stop on ctrl-c, seems to be simpler
+        # Use our own signal handler to stop on ctrl-c or SIGTERM, seems to be simpler
         # than subscribing to cherrypy's signal handler
-        def signal_handler(signal, frame):
+        def signal_handler(signal_num, frame):
+            logger.info('Signal %d received, exiting pellmonweb gracefully', signal_num)
             cherrypy.engine.exit()
             main_loop.quit()
+
         signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
         # Handle cherrypy's main loop needs from here
         GLib.timeout_add(100, publish)
@@ -1031,5 +1041,8 @@ def run():
             main_loop.run()
         except KeyboardInterrupt:
             pass
+
+if __name__ == "__main__":
+    run()
 
 
