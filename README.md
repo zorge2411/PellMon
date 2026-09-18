@@ -2,6 +2,9 @@ PellMon
 =======
 ![logo](https://raw.github.com/motoz/PellMon/master/src/Pellmonweb/media/img/favicon-160x160.png)
 
+> [!IMPORTANT]
+> **Production deployment of PellMon is Linux-only.** Core hardware and communication subsystems require Linux-specific facilities (D-Bus system/session bus, PyGObject/GLib main loops, RRDtool C-bindings, Linux serial devices `/dev/ttyUSB*`, and GPIO). Windows is supported for development, mock-based testing, and syntax verification only.
+
 PellMon is logging, monitoring and configuration solution for pellet burners. It consists of a backend server daemon, which
 uses RRDtool as a logging database, and a frontend daemon providing a responsive mobile friendly web based user interface. 
 Additionally there is a command line tool for interfacing with the server and web based configuration tool.
@@ -46,9 +49,9 @@ onewire input (ds2460 based) to count feeder auger revolutions for use with the 
 
 Plugin documentation is found in the configuration file at plugins/plugin-name.conf
 
-####Contains:
+#### Contains:
 
-###pellmonsrv:
+### pellmonsrv:
 Communication daemon. Implements a DBUS interface for reading and writing setting values and reading of measurement data. Optionally handles logging of measurement data to an RRD database. 
 <pre>
 usage: pellmonsrv.py [-h] [-P PIDFILE] [-U USER] [-G GROUP] [-C CONFIG] [-D {SESSION,SYSTEM}] [-p PLUGINDIR]
@@ -73,7 +76,7 @@ optional arguments:
                         Full path to plugin directory
 </pre>
 
-###pellmonweb:
+### pellmonweb:
 Webserver and webapp, plotting of measurement, calculated consumption and data and parameter reading/writing.
 <pre>
 usage: pellmonweb.py [-h] [-D] [-P PIDFILE] [-U USER] [-G GROUP] [-C CONFIG] [-d {SESSION,SYSTEM}]
@@ -91,13 +94,13 @@ optional arguments:
   -d {SESSION,SYSTEM}, --DBUS {SESSION,SYSTEM}
                         which bus to use, SESSION is default
 </pre>
-###pellmoncli:
 
+### pellmoncli:
 Interactive command line client with tab completion. Reading and writing of setting values, and reading of measurement data.
 
     usage: pellmoncli.py [-h] {get,set,list,i}
 
-###pellmonconf:
+### pellmonconf:
 Web based text editor for the configuration files
 <pre>
 pellmonconf -h
@@ -109,63 +112,133 @@ optional arguments:
   -H HOST, --host HOST  Host for webinterface, default 0.0.0.0
 </pre>
 
-###pellmon.conf
+### pellmon.conf
 The default configuration is split up in several files in the conf.d directory using the directive `config_dir = /etc/pellmon/conf.d` in pellmon.conf.
 
-##Run from source:
-    # This prepares the project to run directly from the working directory
-    ./autogen.sh
-    ./configure --enable-debug
-    make
-    cd src
-    ./pellmonsrv debug
-    # Run pellmonweb in another terminal
-    ./pellmonweb
+## Deployment & Installation
 
-##System installation:
-    # Add system users
-    sudo adduser --system --group --no-create-home pellmonsrv
-    sudo adduser --system --group --no-create-home pellmonweb
-    # Give the server access to the serial port
-    sudo adduser pellmonsrv dialout
-    # Create build system
-    ./autogen.sh
-    # Configure for running as system users
-    ./configure --with-user_srv=pellmonsrv --with-user_web=pellmonweb --sysconfdir=/etc
-    # Build PellMon
-    make
-    # Install PellMon
-    sudo make install
-    # Activate pellmon dbus system bus permissions
-    sudo service dbus reload
-    # Add them to init so they are started at boot
-    sudo update-rc.d pellmonsrv defaults
-    sudo update-rc.d pellmonweb defaults
-    # Start the daemons manually, or reboot
-    sudo service pellmonsrv start
-    sudo service pellmonweb start
-###Uninstall
-    sudo make uninstall
-    # Remove from init if you added them
-    sudo update-rc.d pellmonsrv remove
-    sudo update-rc.d pellmonweb remove
+### Docker Compose (Recommended)
 
-##Dependencies:
-    rrdtool python-serial python-cherrypy3 python-dbus python-mako python-gobject python-simplejson python-dateutil python-argcomplete
+The recommended deployment method is using **Docker Compose** on Linux. This isolates dependencies and handles inter-process D-Bus communication cleanly:
 
-##Optional dependencies:
-    python-ws4py
+```bash
+# Build the container image
+docker compose build
 
-##Additional dependencies for plugins
-###OWFS:
-    pyownet
+# Start services in background (pellmonsrv and pellmonweb)
+docker compose up -d
 
-###NBEcom:
-    python-crypto xtea
+# View logs
+docker compose logs -f
 
-###Openweathermap:
-    pyowm
+# Stop services
+docker compose down
+```
 
-##Additional dependencies for building:
-    autoconf
+The `docker-compose.yml` environment:
+- Runs `pellmonsrv` with an isolated session D-Bus bus over a shared volume socket (`/var/run/pellmon/bus_socket`).
+- Healthcheck verifies `pellmonsrv` responsiveness using `dbus-send` peer ping.
+- `pellmonweb` automatically waits for `pellmonsrv` to report healthy before starting (`service_healthy` condition).
+- Data and logs are persisted to named Docker volumes (`pellmon-data`, `pellmon-logs`).
+- Hardware access (serial converters `/dev/ttyUSB*`) is passed through with container privileges.
 
+### Run from source (Linux):
+```bash
+# This prepares the project to run directly from the working directory
+./autogen.sh
+./configure --enable-debug
+make
+cd src
+./pellmonsrv debug
+# Run pellmonweb in another terminal
+./pellmonweb
+```
+
+### System installation (Linux native):
+```bash
+# Add system users
+sudo adduser --system --group --no-create-home pellmonsrv
+sudo adduser --system --group --no-create-home pellmonweb
+# Give the server access to the serial port
+sudo adduser pellmonsrv dialout
+# Create build system
+./autogen.sh
+# Configure for running as system users
+./configure --with-user_srv=pellmonsrv --with-user_web=pellmonweb --sysconfdir=/etc
+# Build PellMon
+make
+# Install PellMon
+sudo make install
+# Activate pellmon dbus system bus permissions
+sudo service dbus reload
+# Add them to init so they are started at boot
+sudo update-rc.d pellmonsrv defaults
+sudo update-rc.d pellmonweb defaults
+# Start the daemons manually, or reboot
+sudo service pellmonsrv start
+sudo service pellmonweb start
+```
+
+#### Uninstall:
+```bash
+sudo make uninstall
+# Remove from init if you added them
+sudo update-rc.d pellmonsrv remove
+sudo update-rc.d pellmonweb remove
+```
+
+## Web Authentication & Password Hashing
+
+Pellmonweb supports secure password hashing with PBKDF2-HMAC-SHA256 (100,000 iterations).
+
+To set or update user credentials in `config/pellmon.conf` under `[authentication]`:
+
+```ini
+[authentication]
+username = admin
+password = pbkdf2:sha256:100000$c2FsdHNhbHQ$d41d8cd98f00b204e9800998ecf8427e...
+```
+
+Generate a secure password hash with:
+```bash
+python3 -c "from Pellmonweb.auth import hash_password; print(hash_password('yourpassword'))"
+```
+
+*Note:* Legacy plaintext passwords in `pellmon.conf` remain backward-compatible, but will log a warning on successful login advising migration to hashed credentials.
+
+## Dependencies (Python 3)
+
+### System packages (Debian/Ubuntu/Raspberry Pi OS):
+```bash
+sudo apt-get install \
+    rrdtool \
+    python3-rrdtool \
+    python3-serial \
+    python3-cherrypy3 \
+    python3-dbus \
+    python3-gi \
+    python3-gi-cairo \
+    gir1.2-glib-2.0 \
+    python3-mako \
+    python3-simplejson \
+    python3-dateutil \
+    python3-argcomplete
+```
+
+Or install Python dependencies via pip:
+```bash
+pip install -r requirements.txt
+```
+
+### Optional dependencies:
+- `ws4py`: WebSocket support for real-time web UI updates.
+
+### Additional dependencies for plugins:
+- **OWFS**: `pyownet`
+- **NBEcom**: `pycryptodome`, `xtea`
+- **Openweathermap**: `pyowm`
+
+### Build dependencies:
+- `autoconf`
+- `automake`
+- `pkg-config`
