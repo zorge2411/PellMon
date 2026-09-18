@@ -55,7 +55,7 @@ Plans:
   1. Re-running Phase 1's test suite and import-check before and after this phase produces identical pass/fail and plugin-activation results — only log output changes.
   2. A deliberately triggered plugin import/activation failure produces a full traceback via `logger.exception(...)` in the logs instead of being silently skipped by a bare `except:` in the yapsy plugin manager.
   3. A deliberately triggered protocol-parsing or database-write failure in `pellmonsrv.py` or `plugins/calculate/__init__.py` logs a full traceback instead of being swallowed. (`Scotteprotocol/protocol.py` is excluded here — confirmed unreachable via import today, since `Scotteprotocol/__init__.py:2`'s broken import fails before `protocol.py` is ever loaded; its exception-visibility work is deferred to Phase 3, after the import fix lands.)
-  4. A repo-wide search finds no remaining ad hoc `print()` calls in `src/` outside of intentional CLI output; runtime code uses `logging.getLogger(__name__)` at appropriate levels.
+  4. A repo-wide search finds no remaining ad hoc `print()` calls in `src/` outside of intentional CLI output; runtime code uses the shared `logging.getLogger('pellMon')` logger at appropriate levels, per CONTEXT D-01.
 
 **Plans**: 6 plans (3 waves)
 
@@ -80,6 +80,7 @@ Plans:
 **Goal**: ScotteCom and NBEcom actually load and activate under Python 3, and import style is consistent across the codebase.
 **Depends on**: Phase 2
 **Requirements**: IMPORT-01, IMPORT-02, IMPORT-03, IMPORT-04
+Phase 3 inherits the exception-visibility sweep of `src/Scotteprotocol/protocol.py`'s 19 bare/broad excepts alongside IMPORT-01, because the module cannot be imported under Python 3 today (verified: `Scotteprotocol/__init__.py:2`'s `from protocol import Protocol` raises `ModuleNotFoundError` before `protocol.py` is loaded) and exception-visibility work in an unimportable module cannot be verified.
 **Success Criteria** (what must be TRUE):
 
   1. The ScotteCom plugin imports and activates successfully under Python 3 — Phase 1's broadened import-check passes for it with no `ModuleNotFoundError`.
