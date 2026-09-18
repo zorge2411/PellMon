@@ -30,13 +30,24 @@ class Protocol(threading.Thread):
     """Provides read/write functions for parameters/measurement data 
     for a bio comfort pellet burner connected through rs232"""
     
-    def __init__(self, device, version_string):   
+    def __init__(self, device, version_string, transport=None, start_thread=True):   
         """Initialize the protocol and database according to given version"""
-        self.dummyDevice=False
-        self.checksum=True
+        self.dummyDevice = False
+        self.checksum = True
         self.frame_term_crlf = False
-        if device == None:
-            self.dummyDevice=True
+        if transport is not None:
+            self.dummyDevice = False
+            self.ser = transport
+            self.dataBase = self.createDataBase('6.99' if not version_string else version_string)
+            self.q = queue.Queue(300)
+            threading.Thread.__init__(self)
+            self.setDaemon(True)
+            if start_thread:
+                self.start()
+            return
+
+        if device is None:
+            self.dummyDevice = True
             self.dataBase = self.createDataBase('6.99')
             return     
         # Open serial port
