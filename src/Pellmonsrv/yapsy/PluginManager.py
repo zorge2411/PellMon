@@ -22,6 +22,8 @@ needs.
 """
 
 import sys, os
+import importlib.util
+import hashlib
 from logging import getLogger
 import configparser
 import types
@@ -108,7 +110,12 @@ class PluginManager(object):
 
 		You may look at these function's documentation for the meaning
 		of each corresponding arguments.
+
+		The attribute ``raise_on_error`` (default False) can be set to
+		True so that plugin load failures propagate instead of being
+		logged (used by `pellmonsrv debug`).
 		"""
+		self.raise_on_error = False
 		self.setPluginInfoClass(PluginInfo)
 		self.setCategoriesFilter(categories_filter)		
 		self.setPluginPlaces(directories_list)
@@ -246,6 +253,35 @@ class PluginManager(object):
 					self._candidates.append((candidate_infofile, candidate_filepath, plugin_info))
 		return len(self._candidates)
 
+	def _load_plugin_module(self, candidate_filepath):
+		"""
+		Import a plugin as a real module (or package, for a directory
+		plugin) so that relative imports inside it resolve. The module is
+		registered in sys.modules before execution and removed on failure.
+		"""
+		source_path = candidate_filepath + ".py"
+		if os.path.basename(candidate_filepath) == "__init__":
+			pkg_dir = os.path.dirname(candidate_filepath)
+			short_name = os.path.basename(pkg_dir)
+			search_locations = [pkg_dir]
+		else:
+			short_name = os.path.basename(candidate_filepath)
+			search_locations = None
+		unique_name = "pellmon_plugin_%s_%s" % (short_name, hashlib.sha1(os.path.abspath(source_path).encode("utf-8")).hexdigest()[:8])
+		if unique_name in sys.modules:
+			return sys.modules[unique_name]
+		spec = importlib.util.spec_from_file_location(unique_name, source_path, submodule_search_locations=search_locations)
+		if spec is None or spec.loader is None:
+			raise ImportError("Cannot create import spec for plugin %s" % source_path)
+		module = importlib.util.module_from_spec(spec)
+		sys.modules[unique_name] = module
+		try:
+			spec.loader.exec_module(module)
+		except BaseException:
+			sys.modules.pop(unique_name, None)
+			raise
+		return module
+
 	def loadPlugins(self, callback=None):
 		"""
 		Load the candidate plugins that have been identified through a
@@ -268,17 +304,17 @@ class PluginManager(object):
 			if callback is not None:
 				callback(plugin_info)
 
-			# now execute the file and get its content into a
-			# specific dictionnary
-			candidate_globals = {"__file__":candidate_filepath+".py"}
+			# import the plugin as a real module/package
 			try:
-				with open(candidate_filepath+".py") as f:
-					exec(compile(f.read(), candidate_filepath+".py", 'exec'), candidate_globals)
+				plugin_module = self._load_plugin_module(candidate_filepath)
 			except Exception:
 				logging.exception("Unable to execute the code in plugin: %s", candidate_filepath)
+				if getattr(self, 'raise_on_error', False):
+					raise
+				continue
 
 			# now try to find and initialise the first subclass of the correct plugin interface
-			for element in candidate_globals.values():
+			for element in list(vars(plugin_module).values()):
 				current_category = None
 				for category_name in self.categories_interfaces.keys():
 					try:

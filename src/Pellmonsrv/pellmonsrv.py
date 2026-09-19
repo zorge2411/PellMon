@@ -83,6 +83,7 @@ class Database(threading.Thread, _Database):
         global manager
         manager = PluginManager(categories_filter={ "Protocols": protocols})
         manager.setPluginPlaces(conf.plugin_dirs)
+        manager.raise_on_error = conf.command == 'debug'
         manager.collectPlugins()
         activated_plugins = []
         failed_plugins= []
