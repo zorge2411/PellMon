@@ -90,9 +90,11 @@ plausible values came from a real-burner telemetry export (values only).
    9999 (`E03`), so no discrepancy today; nothing in code guards a future entry.
    Sim: requires exactly 4 digits, else E1.
 6. **Write response.** Spec: `OK` "or `OK` + checksum". Code: expects exactly
-   `addCheckSum('OK')` (3 bytes) with checksums, 2 bytes without. On failure
-   `setItem` returns the raw response (e.g. `'E1' + checksum byte`) to the
-   caller, not a decoded message. Sim: `OK`/`E1`/`E0` with checksum.
+   `addCheckSum('OK')` (3 bytes) with checksums, 2 bytes without. FIXED
+   (quick-260919-olq): `setItem` no longer returns the raw reply on failure; it
+   returns `'OK'` on success, raises `ValueError` for local validation errors
+   and `IOError` for a rejected/unanswered write (raw reply only in the log).
+   Sim: `OK`/`E1`/`E0` with checksum.
 7. **CRLF era.** Spec: older chips have no terminator, newer chips "may" use
    CRLF. Code: CRLF mode is the last auto-detect fallback after checksums are
    switched off (treated as the oldest chips) and writes are assumed to succeed
@@ -123,8 +125,10 @@ plausible values came from a real-burner telemetry export (values only).
     Plain `import` of the plugin package (as `tests/test_plugin_imports.py`
     does) succeeds, which is why it went unnoticed. Not fixed here (src/ is
     out of scope).
-13. **Other src observations** (see the quick-task SUMMARY): retry path in
-    `Protocol.run` appends CRLF twice in CRLF mode; `self.setDaemon(True)`
+13. **Other src observations** (see the quick-task SUMMARY): the retry path in
+    `Protocol.run` used to append CRLF twice in CRLF mode (FIXED in
+    quick-260919-olq: first attempt and retry now send identical bytes);
+    `self.setDaemon(True)`
     (protocol.py:77) is deprecated; `Frame` objects are module-level
     singletons so `readtime`/`indexWriteTime` are shared by every `Protocol`
     instance (tests reset them in a fixture).
