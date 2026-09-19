@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -18,15 +18,17 @@
 """
 
 import os
-from langmap import langmap
+from .langmap import langmap
 try:
-    from directories import DATADIR
+    from Pellmonsrv.directories import DATADIR
     langfile = os.path.join(DATADIR, 'Pellmonsrv', 'plugins', 'nbecom', 'lang.uk.prop')
+    if not os.path.exists(langfile):
+        raise ImportError
 except ImportError:
     langfile = os.path.join(os.path.dirname(os.path.realpath(__file__)), 'language', 'lang.uk.prop')
 
 
-lang = [map(lambda l:l.rstrip(), l.split('=')) for l in open(langfile)]
+lang = [list(map(lambda l:l.rstrip(), l.split('='))) for l in open(langfile, encoding='utf-8', errors='ignore')]
 lang_value_to_text = dict(lang)
 
 def get_settings_enumerations(langtext):

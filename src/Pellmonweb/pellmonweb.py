@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -33,6 +33,7 @@ from dbus.mainloop.glib import DBusGMainLoop
 
 import json
 import threading, queue
+from logging import getLogger
 from Pellmonweb import *
 from time import mktime
 import time
@@ -43,6 +44,7 @@ import argparse
 import pwd
 import grp
 import subprocess
+from Pellmonweb.rrdcommand import build_graph_command
 from datetime import datetime
 from html import escape
 from threading import Timer, Lock
@@ -50,6 +52,15 @@ import signal
 import simplejson
 import re
 import random
+
+logger = getLogger('pellMon')
+main_loop = None
+
+def signal_handler(signal_num, frame=None):
+    logger.info('Signal %d received, exiting pellmonweb gracefully', signal_num)
+    cherrypy.engine.exit()
+    if main_loop is not None:
+        main_loop.quit()
 
 try:
     from Pellmonsrv.version import __version__
@@ -129,13 +140,13 @@ class Dbus_handler:
             if new_owner == '':
                 self.remote_object = None
                 self.bustype.remove_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
-                print('server not running')
+                logger.info('D-Bus server not running')
             else:
                 self.bustype.add_signal_receiver(on_signal, dbus_interface="org.pellmon.int", signal_name="changed_parameters")
                 self.remote_object = self.bustype.get_object("org.pellmon.int", # Connection name
                                        "/org/pellmon/int" # Object's path
                                       )
-                print('server is running')
+                logger.info('D-Bus server is running')
 
         Dbus.mainloop.glib.DBusGMainLoop(set_as_default=True)
         Dbus.mainloop.glib.threads_init()
@@ -156,49 +167,49 @@ class Dbus_handler:
     def getItem(self, itm):
         with self.lock:
             try:
-                return self.remote_object.GetItem(itm, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetItem(itm, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
     
     def setItem(self, item, value):
         with self.lock:
             try:
-                return self.remote_object.SetItem(item, value, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.SetItem(item, value, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
 
     def getdb(self):
         with self.lock:
             try:
-                return self.remote_object.GetDB(utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetDB(dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
 
     def getDBwithTags(self, tags):
         with self.lock:
             try:
-                return self.remote_object.GetDBwithTags(tags, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetDBwithTags(tags, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
 
     def getFullDB(self, tags):
         with self.lock:
             try:
-                return self.remote_object.GetFullDB(tags, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.GetFullDB(tags, dbus_interface ='org.pellmon.int')
             except :
                 raise DbusNotConnected("server not running")
 
     def getMenutags(self):
         with self.lock:
             try:
-                return self.remote_object.getMenutags(utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.getMenutags(dbus_interface ='org.pellmon.int')
             except :
                 raise DbusNotConnected("server not running")
 
     def getPlugins(self, name):
         with self.lock:
             try:
-                return self.remote_object.getPlugins(name, utf8_strings=True, dbus_interface ='org.pellmon.int')
+                return self.remote_object.getPlugins(name, dbus_interface ='org.pellmon.int')
             except:
                 raise DbusNotConnected("server not running")
         
@@ -302,23 +313,6 @@ class PellMonWeb:
         if graphHeight > 2000:
             graphHeight = 2000
 
-        # Hide legends with ?legends=no
-        legends = ''
-        try:
-            if args['legends'] == 'no':
-                legends = ' --no-legend '
-        except:
-            pass
-
-        # Set background color with ?bgcolor=rrbbgg (hex color)
-        try:
-            bgcolor =  args['bgcolor']
-            if len(bgcolor) == 6:
-                test = int(bgcolor, 16)
-            bgcolor = ' --color BACK#'+bgcolor
-        except:
-            bgcolor = ' '
-
         # Set background color with ?bgcolor=rrbbgg (hex color)
         try:
             if args['align'] in ['left','center','right']:
@@ -329,18 +323,17 @@ class PellMonWeb:
         if align == 'left':
             graphtime += timespan
         elif align == 'center':
-            graphtime += timespan/2
+            graphtime += timespan//2
         if graphtime > int(time.time()):
             graphtime=int(time.time())
-        graphtime =str(graphtime)
 
         graphTimeStart=str(timespan + timeoffset)
         graphTimeEnd=str(timeoffset)
 
         # scale the right y-axis according to the first scaled item if found, otherwise unscaled
+        rightaxis = None
         if int(graphWidth)>500:
-            rightaxis = '--right-axis'
-            scalestr = ' 1:0'
+            rightaxis = '1:0'
             for line in graph_lines:
                 if line['name'] in lines and 'scale' in line:
                     scale = line['scale'].split(':')
@@ -350,34 +343,15 @@ class PellMonWeb:
                     except:
                         gain = 1
                         offset = 0
-                    scalestr = " %s:%s"%(str(gain),str(offset))
+                    rightaxis = "%s:%s"%(str(gain),str(offset))
                     break
-            rightaxis += scalestr
-        else:
-            rightaxis = ''
 
-        #Build the command string to make a graph from the database
-        RRD_command =  "rrdtool graph - --disable-rrdtool-tag --border 0 "+ legends + bgcolor
-        RRD_command += " --lower-limit 0 %s --full-size-mode --width %u"%(rightaxis, graphWidth) + " --right-axis-format %1.0lf "
-        RRD_command += " --height %u --end %s-"%(graphHeight,graphtime) + graphTimeEnd + "s --start %s-"%graphtime + graphTimeStart + "s "
-        if logtick:
-            RRD_command += "DEF:tickmark=%s:%s:AVERAGE TICK:tickmark#E7E7E7:1.0 "%(db,logtick)
-        for line in graph_lines:
-            if lines == '__all__' or line['name'] in lines:
-                RRD_command+="DEF:%s="%line['name']+db+":%s:AVERAGE "%line['ds_name']
-                if 'scale' in line:
-                    scale = line['scale'].split(':')
-                    try:
-                        gain = float(scale[1])
-                        offset = float(scale[0])
-                    except:
-                        gain = 1
-                        offset = 0
-                    RRD_command+="CDEF:%s_s=%s,%d,+,%d,/ "%(line['name'], line['name'], offset, gain)
-                    RRD_command+="LINE1:%s_s%s:\"%s\" "% (line['name'], line['color'], line['name'])
-                else:
-                    RRD_command+="LINE1:%s%s:\"%s\" "% (line['name'], line['color'], line['name'])
-        cmd = subprocess.Popen(RRD_command, shell=True, stdout=subprocess.PIPE)
+        #Build the argument list to make a graph from the database
+        RRD_command = build_graph_command(db, graph_lines, lines, logtick=logtick,
+                legends=args.get('legends'), bgcolor=args.get('bgcolor'),
+                width=graphWidth, height=graphHeight, graphtime=graphtime,
+                time_start=graphTimeStart, time_end=graphTimeEnd, right_axis=rightaxis)
+        cmd = subprocess.Popen(RRD_command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         cherrypy.response.headers['Pragma'] = 'no-cache'
         cherrypy.response.headers['Content-Type'] = "image/png"
         return cmd.communicate()[0]
@@ -553,7 +527,7 @@ class PellMonWeb:
                 parameterlist = dbus.getFullDB(['',t1,t2,t3,t4])
             else:
                 parameterlist = dbus.getFullDB([level,t1,t2,t3,t4])
-            print(parameterlist)
+            logger.debug('parameterlist: %s', parameterlist)
             # Set up a queue and start a thread to read all items to the queue, the parameter view will empty the queue bye calling /getparams/
             paramQueue = queue.Queue(300)
             # Store the queue in the session
@@ -662,7 +636,7 @@ class PellMonWeb:
         parameterdict = {p['name']: p for p in parameterlist}
         for l in graph_lines:
             try:
-                l['label'] = unicode(parameterdict[l['name']]['label'].replace(' ', '&nbsp;'))
+                l['label'] = str(parameterdict[l['name']]['label'].replace(' ', '\u0026nbsp;'))
             except KeyError:
                 l['label'] = l['name']
 
@@ -737,6 +711,13 @@ except ImportError:
     DATADIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     CONFDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     LOCALSTATEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
+
+def _resolve_socket_host(parser):
+    """Bind address: [conf] host, else PELLMON_WEB_HOST env var, else 127.0.0.1"""
+    try:
+        return parser.get('conf', 'host')
+    except:
+        return os.environ.get('PELLMON_WEB_HOST') or '127.0.0.1'
 
 def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
@@ -876,13 +857,14 @@ def run():
     try:
         credentials = parser.items('authentication')
     except:
-        credentials = [('testuser','12345')]
+        credentials = []
+        cherrypy.log('no [authentication] section found; the web UI will reject all logins until PBKDF2-hashed credentials are configured', severity=40)
 
     global logfile
     try:
         logfile = parser.get('conf', 'logfile')
     except:
-        logfile = None
+        logfile = '/var/log/pellmon/pellmon.log'
 
     try:
         webroot = parser.get ('conf', 'webroot') 
@@ -924,20 +906,29 @@ def run():
     if websockets:
         #make sure WebSocketPlugin runs after daemonizer plugin (priority 65)
         #see cherrypy plugin documentation for default plugin priorities
-        WebSocketPlugin.start.__func__.priority = 66
+        WebSocketPlugin.start.priority = 66
         WebSocketPlugin(cherrypy.engine).subscribe()
         cherrypy.tools.websocket = WebSocketTool()
     try:
         port = int(parser.get('conf', 'port'))
     except:
         port = 8081
+    socket_host = _resolve_socket_host(parser)
+    cherrypy.log('web interface binding to %s:%s' % (socket_host, port))
+    try:
+        session_cookie_secure = parser.getboolean('conf', 'session_cookie_secure')
+    except:
+        session_cookie_secure = False
 
     global_conf = {
-            'global':   { #w'server.environment': 'debug',
+            'global':   {
                           'tools.sessions.on' : True,
                           'tools.sessions.timeout': 7200,
+                          'tools.sessions.httponly': True,
+                          'tools.sessions.samesite': 'Lax',
+                          'tools.sessions.secure': session_cookie_secure,
                           'tools.auth.on': True,
-                          'server.socket_host': '0.0.0.0',
+                          'server.socket_host': socket_host,
                           'server.socket_port': port,
 
                           #'engine.autoreload.on': False,
@@ -984,7 +975,7 @@ def run():
     except:
         pass
 
-    GObject.threads_init()
+
 
     # Always start the engine; this will start all other services
     try:
@@ -1013,12 +1004,15 @@ def run():
                 pass
             return True
 
-        # Use our own signal handler to stop on ctrl-c, seems to be simpler
+        # Use our own signal handler to stop on ctrl-c or SIGTERM, seems to be simpler
         # than subscribing to cherrypy's signal handler
-        def signal_handler(signal, frame):
+        def signal_handler(signal_num, frame):
+            logger.info('Signal %d received, exiting pellmonweb gracefully', signal_num)
             cherrypy.engine.exit()
             main_loop.quit()
+
         signal.signal(signal.SIGINT, signal_handler)
+        signal.signal(signal.SIGTERM, signal_handler)
 
         # Handle cherrypy's main loop needs from here
         GLib.timeout_add(100, publish)
@@ -1028,5 +1022,8 @@ def run():
             main_loop.run()
         except KeyboardInterrupt:
             pass
+
+if __name__ == "__main__":
+    run()
 
 

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -21,8 +21,8 @@ import logging
 import threading
 from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Item, Getsetitem
-import menus
-from descriptions import dataDescriptions
+from . import menus
+from .descriptions import dataDescriptions
 
 class scottecom(protocols):
     def __init__(self):

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: iso-8859-15 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -16,7 +16,7 @@
     You should have received a copy of the GNU General Public License
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
-from datamenu import dataBaseTags
+from .datamenu import dataBaseTags
 
 Menutags = ['Overview', 'Blower', 'Ignition', 'Feeder', 'Oxygen', 'Timer', 'Cleaning', 'Temperatures'] 
 Tags = ['Basic', 'All', 'Settings', 'Measurements']

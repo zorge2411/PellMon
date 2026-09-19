@@ -18,6 +18,9 @@
 
 import sys, os, time, atexit
 from signal import SIGTERM
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 class Daemon:
     """
@@ -66,7 +69,7 @@ class Daemon:
             sys.stderr.flush()
             si = open(self.stdin, 'r')
             so = open(self.stdout, 'a+')
-            se = open(self.stderr, 'a+', buffering=0)
+            se = open(self.stderr, 'a+', buffering=1)
             os.dup2(si.fileno(), sys.stdin.fileno())
             os.dup2(so.fileno(), sys.stdout.fileno())
             os.dup2(se.fileno(), sys.stderr.fileno())
@@ -128,7 +131,7 @@ class Daemon:
                             if os.path.exists(self.pidfile):
                                     os.remove(self.pidfile)
                     else:
-                            print(str(err))
+                            logger.exception('error stopping daemon process %s'%pid)
                             sys.exit(1)
 
     def restart(self):

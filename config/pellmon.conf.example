@@ -1,0 +1,50 @@
+# PellMon Example Configuration for Docker
+# Copy this file to config/pellmon.conf and customize
+
+[conf]
+# Database file (inside container volume)
+database = /var/lib/pellmon/pellmon.rrd
+
+# Serial port for pellet burner communication
+# Adjust based on your hardware setup
+serialport = /dev/ttyUSB0
+# baudrate = 9600
+
+# Config directory for additional plugin configs
+config_dir = /etc/pellmon/conf.d
+
+# Main application log file (referenced by LogViewer)
+logfile = /var/log/pellmon/pellmon.log
+
+[weblog]
+accesslog = /var/log/pellmon/access.log
+errorlog = /var/log/pellmon/error.log
+
+[authentication]
+# Enable authentication for production
+# Passwords MUST be stored as PBKDF2 hashes; plaintext passwords are rejected.
+# Generate a hashed password using:
+# python3 -c "from Pellmonweb.auth import hash_password; print(hash_password('yourpassword'))"
+# username = admin
+# password = pbkdf2:sha256:600000$...
+# realm = PellMon
+
+[enabled_plugins]
+# Enable plugins as needed
+# ScotteCom = yes
+# NBEcom = yes
+# Calculate = yes
+# CustomAlarms = yes
+# Consumption = yes
+# SiloLevel = yes
+
+[pollvalues]
+# Values to poll and display
+# Example:
+# power = power
+# boiler_temp = boiler_temp
+# feeder_time = feeder_time
+
+[plugin_settings]
+# Directory where plugins are located
+# plugin_dirs = /usr/lib/pellmon/plugins

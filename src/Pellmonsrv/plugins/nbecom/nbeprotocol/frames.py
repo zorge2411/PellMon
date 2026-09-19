@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -18,8 +18,11 @@
 """
 
 import time
-from protocolexceptions import *
+from .protocolexceptions import *
 from random import SystemRandom
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 START = b'\x02'
 END = b'\x04'
@@ -29,7 +32,7 @@ FUNCTION_CODES = (0,1,2,3,4,5,6,7,8,9,10,11)
 class Request_frame(object):
     def __init__(self, version = 'V1'):
         self.REQUEST_HEADER_SIZE = 52
-        self.appid = ''.join([chr(SystemRandom().randrange(128)) for x in range(12)])
+        self.appid = bytes([SystemRandom().randrange(33, 126) for x in range(12)]).decode('ascii')
         self.controllerid = 'id'
         self.encrypted = False
         self.sequencenumber = 0
@@ -67,14 +70,14 @@ class Request_frame(object):
             h += ('%03u'%len(self.payload)).encode('ascii')
             if len(self.payload) > 495:
                 raise IOError
-            try:
-                h += self.payload.encode('ascii')
-            except UnicodeError:
+            if isinstance(self.payload, str):
+                h += self.payload.encode('latin-1')
+            else:
                 h += self.payload
 
             h += END;
             if self.encrypted: 
-                pad = ''.join([chr(SystemRandom().randrange(128)) for x in range(64-len(h))])
+                pad = bytes([SystemRandom().randrange(128) for x in range(64-len(h))])
                 h+=pad
                 if hasattr(self, 'xtea_key'):
                     h = self.xtea_key.encrypt(h)
@@ -85,7 +88,7 @@ class Request_frame(object):
             self.framedata += h
             if success:
                 return self.framedata
-            print('ERRROR chiphertext too short', len(h))
+            logger.error('ciphertext too short: %d', len(h))
 
     def decode(self, record):
         i = 0
@@ -138,7 +141,10 @@ class Response_frame(object):
         if len(self.payload) > 1007:
             raise protocol_error
         self.framedata += ('%03u'%len(self.payload)).encode('ascii')
-        self.framedata += self.payload.encode('ascii')
+        if isinstance(self.payload, str):
+            self.framedata += self.payload.encode('latin-1')
+        else:
+            self.framedata += self.payload
         self.framedata += END;
         return self.framedata
 

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2014  Anders Nylund
@@ -28,12 +28,16 @@ import json
 #import re
 #import cPickle as pickle
 #import parser
-#from cgi import escape
+from html import escape
 import codecs
 #from weakref import WeakValueDictionary
 #import dbparser as parser
 #import webbrowser
 import configparser
+import urllib.parse
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 class Pellmonconf:
     def __init__(self, config_file = '', lookup = None):
@@ -86,13 +90,29 @@ class Pellmonconf:
         tmpl = self.lookup.get_template("source.html")
         return tmpl.render(filename=filename, filelist=self.filelist)
 
+    def _resolve(self, filename):
+        if not isinstance(filename, str) or not filename:
+            raise ValueError('no filename')
+        if filename not in self.dirs:
+            logger.warning('rejected config file access: %r', filename)
+            raise ValueError('not an allowed config file')
+        base = os.path.realpath(self.dirs[filename])
+        path = os.path.realpath(os.path.join(self.dirs[filename], filename))
+        try:
+            inside = os.path.commonpath([path, base]) == base
+        except ValueError:
+            inside = False
+        if not inside:
+            logger.warning('rejected config file access: %r', filename)
+            raise ValueError('path escapes config directory')
+        return path
+
     @cherrypy.expose
     def source(self, filename = None):
         try:
             line = 1
-            if filename in self.dirs:
-                filename = os.path.join(self.dirs[filename], filename)
-            with codecs.open(filename, 'r', 'utf-8', 'strict') as f:
+            path = self._resolve(filename)
+            with codecs.open(path, 'r', 'utf-8', 'strict') as f:
                 data = f.read()
                 return json.dumps({'filename':filename, 'data':data, 'line':int(line), 'linesep':linesep})
         except Exception as e:
@@ -101,11 +121,17 @@ class Pellmonconf:
     @cherrypy.expose
     def save(self, filename='', data=None):
         if cherrypy.request.method == "POST":
+            if not _check_same_origin():
+                logger.warning('rejected cross-origin config save: origin=%r host=%r',
+                               cherrypy.request.headers.get('Origin') or cherrypy.request.headers.get('Referer'),
+                               cherrypy.request.headers.get('Host'))
+                return json.dumps({'success':False, 'error':'cross-origin request rejected'})
             try:
-                with codecs.open(filename, 'w', 'utf-8') as f:
+                path = self._resolve(filename)
+                with codecs.open(path, 'w', 'utf-8') as f:
                     f.write(data)
                     return json.dumps({'success':True})
-            except IOError as e:
+            except (ValueError, OSError) as e:
                 return json.dumps({'success':False, 'error':str(e)})
         else:
             error = {'msg':'only POST'}
@@ -118,18 +144,30 @@ except ImportError:
     CONFDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     LOCALSTATEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
+def _check_same_origin():
+    """True only if the Origin (or Referer) header names the same host as the request Host header"""
+    headers = cherrypy.request.headers
+    origin = headers.get('Origin') or headers.get('Referer')
+    if not origin:
+        return False
+    try:
+        netloc = urllib.parse.urlparse(origin).netloc
+    except ValueError:
+        return False
+    return bool(netloc) and netloc == headers.get('Host')
+
 def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
     lookup = TemplateLookup(directories=[os.path.join(DATADIR, 'Pellmonweb', 'html_conf')])
     config_file = os.path.join(CONFDIR, 'pellmon.conf')
-    print(config_file)
+    logger.debug('config file: %s', config_file)
     argparser = argparse.ArgumentParser(prog='pellmonconf')
 
     argparser.add_argument('-P', '--port', default=8083, help='Port number for webinterface, default 8083')
-    argparser.add_argument('-H', '--host', default='0.0.0.0', help='Host for webinterface, default 0.0.0.0')
+    argparser.add_argument('-H', '--host', default='127.0.0.1', help='Host for webinterface, default 127.0.0.1')
     args = argparser.parse_args()
     global_conf = {
-            'global':   { 'server.environment': 'debug',
+            'global':   {
                           #'tools.sessions.on' : True,
                           #'tools.sessions.timeout': 7200,
                           'server.socket_host': args.host,
@@ -151,6 +189,8 @@ def run():
                     }                    
                 }
 
+    # Intentional CLI output (D-04): this is the manually-invoked standalone
+    # tool's startup banner, deliberately excluded from the OBS-03 print sweep.
     print('Open http://<ip>:%u with your webbrowser to view the configuration tool'%int(args.port))
     print('Run as root to be able to save changes')
     print('Quit with CTRL-C')

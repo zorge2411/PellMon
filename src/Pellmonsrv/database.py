@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -17,6 +17,9 @@
 from weakref import WeakValueDictionary
 import time
 import sqlite3, threading
+from logging import getLogger
+
+logger = getLogger('pellMon')
 
 class Keyval_storage:
     keyval_storage = None
@@ -109,8 +112,8 @@ class Storeditem(Getsetitem):
                     self._value = value
                 if self.setter:
                     self.setter(self.name, value)
-        except Exception as e:
-           print(e)
+        except Exception:
+           logger.exception('error setting value for %s'%self.name)
 
 class Database(WeakValueDictionary):
     def __init__(self):
@@ -166,8 +169,8 @@ class Keyval_storage(object):
                 value, = next(cursor)
                 conn.close()
                 return value
-            except Exception as e:
-                print(e)
+            except Exception:
+                logger.exception('error reading value for %s'%item)
                 return 'error'
 
     def writeval(self, item, value=None, confval=None):
@@ -193,7 +196,7 @@ class Keyval_storage(object):
                         cursor.execute("SELECT value, confvalue FROM keyval WHERE id=?", (item,))
                         value,confvalue = next(cursor)
                         if confvalue != confval:
-                            cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, confval, confval))
+                            cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, value, confval))
                             conn.commit()
                     except:
                         cursor.execute("INSERT OR REPLACE INTO keyval (id, value, confvalue) VALUES (?,?,?)", (item, confval, confval))

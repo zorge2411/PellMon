@@ -29,6 +29,46 @@ from mako.template import Template
 from mako.lookup import TemplateLookup
 import urllib
 import os
+import hashlib
+import hmac
+import secrets
+import logging
+
+logger = logging.getLogger('pellMon')
+
+PBKDF2_ITERATIONS = 600000
+
+
+def hash_password(password, salt=None, iterations=PBKDF2_ITERATIONS):
+    if salt is None:
+        salt = secrets.token_hex(16)
+    derived = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), iterations)
+    return 'pbkdf2:sha256:%d$%s$%s' % (iterations, salt, derived.hex())
+
+
+def verify_password(stored_credential, provided_password):
+    if not stored_credential or not provided_password:
+        return False
+    stored_str = str(stored_credential)
+    provided_str = str(provided_password)
+    if stored_str.startswith('pbkdf2:'):
+        if stored_str.startswith('pbkdf2:sha256:'):
+            try:
+                parts = stored_str.split('$')
+                if len(parts) != 3:
+                    return False
+                iter_part = parts[0].split(':')[-1]
+                iterations = int(iter_part)
+                salt = parts[1]
+                stored_hash = parts[2].lower()
+                derived = hashlib.pbkdf2_hmac('sha256', provided_str.encode('utf-8'), salt.encode('utf-8'), iterations)
+                return hmac.compare_digest(derived.hex(), stored_hash)
+            except Exception:
+                return False
+        return False
+    logger.error('stored web credential is not a PBKDF2 hash; plaintext passwords are no longer accepted. '
+                 'Generate a hash with: python3 -c "from Pellmonweb.auth import hash_password; print(hash_password(\'yourpassword\'))"')
+    return False
 
 
 SESSION_KEY = '_cp_username'
@@ -46,7 +86,7 @@ def check_auth(*args, **kwargs):
     conditions that the user must fulfill"""
     conditions = cherrypy.request.config.get('auth.require', None)
     # format GET params
-    get_parmas = urllib.quote(cherrypy.request.request_line.split()[1])
+    get_parmas = urllib.parse.quote(cherrypy.request.request_line.split()[1])
     if conditions is not None:
         username = cherrypy.session.get(SESSION_KEY)
         if username:
@@ -124,11 +164,13 @@ class AuthController(object):
     
     def on_login(self, username):
         """Called on successful login"""
-        cherrypy.log('Login from %s as username: %s'%(cherrypy.request.headers["Remote-Addr"], username))
+        remote_addr = cherrypy.request.headers.get("Remote-Addr", "unknown") if hasattr(cherrypy.request, "headers") else "unknown"
+        cherrypy.log('Login from %s as username: %s' % (remote_addr, username))
 
     def on_logout(self, username):
         """Called on logout"""
-        cherrypy.log('Logout from %s, username: %s'%(cherrypy.request.headers["Remote-Addr"], username))
+        remote_addr = cherrypy.request.headers.get("Remote-Addr", "unknown") if hasattr(cherrypy.request, "headers") else "unknown"
+        cherrypy.log('Logout from %s, username: %s' % (remote_addr, username))
 
     def get_loginform(self, username, msg="Enter login information", from_page="/"):
         from_page = escape(from_page, True)
@@ -139,15 +181,21 @@ class AuthController(object):
     def check_credentials(self, username, password):
         """Verifies credentials for username and password.
         Returns None on success or a string describing the error on failure"""
-        # Adapt to your needs
+        remote_addr = cherrypy.request.headers.get("Remote-Addr", "unknown") if hasattr(cherrypy.request, "headers") else "unknown"
+        user_str = str(username)[:50] if username is not None else ""
         try:
-            if (username,password) in self.credentials:
-                return None
+            if isinstance(self.credentials, dict):
+                stored_val = self.credentials.get(username)
+                if stored_val is not None and verify_password(stored_val, password):
+                    return None
             else:
-                cherrypy.log('Login failed from %s, username: %s, password: %s'%(cherrypy.request.headers["Remote-Addr"], username[:50], password[:50]))
-                return "Incorrect username or password."
-        except:
-            cherrypy.log('Login failed from %s, username: %s, password: %s'%(cherrypy.request.headers["Remote-Addr"], username[:50], password[:50]))
+                for u, p in self.credentials:
+                    if u == username and verify_password(p, password):
+                        return None
+            cherrypy.log('Login failed from %s, username: %s' % (remote_addr, user_str))
+            return "Incorrect username or password."
+        except Exception:
+            cherrypy.log('Login failed from %s, username: %s' % (remote_addr, user_str))
             return "Incorrect username or password."
 
     @cherrypy.expose

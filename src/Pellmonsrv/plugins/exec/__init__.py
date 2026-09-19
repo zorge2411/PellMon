@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -20,6 +20,7 @@
 from Pellmonsrv.plugin_categories import protocols
 from Pellmonsrv.database import Cacheditem
 from logging import getLogger
+import shlex
 import subprocess
 
 logger = getLogger('pellMon')
@@ -83,8 +84,12 @@ class execplugin(protocols):
 
     def execute_readscript(self, item, script):
         try:
-            return subprocess.check_output(script, shell=True)
-        except CalledProcessError:
+            args = shlex.split(script)
+            return subprocess.check_output(args, shell=False).decode('utf-8', errors='replace').strip()
+        except subprocess.CalledProcessError:
+            return 'error'
+        except Exception:
+            logger.exception('Error executing readscript: %s', script)
             return 'error'
 
     def execute_writescript(self, item, value, script):
@@ -93,7 +98,10 @@ class execplugin(protocols):
             parameters = script.format(value).split(' ')
             subprocess.check_call([command]+parameters, shell=False)
             return 'ok'
-        except subprocess.CalledProcessError as e:
+        except subprocess.CalledProcessError:
+            return 'error'
+        except Exception:
+            logger.exception('Error executing writescript: %s', script)
             return 'error'
 
 

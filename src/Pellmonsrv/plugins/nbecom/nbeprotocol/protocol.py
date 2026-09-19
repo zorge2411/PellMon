@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -22,12 +22,13 @@ from random import randrange, SystemRandom
 import time
 from Crypto.PublicKey import RSA
 import base64
+import hmac
 import threading
 import errno
-from frames import Request_frame, Response_frame
-from protocolexceptions import *
+from .frames import Request_frame, Response_frame
+from .protocolexceptions import *
 from logging import getLogger
-import language
+from . import language
 import xtea
 
 logger = getLogger('pellMon')
@@ -37,7 +38,7 @@ class Proxy:
         'sun', 'vacuum', 'misc', 'alarm', 'manual')
 #    consumption_data = ('total_hours', 'total_days', 'total_months', 'total_years', 'dhw_hours', 'dhw_days', 'dhw_months', 'dhw_years', 'counter')
 
-    def __init__(self, password, port=1920, addr=None, serial=None):
+    def __init__(self, password, port=1920, addr=None, serial=None, transport=None, start_threads=True):
         self.password = password
         self.discover_addr = (addr, port)
         self.lock = threading.Lock()
@@ -45,24 +46,28 @@ class Proxy:
         self.controller_online = False
         self.connected = False
 
-        s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
-        s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-        if addr == '<broadcast>':
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
-        s.settimeout(0.5)
-        self.s = s
+        if transport is not None:
+            self.s = transport
+        else:
+            s = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+            if addr == '<broadcast>':
+                s.setsockopt(socket.SOL_SOCKET, socket.SO_BROADCAST, 1)
+            s.settimeout(0.5)
+            self.s = s
         self.request = Request_frame()
         self.response = Response_frame(self.request)
         self.request.pincode = self.password
         self.request.sequencenumber = randrange(0,100)
 
-        self.t = threading.Thread(target=lambda:self.find_controller())
-        self.t.setDaemon(True)
-        self.t.start()
+        if start_threads:
+            self.t = threading.Thread(target=lambda:self.find_controller())
+            self.t.setDaemon(True)
+            self.t.start()
 
-        self.t = threading.Thread(target=lambda:self.xtea_refresh_thread())
-        self.t.setDaemon(True)
-        self.t.start()
+            self.t = threading.Thread(target=lambda:self.xtea_refresh_thread())
+            self.t.setDaemon(True)
+            self.t.start()
 
 
     def get_rsakey(self):
@@ -72,20 +77,20 @@ class Proxy:
             return False
         for retry in range(3):
             try:
-                print('get rsa', retry)
+                logger.debug('get rsa, retry %s', retry)
                 r = self.get(1, 'misc.rsa_key')
                 key = base64.b64decode(r)
                 self.request.public_key = RSA.importKey(key)
-                return True 
-            except Exception as e:
-                print('other except, get_rsakey', repr(e), time.time())
+                return True
+            except Exception:
+                logger.exception('get_rsakey failed')
                 pass # retry 3 times
             time.sleep(1)
         return False
 
     
     def set_xteakey(self):
-        xtea_key = ''.join([chr(SystemRandom().randrange(128)) for x in range(16)])
+        xtea_key = bytes([SystemRandom().randrange(256) for x in range(16)]).decode('latin-1')
         try:
             self.set('misc.xtea_key', xtea_key)
         except protocol_error:
@@ -103,23 +108,23 @@ class Proxy:
                         use_rsa = False
                     if use_rsa:
                         self.s.settimeout(5)
-                        print('use rsa for xtea set', int(time.time()%3600))
+                        logger.debug('use rsa for xtea set')
                     else:
                         self.s.settimeout(1.5)
                     #print 'set value', value
                     response = self.make_request(2, path+'='+value, encrypt=True)
                     if response.status == 0:
                         if path == 'misc.xtea_key':
-                            self.request.xtea_key = xtea.new(value, mode=xtea.MODE_ECB, IV='\00'*8, rounds=64, endian='!')
+                            self.request.xtea_key = xtea.new(value.encode('latin-1'), mode=xtea.MODE_ECB, IV=b'\00'*8, rounds=64, endian='!')
                         return 'ok'
-                    print('set error:', response.status)
+                    logger.debug('set error: %s', response.status)
                     raise protocol_error
             except protocol_error:
                 if retry >= 1:
-                    print('set retry', retry, int(time.time()%3600))
+                    logger.debug('set retry %s', retry)
                 if path == 'misc.xtea_key':
                     try:
-                        print('xtea_set uncertain, del key and use rsa', time.time())
+                        logger.debug('xtea_set uncertain, del key and use rsa')
                         del self.request.xtea_key
                     except AttributeError:
                         pass
@@ -129,7 +134,7 @@ class Proxy:
                 time.sleep(2)
             else:
                 time.sleep(0.2)
-        print('no more set retry')
+        logger.warning('no more set retry for %s', path)
         raise protocol_error('set %s failed'%path)
 
     def get(self, function, path, group=False):
@@ -141,14 +146,14 @@ class Proxy:
                     response = self.make_request(function, path)
                     if response.status == 0:
                         if not group:
-                            return response.payload.encode('ascii').split('=', 1)[1]
+                            return response.payload.split('=', 1)[1]
                         else:
-                            return response.payload.encode('ascii').split(';')
+                            return response.payload.split(';')
             except: #protocol_error:
                 if retry >= 1:
-                    print('get retry', retry, int(time.time()%3600))
+                    logger.debug('get retry %s', retry)
             time.sleep(0.2)
-        print('no more get retry')
+        logger.warning('no more get retry for %s', path)
         raise protocol_error
 
     def find_controller(self):
@@ -193,11 +198,11 @@ class Proxy:
                                         controller_online = True
                                         self.addr = server
                                         break
-                                except seqnum_error as e:
-                                    print('find controller error', repr(e))
+                                except seqnum_error:
+                                    logger.exception('find controller error')
                                     pass
-                        except Exception as e:
-                            print('find controller retry', retry, repr(e))
+                        except Exception:
+                            logger.exception('find controller retry %s', retry)
                             pass
                         else:
                             break
@@ -216,8 +221,7 @@ class Proxy:
                         self.set_xteakey()
 
                 if self.controller_online and not controller_online:
-                    print('-------------------lost conn')
-                    logger.info('Lost connection to controller')
+                    logger.warning('Lost connection to controller')
 
                 self.controller_online = controller_online
 
@@ -229,8 +233,8 @@ class Proxy:
                     time.sleep(5)
                 else:
                     time.sleep(1)
-            except Exception as e:
-                print('FC -------------------', repr(e))
+            except Exception:
+                logger.exception('find_controller loop error')
                 pass #don't ever die in this thread
 
     def dir(self):
@@ -305,16 +309,16 @@ class Proxy:
                             break
                     self.response.decode(data)
                     return self.response
-                except seqnum_error as e:
-                    print('seqnum error', function, repr(e), int(time.time()%3600))
+                except seqnum_error:
+                    logger.exception('seqnum error, function %s', function)
                     pass #just read again on seqnum error
                 else:
                     break
         except socket.timeout as e:
-            print('timeout, func:', function, 'missed seqnum:', self.request.sequencenumber, int(time.time()%3600))
+            logger.exception('timeout, func: %s missed seqnum: %s', function, self.request.sequencenumber)
             raise protocol_timeout(str(e))
         except Exception as e:
-            print('other exc', self.request.sequencenumber, int(time.time()%3600), str(e))
+            logger.exception('other exc, seqnum %s', self.request.sequencenumber)
             raise protocol_error(str(e))
 
     def xtea_refresh_thread(self):
@@ -329,7 +333,7 @@ class Proxy:
                     try:
                         if self.get_rsakey():
                             self.set_xteakey()
-                        print('xtea set')
+                        logger.debug('xtea set')
                     except Exception as e:
                         pass
             time.sleep(5)
@@ -354,7 +358,7 @@ class Controller:
             data = d[0]
             addr = d[1]
             self.request.decode(data)
-            print ('< ' + self.request.payload.decode('ascii'))
+            logger.debug('< %s', self.request.payload.decode('ascii'))
             # discovery response
             if self.request.function == 0:
                 self.response.function = self.request.function
@@ -362,10 +366,10 @@ class Controller:
                 self.response.status = 0
                 frame = self.response.encode()
                 self.s.sendto(frame , addr)
-                print ('  > ' + frame.decode('ascii'))
+                logger.debug('  > %s', frame.decode('ascii'))
             else:
                 # check password
-                if True: #self.requset.pincode == self.password:
+                if hmac.compare_digest(str(self.request.pincode).strip().encode('utf-8'), str(self.password).strip().encode('utf-8')):
                     if self.request.function == 1:
                         self.response.function = self.request.function
                         if self.request.payload == 'boiler.temp':
@@ -382,14 +386,14 @@ class Controller:
                         self.response.status = 1
                         frame = self.response.encode()
                         self.s.sendto(frame , addr)
-                    print ('  > ' + frame.decode('ascii'))
+                    logger.debug('  > %s', frame.decode('ascii'))
                 else:
                     self.response.function = self.request.function
                     self.response.payload = 'wrong password'
                     self.response.status = 1
                     frame = self.response.encode()
                     self.s.sendto(frame , addr)
-                    print ('  > ' + frame.decode('ascii'))
+                    logger.debug('  > %s', frame.decode('ascii'))
 
 
 

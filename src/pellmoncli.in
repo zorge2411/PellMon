@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # PYTHON_ARGCOMPLETE_OK
 # -*- coding: utf-8 -*-
 
@@ -48,7 +48,7 @@ def complete(text, state):
 
 def getItem(itm):
     try:
-    	return notify.GetItem('(s)',itm)
+            return notify.GetItem('(s)',itm)
     except:
         return "error"
 
@@ -63,14 +63,14 @@ def getdb():
 
 def getItemCli(args):
     for item in args.item:
-        print getItem(item)
+        print(getItem(item))
 
 def setItemCli(args):
-    print setItem(args.item, args.value)
+    print(setItem(args.item, args.value))
 
 def getdbCli(args):
     l = notify.GetDB()
-    print "\n".join(l)
+    print("\n".join(l))
 
 def cli(args):
     # Get list of data/parameters
@@ -87,7 +87,7 @@ def cli(args):
     run=True
     while run:
         try:
-            a=raw_input(">")
+            a=input(">")
             l=a.split()
             
             if len(l)==2:
@@ -95,23 +95,23 @@ def cli(args):
                     if l[1] == "all":
                         for item in db:
                             try:
-                                print item, getItem(item)
+                                print(item, getItem(item))
                             except:
                                 pass
                     else:
                         if l[1] in db:
                             try:
-                                print getItem(l[1])
+                                print(getItem(l[1]))
                             except:
-                                print "dbus error"
+                                print("dbus error")
                         else:
-                            print l[1]+" is not a data/parameter name "
+                            print(l[1]+" is not a data/parameter name ")
             elif len(l)>=3:
                 if l[0] in ['set', 's']:
                     if l[1] in db:
-                        print setItem(l[1], ' '.join(l[2:]))
+                        print(setItem(l[1], ' '.join(l[2:])))
                     else:
-                        print l[1]+" is not a parameter/command name"
+                        print(l[1]+" is not a parameter/command name")
             elif len(l)==1:
                 if l[0] in ['quit','q']:
                     run=False

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -17,12 +17,13 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import signal, os, errno, queue, threading
+import signal, os, errno, queue, threading, shutil
 import dbus, dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib, GObject
 import logging
 import logging.handlers
+logger = logging.getLogger('pellMon')
 import sys
 import configparser
 import time
@@ -54,6 +55,10 @@ except ImportError:
     CONFDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     LOCALSTATEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
+DBUSMAINLOOP = None
+daemon_instance = None
+conf = None
+
 class dbus_signal_handler(logging.Handler):
     """Emit log messages as a dbus signal"""
     def __init__(self, dbus_service):
@@ -72,7 +77,7 @@ class Database(threading.Thread, _Database):
         self.dbus_service = None
         self.values={}
         self.protocols=[]
-        self.setDaemon(True)
+        self.daemon = True
 
         # Initialize and activate all plugins of 'Protocols' category
         global manager
@@ -89,17 +94,23 @@ class Database(threading.Thread, _Database):
                     plugin.plugin_object.activate(conf.plugin_conf[plugin.name], globals(), self)
                     self.protocols.append(plugin)
                     activated_plugins.append(plugin.name)
-                except Exception as e:
+                except Exception:
                     failed_plugins.append(plugin.name)
                     if conf.command == 'debug':
                         raise
                     else:
-                        logger.info('%s plugin error: %s'%(plugin_name, str(e))   )
+                        logger.exception('%s plugin error'%plugin_name)
         if activated_plugins:
             logger.info('Activated plugins: %s'%', '.join(activated_plugins))
         if failed_plugins:
             logger.info('Failed to activate plugins: %s'%', '.join(failed_plugins))
         self.start()
+
+    def __hash__(self):
+        return id(self)
+
+    def __eq__(self, other):
+        return self is other
 
     def run(self):
         while True:
@@ -196,12 +207,18 @@ class MyDBUSService(dbus.service.Object):
         pass
 
 class Poller(threading.Thread):
-    def __init__(self, ev):
+    def __init__(self, ev, period):
         threading.Thread.__init__(self)
         self.ev = ev
-        self.setDaemon(True)
+        self.period = period
+        self.daemon = True
+        self.running = True
         self.start()
         self.timesync_wait = 0
+
+    def stop(self):
+        self.running = False
+        self.ev.set()
 
     def run(self):
         """Poll data defined in conf.pollData and update the RRD database with the responses"""
@@ -209,10 +226,12 @@ class Poller(threading.Thread):
         global conf
         if not conf.polling:
             return
-        while True:
+        while getattr(self, 'running', True):
             try:
                 itemlist=[]
                 self.ev.wait()
+                if not getattr(self, 'running', True):
+                    break
                 lastupdate = {}
                 
                 for data in conf.pollData:
@@ -248,17 +267,17 @@ class Poller(threading.Thread):
                                         value = 'U'
                                 except:
                                     pass
-                    except IOError as e:
+                    except IOError:
                         #logger.info('IOError: %s,  Trying Z01...'%str(e))
 #                        import traceback
 #                        traceback.print_exc()
                         try:
                             # Strange fix for stange problem with some scotte burners
                             conf.database['oxygen_regulation'].value
-                        except Exception as e:
-                            logger.info('error in retry %s'%str(e) )
-                    except Exception as e:
-                        logger.debug('error polling %s: %s'%(data['name'], str(e)) )
+                        except Exception:
+                            logger.exception('error in retry for %s'%data['name'])
+                    except Exception:
+                        logger.exception('error polling %s'%data['name'])
                         
                     itemlist.append(value)
                     lastupdate[data['name']] = value
@@ -278,8 +297,8 @@ class Poller(threading.Thread):
                 else:
                     self.timesync_wait += 1
                     
-            except Exception as e:
-                logger.info('error in polling %s'%str(e) )
+            except Exception:
+                logger.exception('error in polling')
             time.sleep(1)
             self.ev.clear()
 
@@ -305,56 +324,68 @@ def handle_settings_changed(item, oldvalue, newvalue, itemtype):
         if conf.email and 'alarm' in conf.emailconditions:
             sendmail(logline)
 
+_copy_lock = threading.Lock()
+
 def copy_db(direction='store'):
     """Copy db to nvdb or nvdb to db depending on direction"""
-    global copy_in_progress
-    if not 'copy_in_progress' in globals():
-        copy_in_progress = False        
-    if not copy_in_progress:
+    if not _copy_lock.acquire(False):
+        logger.debug('copy already in progress, skipping')
+        return
+    try:
         if direction=='store':
-            try:
-                copy_in_progress = True     
-                os.system('cp %s %s'%(conf.db, conf.nvdb)) 
-                logger.debug('copied %s to %s'%(conf.db, conf.nvdb))
-            except Exception as e:
-                logger.info(str(e))
-                logger.info('copy %s to %s failed'%(conf.db, conf.nvdb))
-            finally:
-                copy_in_progress = False
+            src, dst = conf.db, conf.nvdb
         else:
-            try:
-                copy_in_progress = True     
-                os.system('cp %s %s'%(conf.nvdb, conf.db))  
-                logger.info('copied %s to %s'%(conf.nvdb, conf.db))
-            except Exception as e:
-                logger.info(str(e))
-                logger.info('copy %s to %s failed'%(conf.nvdb, conf.db))
-            finally:
-                copy_in_progress = False
-    
+            src, dst = conf.nvdb, conf.db
+        shutil.copy(src, dst)
+        if direction=='store':
+            logger.debug('copied %s to %s'%(src, dst))
+        else:
+            logger.info('copied %s to %s'%(src, dst))
+    except Exception:
+        logger.exception('copy %s to %s failed'%(src, dst))
+    finally:
+        _copy_lock.release()
+
 def db_copy_thread():
     """Run periodically at db_store_interval to call copy_db""" 
     try:
-        copy_db('store')    
-    except:
-        pass
+        copy_db('store')
+    except Exception:
+        logger.exception('unexpected error in db_copy_thread')
     ht = threading.Timer(conf.db_store_interval, db_copy_thread)
     ht.setDaemon(True)
     ht.start()
 
-def sigterm_handler(signum, frame):
-    """Handles SIGTERM, waits for the database copy on shutdown if it is in a ramdisk"""
-    logger.info('stop')
-    conf.database.terminate()
-    if conf.polling: 
-        if conf.nvdb != conf.db:   
+def sigterm_handler(signum, frame=None):
+    """Handles SIGTERM and SIGINT, initiating graceful shutdown"""
+    logger.info('Signal %d received, initiating graceful shutdown...', signum)
+    # Flush RRD database if using non-volatile storage copy
+    if conf and getattr(conf, 'polling', False) and getattr(conf, 'nvdb', None) != getattr(conf, 'db', None):
+        try:
             copy_db('store')
-        if not copy_in_progress:
-            logger.info('exiting')
-            sys.exit(0)
-    else:
-        logger.info('exiting')
-        sys.exit(0)
+            logger.info('RRD database synced to %s', conf.nvdb)
+        except Exception:
+            logger.exception('Error saving RRD database during shutdown')
+    # Stop poller thread
+    try:
+        target_daemon = globals().get('daemon_instance')
+        if target_daemon and hasattr(target_daemon, 'poller') and target_daemon.poller:
+            target_daemon.poller.stop()
+    except Exception:
+        pass
+    # Quit GLib main loop to allow run() to terminate
+    try:
+        if DBUSMAINLOOP is not None:
+            DBUSMAINLOOP.quit()
+    except Exception:
+        pass
+    # Clean up pidfile
+    try:
+        target_daemon = globals().get('daemon_instance')
+        if target_daemon:
+            target_daemon.delpid()
+    except Exception:
+        pass
     
 
 def sendmail(msg, wait=2, followup=True):
@@ -424,11 +455,68 @@ def sendmail_thread(msg, followup):
 
 class MyDaemon(Daemon):
     """ Run after double fork with start, or directly with debug argument"""
+    def sigterm_handler(self, signum, frame=None):
+        logger.info('Signal %d received, initiating graceful shutdown...', signum)
+        # Flush RRD database if using non-volatile storage copy
+        if conf and getattr(conf, 'polling', False) and getattr(conf, 'nvdb', None) != getattr(conf, 'db', None):
+            try:
+                copy_db('store')
+                logger.info('RRD database synced to %s', conf.nvdb)
+            except Exception:
+                logger.exception('Error saving RRD database during shutdown')
+        # Stop poller thread
+        try:
+            if hasattr(self, 'poller') and self.poller:
+                self.poller.stop()
+        except Exception:
+            pass
+        # Quit GLib main loop to allow run() to terminate
+        try:
+            if DBUSMAINLOOP is not None:
+                DBUSMAINLOOP.quit()
+        except Exception:
+            pass
+        # Clean up pidfile
+        try:
+            self.delpid()
+        except Exception:
+            pass
+
     def run(self):
         def periodic_signal_handler(signum, frame):
             """Periodic signal handler. Start pollThread to do the work"""
             self.pollevent.set()
-        global logger
+
+        def sigterm_handler(signum, frame):
+            logger.info('Signal %d received, initiating graceful shutdown...', signum)
+            # Flush RRD database if using non-volatile storage copy
+            if conf.polling and conf.nvdb != conf.db:
+                try:
+                    copy_db('store')
+                    logger.info('RRD database synced to %s', conf.nvdb)
+                except Exception:
+                    logger.exception('Error saving RRD database during shutdown')
+            # Stop poller thread
+            try:
+                if hasattr(self, 'poller') and self.poller:
+                    self.poller.stop()
+            except Exception:
+                pass
+            # Quit GLib main loop to allow run() to terminate
+            try:
+                if DBUSMAINLOOP is not None:
+                    DBUSMAINLOOP.quit()
+            except Exception:
+                pass
+            # Clean up pidfile
+            try:
+                self.delpid()
+            except Exception:
+                pass
+
+        self.sigterm_handler = sigterm_handler
+        global logger, DBUSMAINLOOP, daemon_instance
+        daemon_instance = self
         logger = logging.getLogger('pellMon')
         logger.info('starting PellMon')
         logger.info('Looking for plugins in %s', ', '.join(conf.plugin_dirs))
@@ -442,7 +530,7 @@ class MyDaemon(Daemon):
             pass
 
         # DBUS needs the GObject main loop, this way it seems to work...
-        GObject.threads_init()
+        # GObject.threads_init() is not needed in newer PyGObject versions
         dbus.mainloop.glib.threads_init()    
         DBUSMAINLOOP = GLib.MainLoop()
         DBusGMainLoop(set_as_default=True)
@@ -458,8 +546,11 @@ class MyDaemon(Daemon):
         # Create RRD database if does not exist
         if conf.polling:
             if not os.path.exists(conf.nvdb):
-                os.system(conf.RrdCreateString)
-                logger.info('Created rrd database: '+conf.RrdCreateString)
+                try:
+                    subprocess.run(conf.RrdCreateCommand, check=True)
+                    logger.info('Created rrd database: '+conf.RrdCreateString)
+                except Exception:
+                    logger.exception('failed to create rrd database: %s'%conf.RrdCreateString)
 
             # If nvdb is different from db, copy nvdb to db
             if conf.nvdb != conf.db:
@@ -483,8 +574,9 @@ class MyDaemon(Daemon):
 
         # Create SIGTERM signal handler
         signal.signal(signal.SIGTERM, sigterm_handler)
+        signal.signal(signal.SIGINT, sigterm_handler)
         self.pollevent = threading.Event()
-        self.poller = Poller(self.pollevent)
+        self.poller = Poller(self.pollevent, conf.poll_interval)
 
         # Create poll_interval periodic signal handler
         signal.signal(signal.SIGALRM, periodic_signal_handler)
@@ -512,7 +604,7 @@ class config:
         logger = logging.getLogger('pellMon')
 
         # Load the configuration file
-        parser = ConfigParser.ConfigParser()
+        parser = configparser.ConfigParser()
         parser.optionxform=str
         try:
             parser.read(filename)
@@ -530,9 +622,9 @@ class config:
                         except:
                             self.unreadable_conffiles.append(f)
                             sys.stderr.write('config file %s unreadable\n'%f)
-        except ConfigParser.NoOptionError:
+        except configparser.NoOptionError:
             pass
-        except ConfigParser.MissingSectionHeaderError:
+        except configparser.MissingSectionHeaderError:
             sys.stderr.write('section header [Conf] not found in %s\n'%f)
         except:
             sys.stderr.write('error reading config file\n')
@@ -578,25 +670,25 @@ class config:
                 except:
                     # No plugin config found
                     pass
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
 
         try:
             # Data to write to the rrd
             pollvalues = parser.items("pollvalues")
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
 
         try:
             # rrd database datasource names
             rrd_ds_names = parser.items("rrd_ds_names")
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
 
         try:
             # Optional rrd data type definitions
             rrd_ds_types = parser.items("rrd_ds_types")
-        except ConfigParser.NoSectionError:
+        except configparser.NoSectionError:
             pass
 
         # Make a list of data to poll, in the order they appear in the rrd database
@@ -657,13 +749,15 @@ class config:
 
         if self.polling:
             # Build a command string to create the rrd database
-            self.RrdCreateString="rrdtool create %s --step %u "%(self.nvdb, self.poll_interval)
+            self.RrdCreateCommand = ['rrdtool', 'create', self.nvdb, '--step', '%u'%self.poll_interval]
             for item in self.pollData:
-                self.RrdCreateString += item['ds_type'] % (item['ds_name'], self.poll_interval*4) + ' ' 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:1:20000 " 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:10:20000 " 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:100:20000 " 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:1000:20000" 
+                self.RrdCreateCommand.append(item['ds_type'] % (item['ds_name'], self.poll_interval*4))
+            self.RrdCreateCommand += ["RRA:AVERAGE:0.1:1:20000",
+                                      "RRA:AVERAGE:0.1:10:20000",
+                                      "RRA:AVERAGE:0.1:100:20000",
+                                      "RRA:AVERAGE:0.1:1000:20000"]
+            # Human readable form, for log output
+            self.RrdCreateString = ' '.join(self.RrdCreateCommand)
 
         # dict to hold known recent values of db items
         self.dbvalues = {} 
@@ -737,12 +831,11 @@ class config:
         try:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
-        except ConfigParser.NoSectionError as e:
-            print('noconf', e)
+        except configparser.NoSectionError as e:
+            logger.debug('no plugin_dirs section: %s'%str(e))
             pass
-        except Exception as e:
-            print(e)
-            logger.info('invalid setting for plugin_dirs')
+        except Exception:
+            logger.exception('invalid setting for plugin_dirs')
 
 def getgroups(user):
     gids = [g.gr_gid for g in grp.getgrall() if user in g.gr_mem]
@@ -848,4 +941,7 @@ def run():
     conf.command = args.command
 
     commands[args.command]()
+
+if __name__ == "__main__":
+    run()
 

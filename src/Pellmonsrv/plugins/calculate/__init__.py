@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -25,7 +25,6 @@ import os, grp, pwd
 from logging import getLogger
 import traceback
 from time import sleep
-from string import maketrans
 
 logger = getLogger('pellMon')
 
@@ -56,19 +55,19 @@ class Calc():
         if c=='/':
             q = float(self.stack.pop())
             d = float(self.stack.pop())
-            self.stack.append(unicode(d/q))
+            self.stack.append(str(d/q))
         elif c == '*':
             d = float(self.stack.pop())
             q = float(self.stack.pop())
-            self.stack.append(unicode(d*q))
+            self.stack.append(str(d*q))
         elif c=='+':
             d = float(self.stack.pop())
             q = float(self.stack.pop())
-            self.stack.append(unicode(d+q))
+            self.stack.append(str(d+q))
         elif c=='-':
             d = float(self.stack.pop())
             q = float(self.stack.pop())
-            self.stack.append(unicode(q-d))
+            self.stack.append(str(q-d))
         elif c=='get':
             item = self.stack.pop()
             value = self.db.get_value(item)
@@ -81,19 +80,19 @@ class Calc():
         elif c=='>':
             item2 = self.stack.pop()
             item1 = self.stack.pop()
-            self.stack.append(unicode(int(float(item1) > float(item2))))
+            self.stack.append(str(int(float(item1) > float(item2))))
         elif c=='<':
             item2 = self.stack.pop()
             item1 = self.stack.pop()
-            self.stack.append(unicode(int(float(item1) < float(item2))))
+            self.stack.append(str(int(float(item1) < float(item2))))
         elif c=='==':
             item2 = self.stack.pop()
             item1 = self.stack.pop()
-            self.stack.append(unicode(int(float(item1) == float(item2))))
+            self.stack.append(str(int(float(item1) == float(item2))))
         elif c=='!=':
             item2 = self.stack.pop()
             item1 = self.stack.pop()
-            self.stack.append(unicode(int(float(item1) != float(item2))))
+            self.stack.append(str(int(float(item1) != float(item2))))
         elif c=='?':
             itemFalse = self.stack.pop()
             itemTrue = self.stack.pop()
@@ -133,38 +132,38 @@ class Calc():
             else:
                 self.stack.append(item2)
         elif c == 'sto':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             self.store[var] = self.stack.pop()
         elif c == 'del':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             if var in self.store:
                 del gstore[var]
         elif c == 'def':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             value = self.stack.pop()
             if var not in self.store:
                 self.store[var] = value
         elif c == 'rcl':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             try:
                 self.stack.append(self.store[var])
             except:
                 raise ValueError('no variable named %s'%var)
         elif c == 'gsto':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             gstore[var] = self.stack.pop()
         elif c == 'gdef':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             value = self.stack.pop()
             if var not in gstore:
                 gstore[var] = value
         elif c == 'gdel':
-            var = unicode(self.stack.pop())
+            var = str(self.stack.pop())
             if var in gstore:
                 del gstore[var]
         elif c == 'grcl':
             try:
-                var = unicode(self.stack.pop())
+                var = str(self.stack.pop())
                 self.stack.append(gstore[var])
             except:
                 raise ValueError('no global named %s'%var)
@@ -292,8 +291,8 @@ class calculateplugin(protocols):
                         except Exception as e:
                             raise e #ValueError('%s has invalid task time %s'%(key, value))
 
-                except Exception as e: 
-                    logger.info(str(e))
+                except Exception as e:
+                    logger.exception('calculate plugin activation error')
                     raise e
             for item in itemList:
                 if item['type'] == 'R/W':
@@ -313,8 +312,8 @@ class calculateplugin(protocols):
                 self.db.insert(dbitem)
                 self.itemrefs.append(dbitem)
 
-        except Exception as e:
-            logger.info( str(e))
+        except Exception:
+            logger.exception('calculate plugin activation error')
             raise
 
     def getItem(self, itemName):
@@ -327,8 +326,8 @@ class calculateplugin(protocols):
                     try:
                         calc = Calc(prog, self.db)
                         return calc.run()
-                    except Exception as e:
-                        logger.info(calc_item+' error: '+repr(e))
+                    except Exception:
+                        logger.exception('%s error'%calc_item)
                         return 'error'
             except:
                 if item['type'] == 'R':
@@ -348,13 +347,13 @@ class calculateplugin(protocols):
             calc_item = item['calc_item']
             prog = self.getItem(calc_item)
             try:
-                stack = [unicode(value)]
+                stack = [str(value)]
                 calc = Calc(prog, self.db, stack=stack)
                 calc.run()
                 return 'OK'
-            except Exception as e:
+            except Exception:
                 calc = Calc(prog, self.db)
-                logger.info(calc_item+' error: '+str(e))
+                logger.exception('%s error'%calc_item)
                 return 'error'
         except:  
             try:
@@ -378,6 +377,6 @@ class calcthread(Thread):
             try:
                 prog = Calc(self.plugin_object.getItem(self.progitem), self.plugin_object.db)
                 prog.run()
-            except Exception as e:
-                logger.info('error in ' + self.progitem +str(e))
+            except Exception:
+                logger.exception('error in %s'%self.progitem)
             sleep(self.cycle)

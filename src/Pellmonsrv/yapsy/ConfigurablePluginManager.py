@@ -1,4 +1,4 @@
-#!/usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8; tab-width: 4; indent-tabs-mode: t -*-
 
 """
@@ -10,11 +10,11 @@ import sys, os
 import logging
 import configparser
 
-from IPlugin import IPlugin
+from .IPlugin import IPlugin
 
 
-from PluginManager import PluginManager,PluginManagerDecorator
-from PluginManager import PLUGIN_NAME_FORBIDEN_STRING
+from .PluginManager import PluginManager, PluginManagerDecorator
+from .PluginManager import PLUGIN_NAME_FORBIDEN_STRING
 
 
 

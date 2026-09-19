@@ -1,0 +1,103 @@
+<?xml version="1.0" encoding="utf-8"?><testsuites name="pytest tests"><testsuite name="pytest" errors="0" failures="2" skipped="8" tests="39" time="1.783" timestamp="2026-09-17T14:59:03.793524+02:00" hostname="pjs-zbook"><testcase classname="tests.Pellmonsrv.plugins.test_mocked_transport_smoke" name="test_loop_serial_roundtrip" time="1.011" /><testcase classname="tests.Pellmonsrv.plugins.test_mocked_transport_smoke" name="test_udp_send_uses_mock_not_real_network" time="0.002" /><testcase classname="tests.Pellmonsrv.test_database" name="test_init_creates_keyval_table" time="0.021" /><testcase classname="tests.Pellmonsrv.test_database" name="test_init_fallback_path_when_table_missing" time="0.017" /><testcase classname="tests.Pellmonsrv.test_database" name="test_writeval_readval_roundtrip" time="0.010" /><testcase classname="tests.Pellmonsrv.test_database" name="test_writeval_coerces_non_str_value" time="0.010" /><testcase classname="tests.Pellmonsrv.test_database" name="test_readval_missing_key_returns_error_string" time="0.007" /><testcase classname="tests.Pellmonsrv.test_database" name="test_writeval_with_confval_sets_both_columns" time="0.009" /><testcase classname="tests.Pellmonweb.test_auth" name="test_check_credentials_success" time="0.001" /><testcase classname="tests.Pellmonweb.test_auth" name="test_check_credentials_wrong_password" time="0.001" /><testcase classname="tests.Pellmonweb.test_auth" name="test_check_credentials_unknown_user" time="0.001" /><testcase classname="tests.Pellmonweb.test_auth" name="test_login_sets_session_and_redirects_on_success" time="0.004" /><testcase classname="tests.Pellmonweb.test_auth" name="test_login_failure_renders_loginform_without_session" time="0.009" /><testcase classname="tests.Pellmonweb.test_auth" name="test_logout_clears_session" time="0.005" /><testcase classname="tests.test_plugin_imports" name="test_plugin_discovery_is_not_vacuous" time="0.006" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[calculate]" time="0.010"><skipped type="pytest.skip" message="calculate requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:93: calculate requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[cleaning]" time="0.002" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[consumption]" time="0.003"><skipped type="pytest.skip" message="consumption requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:93: consumption requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[customalarms]" time="0.004"><skipped type="pytest.skip" message="customalarms requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:93: customalarms requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[exec]" time="0.003" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[heatingcircuit]" time="0.002" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[nbecom]" time="0.003" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[onewire]" time="0.002" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[openweathermap]" time="0.003" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[owfs]" time="0.004" /><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[pelletcalc]" time="0.009"><skipped type="pytest.skip" message="pelletcalc requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:93: pelletcalc requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[raspberrygpio]" time="0.005"><skipped type="pytest.skip" message="raspberrygpio requires RPi, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:93: raspberrygpio requires RPi, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[scottecom]" time="0.008"><failure message="ModuleNotFoundError: No module named 'protocol'">module_name = 'scottecom'
+
+    @pytest.mark.parametrize("module_name", _plugin_param_list())
+    def test_plugin_module_imports(module_name):
+        """Layer 1: every descriptor-listed plugin module must import cleanly
+        under Python 3, or skip with a named platform-unavailable reason.
+    
+        Any other failure (in particular a broken relative import left over
+        from the Python 2 port) is a real migration defect and must FAIL loudly
+        -- no bare except, no blanket skip on ModuleNotFoundError.
+        """
+        try:
+&gt;           importlib.import_module("Pellmonsrv.plugins." + module_name)
+
+tests\test_plugin_imports.py:90: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:762: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:491: in _call_with_frames_removed
+    ???
+src\Pellmonsrv\plugins\scottecom\__init__.py:8: in &lt;module&gt;
+    from scottecom import scottecom
+src\Pellmonsrv\plugins\scottecom\scottecom.py:19: in &lt;module&gt;
+    from Scotteprotocol import Protocol
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    # -*- coding: utf-8 -*-
+&gt;   from protocol import Protocol
+E   ModuleNotFoundError: No module named 'protocol'
+
+src\Scotteprotocol\__init__.py:2: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[silolevel]" time="0.005"><skipped type="pytest.skip" message="silolevel requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:93: silolevel requires grp, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_plugin_module_imports[testplugin]" time="0.004" /><testcase classname="tests.test_plugin_imports" name="test_nbecom_deferred_protocol_import" time="0.022"><failure message="ModuleNotFoundError: No module named 'frames'">@pytest.mark.known_broken
+    def test_nbecom_deferred_protocol_import():
+        """Layer 2: NBEcom's protocol import is deferred.
+    
+        `nbecom` passes Layer 1 because `from nbeprotocol.protocol import Proxy`
+        lives inside `nbecomplugin.activate()`
+        (src/Pellmonsrv/plugins/nbecom/__init__.py:38), not at module level, so
+        a naive per-module import loop gives it a false pass. This probe
+        imports the deferred target directly, which is what actually surfaces
+        IMPORT-02. Expected to FAIL until Phase 3.
+        """
+&gt;       importlib.import_module("Pellmonsrv.plugins.nbecom.nbeprotocol.protocol")
+
+tests\test_plugin_imports.py:111: 
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+C:\Python314\Lib\importlib\__init__.py:88: in import_module
+    return _bootstrap._gcd_import(name[level:], package, level)
+           ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+&lt;frozen importlib._bootstrap&gt;:1398: in _gcd_import
+    ???
+&lt;frozen importlib._bootstrap&gt;:1371: in _find_and_load
+    ???
+&lt;frozen importlib._bootstrap&gt;:1342: in _find_and_load_unlocked
+    ???
+&lt;frozen importlib._bootstrap&gt;:938: in _load_unlocked
+    ???
+&lt;frozen importlib._bootstrap_external&gt;:762: in exec_module
+    ???
+&lt;frozen importlib._bootstrap&gt;:491: in _call_with_frames_removed
+    ???
+_ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _ _
+
+    #! /usr/bin/python
+    # -*- coding: utf-8 -*-
+    """
+        Copyright (C) 2013  Anders Nylund
+    
+        This program is free software: you can redistribute it and/or modify
+        it under the terms of the GNU General Public License as published by
+        the Free Software Foundation, either version 2 of the License, or
+        (at your option) any later version.
+    
+        This program is distributed in the hope that it will be useful,
+        but WITHOUT ANY WARRANTY; without even the implied warranty of
+        MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+        GNU General Public License for more details.
+    
+        You should have received a copy of the GNU General Public License
+        along with this program.  If not, see &lt;http://www.gnu.org/licenses/&gt;.
+    """
+    
+    import socket
+    from random import randrange, SystemRandom
+    import time
+    from Crypto.PublicKey import RSA
+    import base64
+    import threading
+    import errno
+&gt;   from frames import Request_frame, Response_frame
+E   ModuleNotFoundError: No module named 'frames'
+
+src\Pellmonsrv\plugins\nbecom\nbeprotocol\protocol.py:27: ModuleNotFoundError</failure></testcase><testcase classname="tests.test_plugin_imports" name="test_skip_allowlist_cannot_hide_migration_defects" time="0.000" /><testcase classname="tests.test_plugin_imports" name="test_core_modules_import[Pellmonsrv.pellmonsrv]" time="0.009"><skipped type="pytest.skip" message="Pellmonsrv.pellmonsrv requires dbus, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:140: Pellmonsrv.pellmonsrv requires dbus, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_core_modules_import[Pellmonsrv.database]" time="0.001" /><testcase classname="tests.test_plugin_imports" name="test_core_modules_import[Pellmonweb.pellmonweb]" time="0.010"><skipped type="pytest.skip" message="Pellmonweb.pellmonweb requires gi, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner">D:\Antigravity\PellMon-master\.claude\worktrees\agent-a2fb0b702af522cfa\tests\test_plugin_imports.py:140: Pellmonweb.pellmonweb requires gi, unavailable on this platform (Linux/Pi-only); covered on the Linux CI runner</skipped></testcase><testcase classname="tests.test_plugin_imports" name="test_core_modules_import[Pellmonweb.pellmonconf]" time="0.004" /><testcase classname="tests.test_socket_guardrail" name="test_real_socket_construction_is_blocked" time="0.000" /><testcase classname="tests.test_socket_guardrail" name="test_real_tcp_socket_construction_is_blocked" time="0.000" /><testcase classname="tests.test_socket_guardrail" name="test_mocked_udp_socket_fixture_bypasses_the_block" time="0.001" /></testsuite></testsuites>
