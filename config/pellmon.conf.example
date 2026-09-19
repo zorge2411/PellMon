@@ -22,11 +22,11 @@ errorlog = /var/log/pellmon/error.log
 
 [authentication]
 # Enable authentication for production
-# Passwords can be stored as PBKDF2 hashes (recommended) or legacy plaintext.
+# Passwords MUST be stored as PBKDF2 hashes; plaintext passwords are rejected.
 # Generate a hashed password using:
 # python3 -c "from Pellmonweb.auth import hash_password; print(hash_password('yourpassword'))"
 # username = admin
-# password = pbkdf2:sha256:100000$...
+# password = pbkdf2:sha256:600000$...
 # realm = PellMon
 
 [enabled_plugins]

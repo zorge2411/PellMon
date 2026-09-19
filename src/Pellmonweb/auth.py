@@ -36,8 +36,10 @@ import logging
 
 logger = logging.getLogger('pellMon')
 
+PBKDF2_ITERATIONS = 600000
 
-def hash_password(password, salt=None, iterations=100000):
+
+def hash_password(password, salt=None, iterations=PBKDF2_ITERATIONS):
     if salt is None:
         salt = secrets.token_hex(16)
     derived = hashlib.pbkdf2_hmac('sha256', password.encode('utf-8'), salt.encode('utf-8'), iterations)
@@ -64,8 +66,9 @@ def verify_password(stored_credential, provided_password):
             except Exception:
                 return False
         return False
-    # Legacy plaintext fallback
-    return hmac.compare_digest(stored_str, provided_str)
+    logger.error('stored web credential is not a PBKDF2 hash; plaintext passwords are no longer accepted. '
+                 'Generate a hash with: python3 -c "from Pellmonweb.auth import hash_password; print(hash_password(\'yourpassword\'))"')
+    return False
 
 
 SESSION_KEY = '_cp_username'
@@ -184,14 +187,10 @@ class AuthController(object):
             if isinstance(self.credentials, dict):
                 stored_val = self.credentials.get(username)
                 if stored_val is not None and verify_password(stored_val, password):
-                    if not str(stored_val).startswith('pbkdf2:'):
-                        logger.warning("User '%s' authenticated using legacy plaintext password; please migrate configuration to PBKDF2 hash.", username)
                     return None
             else:
                 for u, p in self.credentials:
                     if u == username and verify_password(p, password):
-                        if not str(p).startswith('pbkdf2:'):
-                            logger.warning("User '%s' authenticated using legacy plaintext password; please migrate configuration to PBKDF2 hash.", username)
                         return None
             cherrypy.log('Login failed from %s, username: %s' % (remote_addr, user_str))
             return "Incorrect username or password."

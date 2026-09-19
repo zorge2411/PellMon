@@ -1,10 +1,13 @@
 
 [authentication]
-# username = password, for webinterface
-##########################################################
-# IMPORTANT! Change this to your own username = password #
-##########################################################
-testuser = 12345
+# username = password hash, for webinterface
+# Passwords MUST be PBKDF2 hashes; plaintext passwords are rejected.
+# Generate a hash with:
+# python3 -c "from Pellmonweb.auth import hash_password; print(hash_password('yourpassword'))"
+###############################################################
+# IMPORTANT! Add your own username = <hash> line below        #
+###############################################################
+# admin = pbkdf2:sha256:600000$<salt>$<hash>
 
 [graphcolors]
 # To add/remove a ds-name from the rrd-database to/from the graph, set/remove
@@ -38,6 +41,13 @@ d15 = #2F2FFF
 # Choose system image here #
 ############################
 system_image = system.svg
+
+# Address the web server binds to. Default 127.0.0.1 (local only).
+# Also settable with the PELLMON_WEB_HOST environment variable; this value wins.
+#host = 127.0.0.1
+
+# Set to true to mark the session cookie Secure (only if served over HTTPS)
+#session_cookie_secure = false
 
 
 [frontpage_widgets]

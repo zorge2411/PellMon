@@ -850,7 +850,8 @@ def run():
     try:
         credentials = parser.items('authentication')
     except:
-        credentials = [('testuser','12345')]
+        credentials = []
+        cherrypy.log('no [authentication] section found; the web UI will reject all logins until PBKDF2-hashed credentials are configured', severity=40)
 
     global logfile
     try:

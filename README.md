@@ -204,7 +204,7 @@ Generate a secure password hash with:
 python3 -c "from Pellmonweb.auth import hash_password; print(hash_password('yourpassword'))"
 ```
 
-*Note:* Legacy plaintext passwords in `pellmon.conf` remain backward-compatible, but will log a warning on successful login advising migration to hashed credentials.
+*Breaking change:* plaintext passwords in `pellmon.conf` are no longer accepted and will fail to log in. Replace each password in `[authentication]` with the output of the `hash_password` one-liner above.
 
 ## Dependencies (Python 3)
 

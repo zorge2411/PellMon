@@ -3,7 +3,7 @@
 Verifies:
 1. PBKDF2-HMAC-SHA256 password hashing generates expected hash format.
 2. Hash verification correctly matches valid passwords and rejects invalid passwords.
-3. Legacy plaintext passwords continue to authenticate with a migration warning (SEC-02).
+3. Plaintext stored passwords are rejected with an error log naming hash_password.
 4. Raw submitted passwords are NEVER logged on failed login attempts or exceptions (SEC-01).
 5. Both list-of-tuples and dictionary credential formats are supported.
 """
@@ -21,7 +21,7 @@ from Pellmonweb.auth import (
 
 def test_hash_password_format_and_verification():
     h = hash_password("correcthorsebatterystaple")
-    assert h.startswith("pbkdf2:sha256:100000$")
+    assert h.startswith("pbkdf2:sha256:600000$")
     parts = h.split("$")
     assert len(parts) == 3
     # Check salt is 32-char hex (16 bytes)
@@ -40,10 +40,18 @@ def test_hash_password_custom_salt_and_iterations():
     assert verify_password(h, "othersecret") is False
 
 
-def test_verify_password_plaintext_backward_compatibility():
-    # Legacy plaintext password verification works
-    assert verify_password("plain_text_secret", "plain_text_secret") is True
-    assert verify_password("plain_text_secret", "wrong_secret") is False
+def test_verify_password_plaintext_rejected(caplog):
+    import logging
+    with caplog.at_level(logging.ERROR, logger="pellMon"):
+        assert verify_password("plain_text_secret", "plain_text_secret") is False
+    assert any("hash_password" in r.message for r in caplog.records)
+
+
+def test_old_iteration_hash_still_verifies():
+    h = hash_password("oldpw", iterations=100000)
+    assert h.startswith("pbkdf2:sha256:100000$")
+    assert verify_password(h, "oldpw") is True
+    assert verify_password(h, "nope") is False
 
 
 def test_verify_password_edge_cases():
@@ -73,17 +81,17 @@ def test_check_credentials_with_dict_credentials(cherrypy_request_ctx):
     ctrl = AuthController(credentials={"admin": hashed, "user": "plaintext_user"}, lookup=None)
     assert ctrl.check_credentials("admin", "admin_pass") is None
     assert ctrl.check_credentials("admin", "wrong_pass") == "Incorrect username or password."
-    assert ctrl.check_credentials("user", "plaintext_user") is None
+    assert ctrl.check_credentials("user", "plaintext_user") == "Incorrect username or password."
     assert ctrl.check_credentials("user", "wrong") == "Incorrect username or password."
 
 
-def test_check_credentials_legacy_plaintext_warning(cherrypy_request_ctx, caplog):
+def test_check_credentials_plaintext_rejected(cherrypy_request_ctx, caplog):
     import logging
     ctrl = AuthController(credentials=[("bob", "legacy_cleartext")], lookup=None)
-    with caplog.at_level(logging.WARNING, logger="pellMon"):
+    with caplog.at_level(logging.ERROR, logger="pellMon"):
         res = ctrl.check_credentials("bob", "legacy_cleartext")
-        assert res is None
-        assert any("legacy plaintext" in record.message.lower() for record in caplog.records)
+    assert res == "Incorrect username or password."
+    assert any("hash_password" in r.message for r in caplog.records)
 
 
 def test_check_credentials_failure_never_logs_password(cherrypy_request_ctx):

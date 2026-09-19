@@ -8,26 +8,29 @@
 import cherrypy
 import pytest
 
-from Pellmonweb.auth import AuthController, SESSION_KEY
+from Pellmonweb.auth import AuthController, SESSION_KEY, hash_password
+
+# Low iteration count keeps fixtures fast; verification honours the stored count.
+S3CRET_HASH = hash_password("s3cret", iterations=1000)
 
 
 def test_check_credentials_success(cherrypy_request_ctx):
-    ctrl = AuthController(credentials=[("alice", "s3cret")], lookup=None)
+    ctrl = AuthController(credentials=[("alice", S3CRET_HASH)], lookup=None)
     assert ctrl.check_credentials("alice", "s3cret") is None
 
 
 def test_check_credentials_wrong_password(cherrypy_request_ctx):
-    ctrl = AuthController(credentials=[("alice", "s3cret")], lookup=None)
+    ctrl = AuthController(credentials=[("alice", S3CRET_HASH)], lookup=None)
     assert ctrl.check_credentials("alice", "wrong") == "Incorrect username or password."
 
 
 def test_check_credentials_unknown_user(cherrypy_request_ctx):
-    ctrl = AuthController(credentials=[("alice", "s3cret")], lookup=None)
+    ctrl = AuthController(credentials=[("alice", S3CRET_HASH)], lookup=None)
     assert ctrl.check_credentials("bob", "whatever") == "Incorrect username or password."
 
 
 def test_login_sets_session_and_redirects_on_success(cherrypy_request_ctx):
-    ctrl = AuthController(credentials=[("alice", "s3cret")], lookup=None)
+    ctrl = AuthController(credentials=[("alice", S3CRET_HASH)], lookup=None)
 
     # HTTPRedirect is this code's success control flow (auth.py:167), not an error.
     with pytest.raises(cherrypy.HTTPRedirect):
@@ -38,7 +41,7 @@ def test_login_sets_session_and_redirects_on_success(cherrypy_request_ctx):
 
 def test_login_failure_renders_loginform_without_session(cherrypy_request_ctx, mocker):
     lookup = mocker.MagicMock()
-    ctrl = AuthController(credentials=[("alice", "s3cret")], lookup=lookup)
+    ctrl = AuthController(credentials=[("alice", S3CRET_HASH)], lookup=lookup)
 
     # No HTTPRedirect on failure -- get_loginform() renders inline instead.
     ctrl.login(username="alice", password="wrong", from_page="/dashboard")
@@ -48,7 +51,7 @@ def test_login_failure_renders_loginform_without_session(cherrypy_request_ctx, m
 
 
 def test_logout_clears_session(cherrypy_request_ctx):
-    ctrl = AuthController(credentials=[("alice", "s3cret")], lookup=None)
+    ctrl = AuthController(credentials=[("alice", S3CRET_HASH)], lookup=None)
     cherrypy.session[SESSION_KEY] = "alice"
 
     with pytest.raises(cherrypy.HTTPRedirect):
