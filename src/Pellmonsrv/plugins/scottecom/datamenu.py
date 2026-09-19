@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: iso-8859-15 -*-
 """
     Copyright (C) 2013  Anders Nylund
