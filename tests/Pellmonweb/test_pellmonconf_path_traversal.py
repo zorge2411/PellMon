@@ -49,6 +49,7 @@ def test_save_not_post(inst, cherrypy_request_ctx):
 
 def test_save_allowed(inst, cherrypy_request_ctx, tmp_path):
     cherrypy.request.method = 'POST'
+    cherrypy.request.headers = {'Origin': 'http://localhost:8083', 'Host': 'localhost:8083'}
     r = json.loads(inst.save('pellmon.conf', 'hello'))
     assert r == {'success': True}
     assert (tmp_path / 'pellmon.conf').read_text(encoding='utf-8') == 'hello'

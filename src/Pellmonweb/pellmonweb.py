@@ -712,6 +712,13 @@ except ImportError:
     CONFDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     LOCALSTATEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
+def _resolve_socket_host(parser):
+    """Bind address: [conf] host, else PELLMON_WEB_HOST env var, else 127.0.0.1"""
+    try:
+        return parser.get('conf', 'host')
+    except:
+        return os.environ.get('PELLMON_WEB_HOST') or '127.0.0.1'
+
 def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
     argparser = argparse.ArgumentParser(prog='pellmonweb')
@@ -906,13 +913,22 @@ def run():
         port = int(parser.get('conf', 'port'))
     except:
         port = 8081
+    socket_host = _resolve_socket_host(parser)
+    cherrypy.log('web interface binding to %s:%s' % (socket_host, port))
+    try:
+        session_cookie_secure = parser.getboolean('conf', 'session_cookie_secure')
+    except:
+        session_cookie_secure = False
 
     global_conf = {
-            'global':   { #w'server.environment': 'debug',
+            'global':   {
                           'tools.sessions.on' : True,
                           'tools.sessions.timeout': 7200,
+                          'tools.sessions.httponly': True,
+                          'tools.sessions.samesite': 'Lax',
+                          'tools.sessions.secure': session_cookie_secure,
                           'tools.auth.on': True,
-                          'server.socket_host': '0.0.0.0',
+                          'server.socket_host': socket_host,
                           'server.socket_port': port,
 
                           #'engine.autoreload.on': False,

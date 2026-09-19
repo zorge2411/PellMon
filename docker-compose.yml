@@ -77,6 +77,8 @@ services:
 
     environment:
       - TZ=${TZ:-Europe/Stockholm}
+      # Bind all interfaces inside the container (needed for port publishing)
+      - PELLMON_WEB_HOST=${PELLMON_WEB_HOST:-0.0.0.0}
       # Connect to the same shared socket
       - DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket
 

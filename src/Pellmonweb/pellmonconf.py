@@ -34,6 +34,7 @@ import codecs
 #import dbparser as parser
 #import webbrowser
 import configparser
+import urllib.parse
 from logging import getLogger
 
 logger = getLogger('pellMon')
@@ -120,6 +121,11 @@ class Pellmonconf:
     @cherrypy.expose
     def save(self, filename='', data=None):
         if cherrypy.request.method == "POST":
+            if not _check_same_origin():
+                logger.warning('rejected cross-origin config save: origin=%r host=%r',
+                               cherrypy.request.headers.get('Origin') or cherrypy.request.headers.get('Referer'),
+                               cherrypy.request.headers.get('Host'))
+                return json.dumps({'success':False, 'error':'cross-origin request rejected'})
             try:
                 path = self._resolve(filename)
                 with codecs.open(path, 'w', 'utf-8') as f:
@@ -138,6 +144,18 @@ except ImportError:
     CONFDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     LOCALSTATEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
 
+def _check_same_origin():
+    """True only if the Origin (or Referer) header names the same host as the request Host header"""
+    headers = cherrypy.request.headers
+    origin = headers.get('Origin') or headers.get('Referer')
+    if not origin:
+        return False
+    try:
+        netloc = urllib.parse.urlparse(origin).netloc
+    except ValueError:
+        return False
+    return bool(netloc) and netloc == headers.get('Host')
+
 def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
     lookup = TemplateLookup(directories=[os.path.join(DATADIR, 'Pellmonweb', 'html_conf')])
@@ -146,10 +164,10 @@ def run():
     argparser = argparse.ArgumentParser(prog='pellmonconf')
 
     argparser.add_argument('-P', '--port', default=8083, help='Port number for webinterface, default 8083')
-    argparser.add_argument('-H', '--host', default='0.0.0.0', help='Host for webinterface, default 0.0.0.0')
+    argparser.add_argument('-H', '--host', default='127.0.0.1', help='Host for webinterface, default 127.0.0.1')
     args = argparser.parse_args()
     global_conf = {
-            'global':   { 'server.environment': 'debug',
+            'global':   {
                           #'tools.sessions.on' : True,
                           #'tools.sessions.timeout': 7200,
                           'server.socket_host': args.host,
