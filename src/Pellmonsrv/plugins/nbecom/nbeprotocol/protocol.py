@@ -22,6 +22,7 @@ from random import randrange, SystemRandom
 import time
 from Crypto.PublicKey import RSA
 import base64
+import hmac
 import threading
 import errno
 from .frames import Request_frame, Response_frame
@@ -357,7 +358,7 @@ class Controller:
             data = d[0]
             addr = d[1]
             self.request.decode(data)
-            print ('< ' + self.request.payload.decode('ascii'))
+            logger.debug('< %s', self.request.payload.decode('ascii'))
             # discovery response
             if self.request.function == 0:
                 self.response.function = self.request.function
@@ -365,10 +366,10 @@ class Controller:
                 self.response.status = 0
                 frame = self.response.encode()
                 self.s.sendto(frame , addr)
-                print ('  > ' + frame.decode('ascii'))
+                logger.debug('  > %s', frame.decode('ascii'))
             else:
                 # check password
-                if True: #self.requset.pincode == self.password:
+                if hmac.compare_digest(str(self.request.pincode).strip().encode('utf-8'), str(self.password).strip().encode('utf-8')):
                     if self.request.function == 1:
                         self.response.function = self.request.function
                         if self.request.payload == 'boiler.temp':
@@ -385,14 +386,14 @@ class Controller:
                         self.response.status = 1
                         frame = self.response.encode()
                         self.s.sendto(frame , addr)
-                    print ('  > ' + frame.decode('ascii'))
+                    logger.debug('  > %s', frame.decode('ascii'))
                 else:
                     self.response.function = self.request.function
                     self.response.payload = 'wrong password'
                     self.response.status = 1
                     frame = self.response.encode()
                     self.s.sendto(frame , addr)
-                    print ('  > ' + frame.decode('ascii'))
+                    logger.debug('  > %s', frame.decode('ascii'))
 
 
 

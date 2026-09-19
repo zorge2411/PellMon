@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import signal, os, errno, queue, threading
+import signal, os, errno, queue, threading, shutil
 import dbus, dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib, GObject
@@ -324,33 +324,28 @@ def handle_settings_changed(item, oldvalue, newvalue, itemtype):
         if conf.email and 'alarm' in conf.emailconditions:
             sendmail(logline)
 
+_copy_lock = threading.Lock()
+
 def copy_db(direction='store'):
     """Copy db to nvdb or nvdb to db depending on direction"""
-    global copy_in_progress
-    if not 'copy_in_progress' in globals():
-        copy_in_progress = False        
-    if not copy_in_progress:
+    if not _copy_lock.acquire(False):
+        logger.debug('copy already in progress, skipping')
+        return
+    try:
         if direction=='store':
-            try:
-                copy_in_progress = True     
-                os.system('cp %s %s'%(conf.db, conf.nvdb)) 
-                logger.debug('copied %s to %s'%(conf.db, conf.nvdb))
-            except Exception as e:
-                logger.info(str(e))
-                logger.info('copy %s to %s failed'%(conf.db, conf.nvdb))
-            finally:
-                copy_in_progress = False
+            src, dst = conf.db, conf.nvdb
         else:
-            try:
-                copy_in_progress = True     
-                os.system('cp %s %s'%(conf.nvdb, conf.db))  
-                logger.info('copied %s to %s'%(conf.nvdb, conf.db))
-            except Exception as e:
-                logger.info(str(e))
-                logger.info('copy %s to %s failed'%(conf.nvdb, conf.db))
-            finally:
-                copy_in_progress = False
-    
+            src, dst = conf.nvdb, conf.db
+        shutil.copy(src, dst)
+        if direction=='store':
+            logger.debug('copied %s to %s'%(src, dst))
+        else:
+            logger.info('copied %s to %s'%(src, dst))
+    except Exception:
+        logger.exception('copy %s to %s failed'%(src, dst))
+    finally:
+        _copy_lock.release()
+
 def db_copy_thread():
     """Run periodically at db_store_interval to call copy_db""" 
     try:
@@ -551,8 +546,11 @@ class MyDaemon(Daemon):
         # Create RRD database if does not exist
         if conf.polling:
             if not os.path.exists(conf.nvdb):
-                os.system(conf.RrdCreateString)
-                logger.info('Created rrd database: '+conf.RrdCreateString)
+                try:
+                    subprocess.run(conf.RrdCreateCommand, check=True)
+                    logger.info('Created rrd database: '+conf.RrdCreateString)
+                except Exception:
+                    logger.exception('failed to create rrd database: %s'%conf.RrdCreateString)
 
             # If nvdb is different from db, copy nvdb to db
             if conf.nvdb != conf.db:
@@ -751,13 +749,15 @@ class config:
 
         if self.polling:
             # Build a command string to create the rrd database
-            self.RrdCreateString="rrdtool create %s --step %u "%(self.nvdb, self.poll_interval)
+            self.RrdCreateCommand = ['rrdtool', 'create', self.nvdb, '--step', '%u'%self.poll_interval]
             for item in self.pollData:
-                self.RrdCreateString += item['ds_type'] % (item['ds_name'], self.poll_interval*4) + ' ' 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:1:20000 " 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:10:20000 " 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:100:20000 " 
-            self.RrdCreateString += "RRA:AVERAGE:0.1:1000:20000" 
+                self.RrdCreateCommand.append(item['ds_type'] % (item['ds_name'], self.poll_interval*4))
+            self.RrdCreateCommand += ["RRA:AVERAGE:0.1:1:20000",
+                                      "RRA:AVERAGE:0.1:10:20000",
+                                      "RRA:AVERAGE:0.1:100:20000",
+                                      "RRA:AVERAGE:0.1:1000:20000"]
+            # Human readable form, for log output
+            self.RrdCreateString = ' '.join(self.RrdCreateCommand)
 
         # dict to hold known recent values of db items
         self.dbvalues = {} 
@@ -831,7 +831,7 @@ class config:
         try:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
-        except ConfigParser.NoSectionError as e:
+        except configparser.NoSectionError as e:
             logger.debug('no plugin_dirs section: %s'%str(e))
             pass
         except Exception:

@@ -51,3 +51,7 @@ ENV/
 *.swp
 *.swo
 
+
+# Local environment
+.env
+!.env.example

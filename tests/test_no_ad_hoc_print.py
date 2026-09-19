@@ -67,10 +67,6 @@ class _PrintFinder(ast.NodeVisitor):
 
     def visit_Call(self, node):
         if isinstance(node.func, ast.Name) and node.func.id == "print":
-            # In nbeprotocol/protocol.py, class Controller is an embedded test-mock
-            # emulator (never imported or executed in PellMon runtime), not daemon runtime code.
-            if self.rel_path == "src/Pellmonsrv/plugins/nbecom/nbeprotocol/protocol.py" and "Controller" in self.scope_stack:
-                return
             first_str = _get_call_first_str_arg(node)
             self.print_calls.append((self.rel_path, node.lineno, first_str))
         self.generic_visit(node)
