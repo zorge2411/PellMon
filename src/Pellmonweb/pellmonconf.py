@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2014  Anders Nylund
@@ -28,7 +28,7 @@ import json
 #import re
 #import cPickle as pickle
 #import parser
-#from cgi import escape
+from html import escape
 import codecs
 #from weakref import WeakValueDictionary
 #import dbparser as parser
@@ -89,13 +89,29 @@ class Pellmonconf:
         tmpl = self.lookup.get_template("source.html")
         return tmpl.render(filename=filename, filelist=self.filelist)
 
+    def _resolve(self, filename):
+        if not isinstance(filename, str) or not filename:
+            raise ValueError('no filename')
+        if filename not in self.dirs:
+            logger.warning('rejected config file access: %r', filename)
+            raise ValueError('not an allowed config file')
+        base = os.path.realpath(self.dirs[filename])
+        path = os.path.realpath(os.path.join(self.dirs[filename], filename))
+        try:
+            inside = os.path.commonpath([path, base]) == base
+        except ValueError:
+            inside = False
+        if not inside:
+            logger.warning('rejected config file access: %r', filename)
+            raise ValueError('path escapes config directory')
+        return path
+
     @cherrypy.expose
     def source(self, filename = None):
         try:
             line = 1
-            if filename in self.dirs:
-                filename = os.path.join(self.dirs[filename], filename)
-            with codecs.open(filename, 'r', 'utf-8', 'strict') as f:
+            path = self._resolve(filename)
+            with codecs.open(path, 'r', 'utf-8', 'strict') as f:
                 data = f.read()
                 return json.dumps({'filename':filename, 'data':data, 'line':int(line), 'linesep':linesep})
         except Exception as e:
@@ -105,10 +121,11 @@ class Pellmonconf:
     def save(self, filename='', data=None):
         if cherrypy.request.method == "POST":
             try:
-                with codecs.open(filename, 'w', 'utf-8') as f:
+                path = self._resolve(filename)
+                with codecs.open(path, 'w', 'utf-8') as f:
                     f.write(data)
                     return json.dumps({'success':True})
-            except IOError as e:
+            except (ValueError, OSError) as e:
                 return json.dumps({'success':False, 'error':str(e)})
         else:
             error = {'msg':'only POST'}
