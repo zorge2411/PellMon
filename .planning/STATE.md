@@ -98,10 +98,11 @@ Items acknowledged and carried forward from previous milestone close:
 | 260919-d5l | CI workflow fix: system python3 venv with --system-site-packages, drop setup-python and pip self-upgrade | 2026-09-19 | 6764a3e, 2f14310 | [260919-d5l-fix-ci-workflow-system-python-venv-drop-](./quick/260919-d5l-fix-ci-workflow-system-python-venv-drop-/) |
 | 260919-gpe | Scotte burner emulator (tools/burner_sim.py, pty tests, README with 11 spec-vs-code discrepancies). Status incomplete: end-to-end run was blocked by the plugin loader bug (fixed in 260919-jiz) | 2026-09-19 | e614928, 7b236e6 | [260919-gpe-scotte-burner-emulator-for-integration-t](./quick/260919-gpe-scotte-burner-emulator-for-integration-t/) |
 | 260919-jiz | Fix yapsy PluginManager to load plugins as real modules so relative imports work; ScotteCom now loads (all 15 plugins load in WSL except raspberrygpio, which needs RPi) | 2026-09-19 | a6b2cc1, 6caa694 | [260919-jiz-fix-yapsy-plugin-loading-so-relative-imp](./quick/260919-jiz-fix-yapsy-plugin-loading-so-relative-imp/) |
+| 260919-olq | Fix Scotte CRLF retry frame duplication; `setItem` now returns 'OK' or raises ValueError/IOError instead of leaking raw bytes, so failed writes are no longer reported as OK to the web UI; failing-first tests in tests/test_scotte_protocol_bugs.py | 2026-09-19 | 03bc51e, 0d4aee0 | [260919-olq-fix-scotte-crlf-retry-duplication-and-se](./quick/260919-olq-fix-scotte-crlf-retry-duplication-and-se/) |
 
-Full suite verified in WSL (Debian, Python 3.13): 240 passed, 5 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
+Full suite verified in WSL (Debian, Python 3.13): 246 passed, 5 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
 
-Known open Scotte bugs (not yet fixed): `Protocol.run` CRLF retry, `setDaemon` at `Scotteprotocol/protocol.py:77`, shared `Frame` singletons, `setItem` returning raw bytes.
+Known open Scotte bugs (not yet fixed): `setDaemon` at `Scotteprotocol/protocol.py:77`, shared `Frame` singletons. (CRLF retry and `setItem` raw-bytes fixed in 260919-olq.)
 
 ## Session Continuity
 
