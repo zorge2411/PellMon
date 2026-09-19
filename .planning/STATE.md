@@ -95,8 +95,13 @@ Items acknowledged and carried forward from previous milestone close:
 |---|-------------|------|---------|-----------|
 | 260919-atb | Review items 1-3: graph command injection (argv + validation), pellmonconf source/save allowlist, pellmoncli.in Python 3 port | 2026-09-19 | 6ca5c40, ee6d273, 02b748f | [260919-atb-fix-command-injection-in-graph-endpoint-](./quick/260919-atb-fix-command-injection-in-graph-endpoint-/) |
 | 260919-bbw | Review items 4-8: shutil/subprocess in place of os.system, PBKDF2-only passwords (600k), web bind/cookie/CSRF hardening, .env ignored, NBE mock pincode check | 2026-09-19 | 124159d, 510e158, 67778a7 | [260919-bbw-fix-review-items-4-8-shell-calls-plainte](./quick/260919-bbw-fix-review-items-4-8-shell-calls-plainte/) |
+| 260919-d5l | CI workflow fix: system python3 venv with --system-site-packages, drop setup-python and pip self-upgrade | 2026-09-19 | 6764a3e, 2f14310 | [260919-d5l-fix-ci-workflow-system-python-venv-drop-](./quick/260919-d5l-fix-ci-workflow-system-python-venv-drop-/) |
+| 260919-gpe | Scotte burner emulator (tools/burner_sim.py, pty tests, README with 11 spec-vs-code discrepancies). Status incomplete: end-to-end run was blocked by the plugin loader bug (fixed in 260919-jiz) | 2026-09-19 | e614928, 7b236e6 | [260919-gpe-scotte-burner-emulator-for-integration-t](./quick/260919-gpe-scotte-burner-emulator-for-integration-t/) |
+| 260919-jiz | Fix yapsy PluginManager to load plugins as real modules so relative imports work; ScotteCom now loads (all 15 plugins load in WSL except raspberrygpio, which needs RPi) | 2026-09-19 | a6b2cc1, 6caa694 | [260919-jiz-fix-yapsy-plugin-loading-so-relative-imp](./quick/260919-jiz-fix-yapsy-plugin-loading-so-relative-imp/) |
 
-Full suite verified in WSL (Debian, Python 3.13): 194 passed, 3 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
+Full suite verified in WSL (Debian, Python 3.13): 240 passed, 5 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
+
+Known open Scotte bugs (not yet fixed): `Protocol.run` CRLF retry, `setDaemon` at `Scotteprotocol/protocol.py:77`, shared `Frame` singletons, `setItem` returning raw bytes.
 
 ## Session Continuity
 
