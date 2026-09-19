@@ -89,6 +89,15 @@ Items acknowledged and carried forward from previous milestone close:
 |----------|------|--------|-------------|
 | *(none)* | | | |
 
+### Quick Tasks Completed
+
+| # | Description | Date | Commits | Directory |
+|---|-------------|------|---------|-----------|
+| 260919-atb | Review items 1-3: graph command injection (argv + validation), pellmonconf source/save allowlist, pellmoncli.in Python 3 port | 2026-09-19 | 6ca5c40, ee6d273, 02b748f | [260919-atb-fix-command-injection-in-graph-endpoint-](./quick/260919-atb-fix-command-injection-in-graph-endpoint-/) |
+| 260919-bbw | Review items 4-8: shutil/subprocess in place of os.system, PBKDF2-only passwords (600k), web bind/cookie/CSRF hardening, .env ignored, NBE mock pincode check | 2026-09-19 | 124159d, 510e158, 67778a7 | [260919-bbw-fix-review-items-4-8-shell-calls-plainte](./quick/260919-bbw-fix-review-items-4-8-shell-calls-plainte/) |
+
+Full suite verified in WSL (Debian, Python 3.13): 194 passed, 3 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
+
 ## Session Continuity
 
 Last session: 2026-09-18
