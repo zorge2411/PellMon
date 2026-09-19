@@ -14,35 +14,45 @@ jobs:
   test:
     name: Run Python Tests and Import Verification
     runs-on: ubuntu-latest
-    env:
-      PYTHONPATH: /usr/lib/python3/dist-packages:src
 
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-
-      - name: Set up Python 3.11
-        uses: actions/setup-python@v5
-        with:
-          python-version: "3.11"
 
       - name: Install Linux system packages
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             python3-dbus python3-gi python3-gi-cairo gir1.2-glib-2.0 \
-            librrd-dev rrdtool python3-rrdtool
+            librrd-dev rrdtool python3-rrdtool python3-venv
+
+      # Uses the runner's system python3 so apt-installed dbus/gi/rrdtool are importable.
+      # pip is deliberately NOT self-upgraded: that triggered
+      # "Cannot uninstall pip 24.0 ... installed by debian".
+      - name: Create virtualenv with system site packages
+        run: |
+          python3 -m venv --system-site-packages "$RUNNER_TEMP/venv"
+          echo "$RUNNER_TEMP/venv/bin" >> "$GITHUB_PATH"
 
       - name: Install Python dependencies
         run: |
-          python -m pip install --upgrade pip
+          python -c "import sys; print(sys.executable)"
+          pip --version
           pip install -r requirements.txt
           pip install pytest pytest-mock pytest-socket
 
+      - name: Verify system bindings are visible in the venv
+        run: |
+          python -c "import dbus, gi, rrdtool; print('system bindings OK')"
+
       - name: Run import tests
+        env:
+          PYTHONPATH: src
         run: |
           python test-imports.py
 
       - name: Run test suite
+        env:
+          PYTHONPATH: src
         run: |
           pytest tests/ -v

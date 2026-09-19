@@ -31,9 +31,21 @@ def test_github_actions_workflow():
     assert "master" in content, "Target branches must include master"
     assert "python3-migration" in content, "Target branches must include python3-migration"
 
-    # Verify runner and Python version
+    # Verify runner and interpreter strategy
     assert "ubuntu-latest" in content, "CI runner must be ubuntu-latest"
-    assert "3.11" in content, "Python version must be 3.11"
+    assert "actions/setup-python" not in content, (
+        "CI must use the runner's system python3 so apt-installed dbus/gi/rrdtool bindings are importable"
+    )
+    assert "--system-site-packages" in content, (
+        "venv must use --system-site-packages to bridge to apt-installed bindings"
+    )
+    assert "install --upgrade pip" not in content, (
+        "Self-upgrading pip fails against Debian-managed pip (Cannot uninstall pip 24.0)"
+    )
+    assert "/usr/lib/python3/dist-packages" not in content, (
+        "dist-packages must not be injected via PYTHONPATH"
+    )
+    assert "PYTHONPATH: src" in content, "src must be exposed to the test steps via PYTHONPATH: src"
 
     # Verify Linux system packages (D-Bus, GLib, RRDtool)
     required_packages = [
@@ -44,6 +56,7 @@ def test_github_actions_workflow():
         "librrd-dev",
         "rrdtool",
         "python3-rrdtool",
+        "python3-venv",
     ]
     for pkg in required_packages:
         assert pkg in content, f"Required system package '{pkg}' missing from ci.yml"
