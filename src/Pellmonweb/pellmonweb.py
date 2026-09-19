@@ -44,6 +44,7 @@ import argparse
 import pwd
 import grp
 import subprocess
+from Pellmonweb.rrdcommand import build_graph_command
 from datetime import datetime
 from html import escape
 from threading import Timer, Lock
@@ -312,23 +313,6 @@ class PellMonWeb:
         if graphHeight > 2000:
             graphHeight = 2000
 
-        # Hide legends with ?legends=no
-        legends = ''
-        try:
-            if args['legends'] == 'no':
-                legends = ' --no-legend '
-        except:
-            pass
-
-        # Set background color with ?bgcolor=rrbbgg (hex color)
-        try:
-            bgcolor =  args['bgcolor']
-            if len(bgcolor) == 6:
-                test = int(bgcolor, 16)
-            bgcolor = ' --color BACK#'+bgcolor
-        except:
-            bgcolor = ' '
-
         # Set background color with ?bgcolor=rrbbgg (hex color)
         try:
             if args['align'] in ['left','center','right']:
@@ -339,18 +323,17 @@ class PellMonWeb:
         if align == 'left':
             graphtime += timespan
         elif align == 'center':
-            graphtime += timespan/2
+            graphtime += timespan//2
         if graphtime > int(time.time()):
             graphtime=int(time.time())
-        graphtime =str(graphtime)
 
         graphTimeStart=str(timespan + timeoffset)
         graphTimeEnd=str(timeoffset)
 
         # scale the right y-axis according to the first scaled item if found, otherwise unscaled
+        rightaxis = None
         if int(graphWidth)>500:
-            rightaxis = '--right-axis'
-            scalestr = ' 1:0'
+            rightaxis = '1:0'
             for line in graph_lines:
                 if line['name'] in lines and 'scale' in line:
                     scale = line['scale'].split(':')
@@ -360,34 +343,15 @@ class PellMonWeb:
                     except:
                         gain = 1
                         offset = 0
-                    scalestr = " %s:%s"%(str(gain),str(offset))
+                    rightaxis = "%s:%s"%(str(gain),str(offset))
                     break
-            rightaxis += scalestr
-        else:
-            rightaxis = ''
 
-        #Build the command string to make a graph from the database
-        RRD_command =  "rrdtool graph - --disable-rrdtool-tag --border 0 "+ legends + bgcolor
-        RRD_command += " --lower-limit 0 %s --full-size-mode --width %u"%(rightaxis, graphWidth) + " --right-axis-format %1.0lf "
-        RRD_command += " --height %u --end %s-"%(graphHeight,graphtime) + graphTimeEnd + "s --start %s-"%graphtime + graphTimeStart + "s "
-        if logtick:
-            RRD_command += "DEF:tickmark=%s:%s:AVERAGE TICK:tickmark#E7E7E7:1.0 "%(db,logtick)
-        for line in graph_lines:
-            if lines == '__all__' or line['name'] in lines:
-                RRD_command+="DEF:%s="%line['name']+db+":%s:AVERAGE "%line['ds_name']
-                if 'scale' in line:
-                    scale = line['scale'].split(':')
-                    try:
-                        gain = float(scale[1])
-                        offset = float(scale[0])
-                    except:
-                        gain = 1
-                        offset = 0
-                    RRD_command+="CDEF:%s_s=%s,%d,+,%d,/ "%(line['name'], line['name'], offset, gain)
-                    RRD_command+="LINE1:%s_s%s:\"%s\" "% (line['name'], line['color'], line['name'])
-                else:
-                    RRD_command+="LINE1:%s%s:\"%s\" "% (line['name'], line['color'], line['name'])
-        cmd = subprocess.Popen(RRD_command, shell=True, stdout=subprocess.PIPE)
+        #Build the argument list to make a graph from the database
+        RRD_command = build_graph_command(db, graph_lines, lines, logtick=logtick,
+                legends=args.get('legends'), bgcolor=args.get('bgcolor'),
+                width=graphWidth, height=graphHeight, graphtime=graphtime,
+                time_start=graphTimeStart, time_end=graphTimeEnd, right_axis=rightaxis)
+        cmd = subprocess.Popen(RRD_command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         cherrypy.response.headers['Pragma'] = 'no-cache'
         cherrypy.response.headers['Content-Type'] = "image/png"
         return cmd.communicate()[0]
