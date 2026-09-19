@@ -214,8 +214,8 @@ def test_offline_after_stops_answering(burner_sim_factory):
 @needs_pty
 def test_read_only_mode_rejects_writes(burner_sim_factory):
     sim, path, p = burner_sim_factory(read_only=True)
-    result = bounded(p.setItem, "boiler_temp_set", "65")
-    assert result != "OK"
+    with pytest.raises(IOError):
+        bounded(p.setItem, "boiler_temp_set", "65")
     assert sim.table["Z00"][10] == 60
 
 

@@ -50,7 +50,8 @@ def test_scotteprotocol_set_item_unexpected_error_logs_exception(caplog):
     protocol.q = FaultyQueue()
 
     with caplog.at_level(logging.ERROR, logger="pellMon"):
-        protocol.setItem("feeder_capacity", "1000")
+        with pytest.raises(IOError):
+            protocol.setItem("feeder_capacity", "1000")
 
     error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
     assert error_records, "Expected an ERROR-level record on unexpected setItem error"

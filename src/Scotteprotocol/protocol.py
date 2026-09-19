@@ -182,6 +182,12 @@ class Protocol(threading.Thread):
             raise IOError(0, "A command can't be read") 
 
     def setItem(self, param, s, raw=False):
+        """Write a parameter/command.
+
+        Returns the string 'OK' on success. Never returns device reply text.
+        Raises ValueError for local validation failures (not a number, out of
+        range, not a setting) and IOError if the device rejected the write or
+        did not answer. The raw device reply is only written to the log."""
         try:
             if not raw:
                 s = dataTransformations[param].encode(s)
@@ -189,42 +195,39 @@ class Protocol(threading.Thread):
             pass
         if self.dummyDevice:
             return 'OK'
-        """Write a parameter/command"""
         dataparam=self.dataBase[param]
-        if hasattr(dataparam, 'address'):
-            try:
-                try:
-                    value=float(s)
-                except (ValueError, TypeError):
-                    return "not a number"
-                if hasattr(dataparam, 'frame'):
-                    # Save time when this index was written
-                    dataparam.frame.indexWriteTime[dataparam.index] = time.time()
-                if hasattr(dataparam, 'decimals'):
-                    decimals = dataparam.decimals
-                else:
-                    decimals = 0
-
-                if value >= dataparam.min and value <= dataparam.max:
-                    s=("{:0>4.0f}".format(value * pow(10, decimals)))
-                    # Send "write parameter value" message to pollThread
-                    responseQueue = queue.Queue() 
-                    self.q.put(("PUT", dataparam.address + s, responseQueue))
-                    response = responseQueue.get()
-                    if response == self.addCheckSum('OK'):
-                        logger.info('Parameter %s = %s'%(param,s))
-                        response = 'OK'                        
-                    return response
-                else:
-                    return "Expected value "+str(dataparam.min)+".."+str(dataparam.max)
-            except (KeyError, ValueError, TypeError, IndexError) as e:
-                logger.debug('Value/lookup error in setItem: %s', e)
-                return str(e)
-            except Exception as e:
-                logger.exception('Unexpected error in setItem: %s', e)
-                return str(e)
-        else:
-            return 'Not a setting value'        
+        if not hasattr(dataparam, 'address'):
+            logger.warning('setItem %s: not a setting value', param)
+            raise ValueError('Not a setting value')
+        try:
+            value=float(s)
+        except (ValueError, TypeError):
+            logger.warning('setItem %s: %r is not a number', param, s)
+            raise ValueError('not a number')
+        if not (value >= dataparam.min and value <= dataparam.max):
+            logger.warning('setItem %s: value %r out of range %s..%s', param, s, dataparam.min, dataparam.max)
+            raise ValueError("Expected value "+str(dataparam.min)+".."+str(dataparam.max))
+        try:
+            if hasattr(dataparam, 'frame'):
+                # Save time when this index was written
+                dataparam.frame.indexWriteTime[dataparam.index] = time.time()
+            if hasattr(dataparam, 'decimals'):
+                decimals = dataparam.decimals
+            else:
+                decimals = 0
+            s=("{:0>4.0f}".format(value * pow(10, decimals)))
+            # Send "write parameter value" message to pollThread
+            responseQueue = queue.Queue() 
+            self.q.put(("PUT", dataparam.address + s, responseQueue))
+            response = responseQueue.get()
+        except Exception as e:
+            logger.exception('Unexpected error in setItem: %s', e)
+            raise IOError(0, 'SetItem failed')
+        if response == self.addCheckSum('OK'):
+            logger.info('Parameter %s = %s'%(param,s))
+            return 'OK'
+        logger.warning('setItem %s rejected or unanswered, raw reply %r', param, response)
+        raise IOError(0, 'SetItem failed: device rejected write or did not answer')
             
     def createDataBase(self, version_string):
         """return a dictionary of parameters supported on version_string"""
@@ -282,13 +285,14 @@ class Protocol(threading.Thread):
                 # This frame could have been read recently by a previous queued read request, so check again if it's necessary to read
                 if time.time()-frame.readtime > 8.0 or commandqueue[0]=="FORCE_GET":
                     sendFrame = self.addCheckSum(frame.pollFrame)
+                    # terminate once; the same bytes are used for the first attempt and the retry
+                    if self.frame_term_crlf:
+                        sendFrame += '\r\n'
                     logger.debug('sendFrame = '+sendFrame)
                     line=""
                     try:
                         self.ser.flushInput()
                         logger.debug('serial write')
-                        if self.frame_term_crlf:
-                            sendFrame += '\r\n'
                         self.ser.write(sendFrame.encode('latin-1'))
                         logger.debug('serial written')  
                         line=self.ser.read(frame.getLength(self)).decode('latin-1')
@@ -313,8 +317,6 @@ class Protocol(threading.Thread):
                         try:
                             self.ser.flushInput()
                             logger.debug('serial write')
-                            if self.frame_term_crlf:
-                                sendFrame += '\r\n'
                             self.ser.write(sendFrame.encode('latin-1'))
                             logger.debug('serial written')
                             line=self.ser.read(frame.getLength(self)).decode('latin-1')
