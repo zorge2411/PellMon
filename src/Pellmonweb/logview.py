@@ -64,6 +64,9 @@ class LogViewer(object):
                 here -= delta
 
         fmt = '%Y-%m-%d %H:%M:%S'
+        if self.logfile is None or not os.path.exists(self.logfile):
+            return "Log file not found"
+        
         with codecs.open(self.logfile, "r",  encoding="utf-8") as f:
             try:
                 ln=int(linenum)

@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -111,10 +111,10 @@ class owmplugin(protocols):
                     temperature = weather.get_temperature(self.conf['unit'])
                     wind = weather.get_wind()
                     humidity = weather.get_humidity()
-                    self.itemvalues['wind_speed'] = unicode(wind['speed'])
-                    self.itemvalues['wind_direction'] = unicode(wind['deg']) 
-                    self.itemvalues['temperature'] = unicode(temperature['temp'])
-                    self.itemvalues['humidity'] = unicode(humidity)
+                    self.itemvalues['wind_speed'] = str(wind['speed'])
+                    self.itemvalues['wind_direction'] = str(wind['deg']) 
+                    self.itemvalues['temperature'] = str(temperature['temp'])
+                    self.itemvalues['humidity'] = str(humidity)
                     t = float(self.itemvalues['temperature'])
                     w = float(self.itemvalues['wind_speed'])
                     h = float(self.itemvalues['humidity'])

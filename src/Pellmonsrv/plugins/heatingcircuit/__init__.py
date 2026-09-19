@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -134,7 +134,7 @@ class Heatingcircuitplugin(protocols):
                 temp_y2 = float(self.db['curve_2y'].value)
 
                 self.desired_temp = (outside_temp - temp_x1) / (temp_x2 - temp_x1) * (temp_y2 - temp_y1) + temp_y1
-                self.db['desired_hctemp'].value = unicode(self.desired_temp)
+                self.db['desired_hctemp'].value = str(self.desired_temp)
 
                 if firstrun:
                     self.controllerthread.start()

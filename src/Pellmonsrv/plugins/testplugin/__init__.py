@@ -1,4 +1,4 @@
-#! /usr/bin/python
+#!/usr/bin/env python3
 # -*- coding: utf-8 -*-
 """
     Copyright (C) 2013  Anders Nylund
@@ -80,5 +80,5 @@ class testplugin(protocols):
 
     def setItem(self, item, value):
         self.itemvalues[item] = value
-        logger.debug('testplugin: Set %s=%s'%(item,unicode(value)))
+        logger.debug('testplugin: Set %s=%s'%(item,str(value)))
 
