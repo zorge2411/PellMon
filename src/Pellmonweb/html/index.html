@@ -9,6 +9,9 @@
 
 <div class="container">
 
+    <%include file="connectionbanner"/>
+
+    <div id="pellmon-widgets" class="${'pellmon-disconnected' if connection_state in ('no_connection', 'server_down') else ''}">
     %for row in widgets:
         <div class="row">
             <% width = 12 / len(row) %>
@@ -19,6 +22,6 @@
             %endfor
         </div>
     %endfor
-
+    </div>
 
 </div>

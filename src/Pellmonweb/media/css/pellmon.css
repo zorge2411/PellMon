@@ -50,3 +50,9 @@ a:link {text-decoration:none; outline: none;}
 object {
     width: 100%;
 }
+
+/* burner not connected / daemon unreachable: show values as inactive */
+.pellmon-disconnected {
+    opacity: 0.35;
+    filter: grayscale(100%);
+}
