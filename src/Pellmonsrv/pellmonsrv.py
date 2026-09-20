@@ -843,8 +843,8 @@ class config:
         try:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
-        except configparser.NoSectionError as e:
-            logger.debug('no plugin_dirs section: %s'%str(e))
+        except (configparser.NoSectionError, configparser.NoOptionError) as e:
+            logger.debug('no plugin_dirs setting: %s'%str(e))
             pass
         except Exception:
             logger.exception('invalid setting for plugin_dirs')
