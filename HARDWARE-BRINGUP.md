@@ -49,11 +49,21 @@ session as a supervised test, not a deployment.
 
 1. [ ] Start the daemon in the foreground so plugin errors are re-raised:
        `pellmonsrv debug` (add `-C /path/to/pellmon.conf` if needed).
+   - [ ] Confirm the log shows `Activated plugins: ScotteCom` (or NBEcom) and no
+         `Unable to execute the code in plugin` errors. Plugin load failures are logged
+         at error level, and `pellmonsrv debug` re-raises them. Outside debug mode a
+         plugin that fails to load just means no items, not a crash.
+   - [ ] In debug mode, a plugin whose hardware library is missing (for example
+         `raspberrygpio` without RPi) also aborts startup, so enable only the plugins you need.
 2. [ ] Read-only first. Confirm items appear and compare several values with the
        burner display (temperatures, state, counters).
 3. [ ] Compare raw frames with `scotte_protocol_spec.md`; capture serial traffic if you can.
 4. [ ] Only when reads are correct: writes/commands, one at a time, attended.
        Re-read the value afterwards and check it on the burner display.
+   - [ ] A rejected or unanswered write now raises an error (the web UI shows `error`
+         and the log has a warning with the raw reply) instead of reporting OK. If you see
+         `setItem ... rejected or unanswered`, the burner did not accept the value:
+         re-read it on the burner display before retrying.
 5. [ ] Confirm RRD updates are being written, then load a graph in the web UI
        (graph rendering was reworked to use an argument list and is untested with real rrdtool).
 6. [ ] Web checks: login with the hashed password works, wrong password is rejected,
