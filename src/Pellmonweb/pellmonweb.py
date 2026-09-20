@@ -692,7 +692,8 @@ class myLookup(TemplateLookup):
             return super(myLookup, self).get_template(uri)
 
 
-parser = configparser.ConfigParser()
+# no interpolation: config values contain '%' (e.g. DS:%s:DERIVE:%u:0:U)
+parser = configparser.ConfigParser(interpolation=None)
 config_file = 'pellmon.conf'
 
 def walk_config_dir(config_dir, parser):

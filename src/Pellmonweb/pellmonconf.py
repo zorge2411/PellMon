@@ -47,7 +47,8 @@ class Pellmonconf:
         filename = os.path.basename(config_file)
         self.filelist.append(filename)
         self.dirs[filename] = os.path.dirname(config_file) 
-        parser = configparser.ConfigParser()
+        # no interpolation: config values contain '%' (e.g. DS:%s:DERIVE:%u:0:U)
+        parser = configparser.ConfigParser(interpolation=None)
         parser.optionxform=str
         try:
             parser.read(config_file)

@@ -607,7 +607,8 @@ class config:
         logger = logging.getLogger('pellMon')
 
         # Load the configuration file
-        parser = configparser.ConfigParser()
+        # no interpolation: config values contain '%' (e.g. DS:%s:DERIVE:%u:0:U)
+        parser = configparser.ConfigParser(interpolation=None)
         parser.optionxform=str
         try:
             parser.read(filename)
