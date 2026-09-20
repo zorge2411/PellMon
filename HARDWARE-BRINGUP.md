@@ -31,8 +31,12 @@ session as a supervised test, not a deployment.
 
 - [ ] Set `serialport` (e.g. `/dev/ttyUSB0`) and `chipversion` (`auto` or explicit)
       in `conf.d/plugins/scottecom.conf`.
-      **If `serialport` is removed, the plugin runs on dummy data.** Values that look
-      plausible are not proof you are talking to the burner.
+      **If `serialport` is removed, the plugin runs on dummy data.** This is now labelled
+      "Demo mode: values are simulated" on the main page. A `serialport` that is set but
+      cannot be opened is an error state ("No connection to the burner"), not silent fake
+      data. Values that look plausible are not proof you are talking to the burner.
+- [ ] Confirm the main page shows no banner (or `burner_connection` reads `connected`)
+      before trusting any number.
 - [ ] The daemon user can open the device (bare metal: member of `dialout`).
 - [ ] Docker: the compose file runs `pellmonsrv` as `privileged: true` and does not
       map a specific device. Confirm `/dev/ttyUSB0` is visible inside the container.

@@ -184,8 +184,12 @@ name with the project folder name). Keep a copy before upgrades.
 **Cannot reach the UI:** check `PELLMON_WEB_HOST` and `PELLMON_WEB_PORT` in `.env`,
 and that the Pi's firewall allows the port.
 
-**Serial permission or device errors:** confirm the device name (4e) and that
-`serialport` matches it.
+**No values / serial permission or device errors:** look at the main page first.
+A red banner "No connection to the burner" (with the reason underneath) means the
+serial port cannot be opened or the burner is not answering; in that state no burner
+values are served at all. A yellow "Demo mode: values are simulated" banner means
+`serialport` is not set. If the banner names a permission or missing-device error,
+confirm the device name (4e) and that `serialport` matches it.
 
 ## 7. Caveats
 
