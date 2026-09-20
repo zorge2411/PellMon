@@ -186,8 +186,8 @@ document.addEventListener("DOMContentLoaded", function(event) {
             db = self.glob['conf'].db
             RRD_command =  ['rrdtool', 'last', db]
             cmd = subprocess.Popen(RRD_command, shell=False, stdout=subprocess.PIPE)
-            out = cmd.communicate()[0]  
-            return int(out)
+            out = cmd.communicate()[0].decode('utf-8', errors='replace')
+            return int(out.strip())
             
         def siloLevelData(from_time, to_time, from_level):
             db = self.glob['conf'].db
@@ -204,7 +204,7 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
             RRD_command.append("XPORT:c:level")
             cmd = subprocess.Popen(RRD_command, shell=False, stdout=subprocess.PIPE)
-            out = cmd.communicate()[0]
+            out = cmd.communicate()[0].decode('utf-8', errors='replace')
             out = re.sub(r'(?:^|(?<={))\s*(\w+)(?=:)', r' "\1"', out, flags=re.M)
             out = re.sub(r"'", r'"', out)
             out= json.loads(out)
@@ -226,9 +226,9 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
         def decimateData(data, maxlen):
             dl = []
-            dec = len(data) / maxlen
+            dec = len(data) // maxlen
             if dec > 1:
-                for i in range(len(data)/dec):
+                for i in range(len(data)//dec):
                     dl.append(data[i*dec])
                 dl.append(data[-1])
                 return dl

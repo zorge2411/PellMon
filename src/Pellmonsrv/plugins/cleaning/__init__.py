@@ -84,7 +84,7 @@ class cleaningplugin(protocols):
         command = ['rrdtool', 'graph', '--start', start, '--end', end,'-', 'DEF:a=%s:%s:AVERAGE'%(self.rrdfile,self.feeder_time),'DEF:b=%s:%s:AVERAGE'%(self.rrdfile,self.feeder_capacity), 'CDEF:c=a,b,*,360000,/', 'VDEF:s=c,TOTAL', 'PRINT:s:\"%lf\"']
         cmd = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE)
         try:
-            total = str(int(float(cmd.communicate()[0].splitlines()[1].strip('"'))))
+            total = str(int(float(cmd.communicate()[0].decode('utf-8', errors='replace').splitlines()[1].strip('"'))))
         except Exception as e:
             total = '0'
         return total

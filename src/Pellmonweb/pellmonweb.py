@@ -354,6 +354,7 @@ class PellMonWeb:
         cmd = subprocess.Popen(RRD_command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         cherrypy.response.headers['Pragma'] = 'no-cache'
         cherrypy.response.headers['Content-Type'] = "image/png"
+        # intentional: returns raw PNG bytes, must NOT be decoded
         return cmd.communicate()[0]
 
     @cherrypy.expose
@@ -430,6 +431,8 @@ class PellMonWeb:
         cmd = subprocess.Popen(RRD_command, shell=False, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         cherrypy.response.headers['Pragma'] = 'no-cache'
         out, err = cmd.communicate()
+        out = out.decode('utf-8', errors='replace')
+        err = err.decode('utf-8', errors='replace')
         if not cmd.returncode:
             out = re.sub(r'(?:^|(?<={))\s*(\w+)(?=:)', r' "\1"', out, flags=re.M)
             out = re.sub(r"'", r'"', out)
@@ -692,7 +695,8 @@ class myLookup(TemplateLookup):
             return super(myLookup, self).get_template(uri)
 
 
-parser = configparser.ConfigParser()
+# no interpolation: config values contain '%' (e.g. DS:%s:DERIVE:%u:0:U)
+parser = configparser.ConfigParser(interpolation=None)
 config_file = 'pellmon.conf'
 
 def walk_config_dir(config_dir, parser):

@@ -296,7 +296,7 @@ class Poller(threading.Thread):
                     if not cmd.returncode:
                         conf.lastupdate = lastupdate
                     else:
-                        logger.info('rrdtool update %s failed with, %s, %s'%(RRD_command[3], out.rstrip('\n'),err.rstrip('\n')))
+                        logger.info('rrdtool update %s failed with, %s, %s'%(RRD_command[3], out.decode('utf-8', errors='replace').rstrip('\n'), err.decode('utf-8', errors='replace').rstrip('\n')))
                 else:
                     self.timesync_wait += 1
                     
@@ -305,6 +305,23 @@ class Poller(threading.Thread):
             time.sleep(1)
             self.ev.clear()
 
+
+def read_lastupdate(db_path):
+    """Return (lastupdate_time, {ds_name: value}) parsed from `rrdtool lastupdate`"""
+    s = subprocess.check_output(['rrdtool', 'lastupdate', db_path])
+    l = s.decode('utf-8', errors='replace').split('\n')
+    if len(l) < 3:
+        return int(time.time()), {}
+    items = l[0].split()
+    values = l[2].split()
+    if not values:
+        return int(time.time()), {}
+    try:
+        lastupdate_time = int(values[0].strip(':'))
+    except ValueError:
+        lastupdate_time = int(time.time())
+    values = values[1::]
+    return lastupdate_time, dict(zip(items, values))
 
 def handle_settings_changed(item, oldvalue, newvalue, itemtype):
     """ Called by the protocols when they detect that a setting has changed """
@@ -564,16 +581,7 @@ class MyDaemon(Daemon):
                 ht.start()
 
             # Get the latest values for all data sources in the database
-            s = subprocess.check_output(['rrdtool', 'lastupdate', conf.db])
-            l=s.split('\n')
-            items = l[0].split()
-            values = l[2].split()
-            try:
-                conf.lastupdate_time = int(values[0].strip(':'))
-            except ValueError:
-                conf.lastupdate_time = int(time.time())
-            values = values[1::]
-            conf.lastupdate = dict(zip(items, values))
+            conf.lastupdate_time, conf.lastupdate = read_lastupdate(conf.db)
 
         # Create SIGTERM signal handler
         signal.signal(signal.SIGTERM, sigterm_handler)
@@ -607,7 +615,8 @@ class config:
         logger = logging.getLogger('pellMon')
 
         # Load the configuration file
-        parser = configparser.ConfigParser()
+        # no interpolation: config values contain '%' (e.g. DS:%s:DERIVE:%u:0:U)
+        parser = configparser.ConfigParser(interpolation=None)
         parser.optionxform=str
         try:
             parser.read(filename)
@@ -834,8 +843,8 @@ class config:
         try:
             plugin_dirs = parser.get('plugin_settings', 'plugin_dirs').split('\n')
             self.plugin_dirs += [p.lstrip(' \t').rstrip(' \t') for p in plugin_dirs if p]
-        except configparser.NoSectionError as e:
-            logger.debug('no plugin_dirs section: %s'%str(e))
+        except (configparser.NoSectionError, configparser.NoOptionError) as e:
+            logger.debug('no plugin_dirs setting: %s'%str(e))
             pass
         except Exception:
             logger.exception('invalid setting for plugin_dirs')
