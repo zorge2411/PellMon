@@ -125,3 +125,39 @@ def test_callback_fires_once_per_transition():
     p._set_connection_state("connected", "")
     p._set_connection_state("connected", "")
     assert seen == ["no_connection", "connected"]
+
+
+def test_dead_burner_fails_fast_between_probes(monkeypatch):
+    """Once no_connection, reads must not each burn a full poll+retry timeout
+    (the daemon's Database loop visits every item; that would delay the state
+    change reaching the UI by minutes). At most one probe per PROBE_INTERVAL."""
+    monkeypatch.setattr(protocol_module, "PROBE_INTERVAL", 60.0)
+    t = SilentTransport()
+    writes = []
+    orig_write = t.write
+    t.write = lambda d: (writes.append(d), orig_write(d))[1]
+    p = Protocol(None, "6.99", transport=t)
+    for name in ["boiler_temp_min", "power", "boiler_temp_set"]:
+        with pytest.raises(IOError):
+            bounded(p.getItem, name)
+    assert p.connection_state == "no_connection"
+    before = len(writes)
+    t0 = time.time()
+    for name in ["boiler_temp_min", "power", "boiler_temp_set", "boiler_temp"]:
+        with pytest.raises(IOError):
+            bounded(p.getItem, name)
+    assert time.time() - t0 < 0.5
+    assert len(writes) == before          # nothing sent to the device
+
+
+def test_probe_after_interval_recovers(monkeypatch):
+    monkeypatch.setattr(protocol_module, "PROBE_INTERVAL", 0.2)
+    p = Protocol(None, "6.99", transport=SilentTransport())
+    for name in ["boiler_temp_min", "power", "boiler_temp_set"]:
+        with pytest.raises(IOError):
+            bounded(p.getItem, name)
+    assert p.connection_state == "no_connection"
+    time.sleep(0.3)
+    with pytest.raises(IOError):           # probe is allowed through, still silent
+        bounded(p.getItem, "boiler_temp_min")
+    assert p._last_probe > 0
