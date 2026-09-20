@@ -15,9 +15,9 @@ from unittest.mock import MagicMock
 
 import pytest
 
-XPORT = (b"{ about: 'RRDtool graph JSON output',\n  meta: { start: 1758300000, step: 60,\n"
-         b"  end: 1758300060, rows: 1, columns: 1, legend: [ 'level' ] },\n"
-         b"  data: [ [ 1.0e+02 ] ]\n}\n")
+XPORT = (b"{ about: 'RRDtool graph JSON output',\n  meta: {\n    start: 1758300000,\n    step: 60,\n"
+         b"    end: 1758300060,\n    rows: 1,\n    columns: 1,\n    legend: [\n      'level'\n    ]\n  },\n"
+         b"  data: [\n    [ 1.0e+02 ]\n  ]\n}\n")
 
 
 class _FakePopen:
@@ -104,6 +104,8 @@ def test_silolevel_last_update_and_xport(plugin_import, monkeypatch):
         p.graphData()
     except TypeError as e:
         pytest.fail("bytes/str TypeError: %s" % e)
+    except json.JSONDecodeError as e:
+        pytest.fail("xport output not parseable: %s" % e)
     except Exception:
         pass  # later, unrelated post-processing is out of scope here
     # both the 'last' int() parse and the xport json parse must have been reached

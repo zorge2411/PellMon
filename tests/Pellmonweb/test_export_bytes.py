@@ -15,9 +15,9 @@ pytest.importorskip("cherrypy")
 pytest.importorskip("dbus")
 pytest.importorskip("gi")
 
-XPORT = (b"{ about: 'RRDtool graph JSON output',\n  meta: { start: 1758300000, step: 60,\n"
-         b"  end: 1758300060, rows: 1, columns: 1, legend: [ 'level' ] },\n"
-         b"  data: [ [ 1.0e+02 ] ]\n}\n")
+XPORT = (b"{ about: 'RRDtool graph JSON output',\n  meta: {\n    start: 1758300000,\n    step: 60,\n"
+         b"    end: 1758300060,\n    rows: 1,\n    columns: 1,\n    legend: [\n      'level'\n    ]\n  },\n"
+         b"  data: [\n    [ 1.0e+02 ]\n  ]\n}\n")
 
 
 class _FakePopen:
