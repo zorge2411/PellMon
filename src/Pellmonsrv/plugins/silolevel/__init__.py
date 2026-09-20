@@ -226,9 +226,9 @@ document.addEventListener("DOMContentLoaded", function(event) {
 
         def decimateData(data, maxlen):
             dl = []
-            dec = len(data) / maxlen
+            dec = len(data) // maxlen
             if dec > 1:
-                for i in range(len(data)/dec):
+                for i in range(len(data)//dec):
                     dl.append(data[i*dec])
                 dl.append(data[-1])
                 return dl

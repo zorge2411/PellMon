@@ -110,3 +110,34 @@ def test_silolevel_last_update_and_xport(plugin_import, monkeypatch):
         pass  # later, unrelated post-processing is out of scope here
     # both the 'last' int() parse and the xport json parse must have been reached
     assert "last" in seen and "xport" in seen
+
+
+def _xport(rows):
+    """rrdtool xport --json output (bytes) with `rows` data points, level falling from 100."""
+    body = b",\n".join(b"    [ %.1f ]" % (100.0 - i * 0.1) for i in range(rows))
+    return (b"{ about: 'RRDtool graph JSON output',\n  meta: {\n    start: 1758300000,\n    step: 60,\n"
+            b"    end: %d,\n    rows: %d,\n    columns: 1,\n    legend: [\n      'level'\n    ]\n  },\n"
+            b"  data: [\n" % (1758300000 + rows * 60, rows) + body + b"\n  ]\n}\n")
+
+
+def test_silolevel_decimates_more_than_50_points(plugin_import, monkeypatch):
+    """decimateData used true division (len/maxlen), so range() and list indexing got
+    floats and raised TypeError as soon as there were more than 50 data points."""
+    def popen(cmd, *a, **k):
+        if cmd[1] == "last":
+            return _FakePopen(b"1758300060\n")
+        return _FakePopen(_xport(130))
+
+    mod, p = _silo(plugin_import, monkeypatch, popen)
+    vals = {"silo_reset_level": "100", "silo_reset_time": "01/01/25 00:00"}
+    monkeypatch.setattr(p, "getItem", lambda i: vals[i], raising=False)
+    p.db = MagicMock()
+    p.db.get_value.side_effect = Exception("no consumption data")
+    try:
+        p.graphData()
+    except TypeError as e:
+        pytest.fail("decimation raised TypeError: %s" % e)
+    except Exception:
+        pass  # post-processing after decimation is out of scope here
+    # silo_level is set from the last decimated point (100 - 129*0.1 = 87.1)
+    assert p.silo_level == 87
