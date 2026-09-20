@@ -137,6 +137,39 @@ def test_raise_on_error_propagates(tmp_path):
         manager.collectPlugins()
 
 
+def _broken_plugin_manager(tmp_path, raise_only_for):
+    pdir = tmp_path / "bad"
+    pdir.mkdir()
+    (tmp_path / "bad.pellmon-plugin").write_text("[Core]\nName = Bad\nModule = bad\n")
+    (pdir / "__init__.py").write_text("raise RuntimeError('boom')\n")
+    manager = PluginManager(categories_filter={"Protocols": protocols})
+    manager.setPluginPlaces([str(tmp_path)])
+    manager.raise_on_error = True
+    manager.raise_only_for = raise_only_for
+    return manager
+
+
+def test_raise_only_for_ignores_disabled_plugin_failures(tmp_path, caplog):
+    """Debug mode must not abort because a plugin that is not enabled fails to load."""
+    manager = _broken_plugin_manager(tmp_path, {"ScotteCom"})
+    with caplog.at_level(logging.ERROR):
+        manager.collectPlugins()
+    assert manager.getPluginsOfCategory("Protocols") == []
+    assert "Unable to execute the code in plugin" in caplog.text
+
+
+def test_raise_only_for_raises_for_enabled_plugin(tmp_path):
+    manager = _broken_plugin_manager(tmp_path, {"Bad"})
+    with pytest.raises(RuntimeError):
+        manager.collectPlugins()
+
+
+def test_raise_only_for_default_raises_for_all(tmp_path):
+    manager = _broken_plugin_manager(tmp_path, None)
+    with pytest.raises(RuntimeError):
+        manager.collectPlugins()
+
+
 def test_platform_skip_allowlist_cannot_hide_defects():
     """Tripwire: the skip allowlist must never include real defect names."""
     assert PLATFORM_UNAVAILABLE.isdisjoint(

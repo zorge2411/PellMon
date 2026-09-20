@@ -49,6 +49,12 @@ system_image = system.svg
 # Set to true to mark the session cookie Secure (only if served over HTTPS)
 #session_cookie_secure = false
 
+# Port number for the webserver
+port = 8081
+
+# set path for the pellmon web application
+webroot = /
+
 
 [frontpage_widgets]
 # Select which widgets are displayed on the frontpage
@@ -66,12 +72,5 @@ row_3 = consumption24h,silolevel
 # optional pellmonweb logging
 #accesslog = @localstatedir@/log/pellmonweb/access.log
 #errorlog = @localstatedir@/log/pellmonweb/error.log
-
-[conf]
-# Port number for the webserver
-port = 8081
-
-# set path for the pellmon web application
-webroot = /
 
 

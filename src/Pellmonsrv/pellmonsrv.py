@@ -84,6 +84,8 @@ class Database(threading.Thread, _Database):
         manager = PluginManager(categories_filter={ "Protocols": protocols})
         manager.setPluginPlaces(conf.plugin_dirs)
         manager.raise_on_error = conf.command == 'debug'
+        # only enabled plugins may abort startup; a disabled plugin with a missing library must not
+        manager.raise_only_for = set(conf.enabled_plugins)
         manager.collectPlugins()
         activated_plugins = []
         failed_plugins= []
