@@ -53,37 +53,43 @@ cp .env.example .env
 
 Edit `config/pellmon.conf`. These points were checked against the code:
 
-**a) Plugin settings need `config/conf.d`.** `docker-compose.yml` mounts
-`./config/conf.d`, but that folder is not in the repo. Create it from the shipped
-plugin configs:
+**a) Most settings live in `config/conf.d`.** Both daemons read every `*.conf` file
+under `config_dir` after `pellmon.conf`. `docker-compose.yml` mounts `./config/conf.d`,
+but that folder is not in the repo. Copy the whole shipped `src/conf.d` and fill in the
+autotools placeholder (`@localstatedir@` becomes `/var`):
 
 ```bash
-mkdir -p config/conf.d && cp -r src/conf.d/plugins config/conf.d/
+mkdir -p config/conf.d && cp -r src/conf.d/. config/conf.d/ && rm config/conf.d/Makefile.am && for f in config/conf.d/*.conf.in; do sed 's#@localstatedir@#/var#g' "$f" > "${f%.in}" && rm "$f"; done
 ```
 
-Then edit the plugin file for your burner:
+This supplies the polling and graph sections (`database.conf`), the web UI settings
+(`webinterface.conf`), and the default plugin list (`enabled_plugins.conf`). Then edit
+the plugin file for your burner:
 
 - Scotte (serial): `config/conf.d/plugins/scottecom.conf`, section `[plugin_ScotteCom]`,
-  keys `serialport` (for example `/dev/ttyUSB0`) and `chipversion` (`auto` or explicit).
+  keys `serialport` and `chipversion` (`auto` or explicit). **For a Scotte burner on a
+  USB serial adapter you normally only need to check that `serialport = /dev/ttyUSB0`
+  matches the device name on the Pi** (step e).
 - NBE (network): `config/conf.d/plugins/nbecom.conf`, section `[plugin_NBEcom]`,
   keys `serial` and `password`.
 
-The `serialport` line under `[conf]` in `pellmon.conf.example` is **not** what the
-plugin reads.
+The `serialport` setting is read from that plugin file, not from `[conf]` in `pellmon.conf`.
 
 **b) Enable plugins with `p01 = ScotteCom`, not `ScotteCom = yes`.** The key is
-arbitrary and the **value** is the plugin name (see `src/conf.d/enabled_plugins.conf`):
+arbitrary and the **value** is the plugin name. The copied `enabled_plugins.conf`
+already enables these:
 
 ```ini
 [enabled_plugins]
 p01 = ScotteCom
 p06 = SiloLevel
 p08 = Consumption
+p09 = Cleaning
 ```
 
-The `ScotteCom = yes` / `NBEcom = yes` style in `config/pellmon.conf.example` enables
-nothing, because the code takes the value (`yes`) as the plugin name. If your own
-`config/pellmon.conf` uses that style, change it.
+An entry like `NBEcom = yes` enables nothing, because the code takes the value (`yes`)
+as the plugin name. If your own `config/pellmon.conf` uses that style, change it.
+Extra plugins go in `pellmon.conf` under `[enabled_plugins]` in the same format.
 
 **c) Passwords must be PBKDF2 hashes.** Generate one on any machine with the repo:
 
@@ -91,10 +97,12 @@ nothing, because the code takes the value (`yes`) as the plugin name. If your ow
 PYTHONPATH=src python3 -c "from Pellmonweb.auth import hash_password; print(hash_password('yourpassword'))"
 ```
 
-Put it under `[authentication]` as `username = pbkdf2:sha256:600000$...`.
+Put it under `[authentication]` in `pellmon.conf` as `<username> = pbkdf2:sha256:600000$...`
+(the key is the login name, the value is the hash).
 
-**d) Polling needs `[pollvalues]`, `[rrd_ds_names]` and `[rrd_ds_types]`.** If they
-are missing, RRD polling is disabled and only a log line says so.
+**d) Polling needs `[pollvalues]`, `[rrd_ds_names]` and `[rrd_ds_types]`.** They are
+supplied by `conf.d/database.conf` from step a. If they are missing, RRD polling is
+disabled and only a log line says so.
 
 **e) Serial access.** The compose file runs `pellmonsrv` as `privileged` with `/dev`
 mounted read-only, so the serial device is visible inside the container. Confirm the
