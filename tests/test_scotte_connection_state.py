@@ -83,7 +83,8 @@ def test_silent_transport_flips_after_three_giveups():
 
 
 @needs_pty
-def test_full_cycle_connected_lost_recovered(burner_sim_factory):
+def test_full_cycle_connected_lost_recovered(burner_sim_factory, monkeypatch):
+    monkeypatch.setattr(protocol_module, "PROBE_INTERVAL", 0.5)
     sim, path, p = burner_sim_factory()
     changes = []
     p.on_connection_change = lambda s, r: changes.append(s)
@@ -99,6 +100,7 @@ def test_full_cycle_connected_lost_recovered(burner_sim_factory):
     assert p.connection_state == "no_connection"
 
     sim.offline_after = None
+    time.sleep(0.6)                        # next probe is allowed through
     assert bounded(p.getItem, "boiler_temp_min") == "30"
     assert p.connection_state == "connected"
     # exactly one callback per transition, not one per poll

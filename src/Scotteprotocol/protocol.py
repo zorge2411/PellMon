@@ -30,6 +30,12 @@ logger = getLogger('pellMon')
 # which the burner is considered unreachable.
 FAILURE_THRESHOLD = 3
 
+# While unreachable, at most one real poll is attempted per this many seconds
+# (a probe); every other read fails immediately. Without this each read of a
+# stale frame would burn a full poll+retry timeout (~2 s), so the daemon's item
+# loop would take minutes and the state change would reach the UI far too late.
+PROBE_INTERVAL = 10.0
+
 CONNECTED = 'connected'
 NO_CONNECTION = 'no_connection'
 DEMO = 'demo'
@@ -52,6 +58,7 @@ class Protocol(threading.Thread):
         self.on_connection_change = None
         self._conn_lock = threading.Lock()
         self._consecutive_failures = 0
+        self._last_probe = 0.0
         if transport is not None:
             self.dummyDevice = False
             self.device = device if device else repr(transport)
@@ -160,6 +167,7 @@ class Protocol(threading.Thread):
         if not changed:
             return
         if state == NO_CONNECTION:
+            self._last_probe = time.time()
             logger.warning('burner connection state: %s (%s)', state, reason)
         else:
             logger.info('burner connection state: %s (%s)', state, reason)
@@ -168,6 +176,17 @@ class Protocol(threading.Thread):
                 callback(state, reason)
             except Exception:
                 logger.exception('connection state callback failed')
+
+    def _probe_due(self):
+        """True if a real poll may be attempted while the burner is unreachable."""
+        with self._conn_lock:
+            if self.connection_state != NO_CONNECTION:
+                return True
+            now = time.time()
+            if now - self._last_probe >= PROBE_INTERVAL:
+                self._last_probe = now
+                return True
+            return False
 
     def _notify_result(self, ok):
         """Feed the outcome of a real device poll into the state machine."""
@@ -203,6 +222,8 @@ class Protocol(threading.Thread):
             writeTime = dataparam.frame.indexWriteTime[dataparam.index]
             readTime = dataparam.frame.readtime
             if time.time()-readTime > 8.0 or writeTime>readTime or time.time()-writeTime < 4.0:
+                if not self._probe_due():
+                    raise IOError(0, 'no connection to the burner')
                 try:
                     responseQueue = queue.Queue(3)
                     try:  # Send "read parameter value" message to pollThread
