@@ -22,8 +22,16 @@ services:
     # Required for D-Bus and serial port access
     privileged: true
 
+    # The container runs as the non-root "pellmon" user, so it needs the group that owns the
+    # serial device. Find it with:  stat -c %g /dev/ttyUSB0   (20 = dialout on Debian/Raspberry Pi OS)
+    # and set SERIAL_GID in .env. Without it the serial port cannot be opened.
+    group_add:
+      - "${SERIAL_GID:-20}"
+
     environment:
       - TZ=${TZ:-Europe/Stockholm}
+      # Non-root user has no home dir: give Fontconfig (used by rrdtool graph) a writable cache
+      - XDG_CACHE_HOME=/tmp
       # Use a shared session bus socket
       - DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket
 
@@ -55,11 +63,11 @@ services:
       - pellmon-network
 
     healthcheck:
-      test: [ "CMD-SHELL", "dbus-send --session --address=unix:path=/var/run/pellmon/bus_socket --dest=org.pellmon.int --print-reply /org/pellmon/int org.freedesktop.DBus.Peer.Ping > /dev/null 2>&1 || exit 1" ]
+      test: [ "CMD-SHELL", "dbus-send --bus=unix:path=/var/run/pellmon/bus_socket --dest=org.pellmon.int --print-reply /org/pellmon/int org.freedesktop.DBus.Peer.Ping > /dev/null 2>&1 || exit 1" ]
       interval: 15s
       timeout: 5s
       retries: 5
-      start_period: 10s
+      start_period: 120s
 
   # ===========================================
   # PellMon Web Interface (pellmonweb)
@@ -77,6 +85,8 @@ services:
 
     environment:
       - TZ=${TZ:-Europe/Stockholm}
+      # Non-root user has no home dir: give Fontconfig (used by rrdtool graph) a writable cache
+      - XDG_CACHE_HOME=/tmp
       # Bind all interfaces inside the container (needed for port publishing)
       - PELLMON_WEB_HOST=${PELLMON_WEB_HOST:-0.0.0.0}
       # Connect to the same shared socket
@@ -114,7 +124,7 @@ services:
       interval: 15s
       timeout: 5s
       retries: 3
-      start_period: 10s
+      start_period: 120s
 
 # ===========================================
 # Named volumes for data persistence

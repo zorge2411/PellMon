@@ -112,6 +112,25 @@ name on the Pi:
 ls /dev/ttyUSB*
 ```
 
+The daemon runs as a non-root user, so it also needs the **group that owns the device**.
+Find its numeric id:
+
+```bash
+stat -c %g /dev/ttyUSB0
+```
+
+Put that number in `.env` as `SERIAL_GID` (the default is `20`, which is `dialout` on
+Raspberry Pi OS; some adapters use another group, for example `46`):
+
+```bash
+echo "SERIAL_GID=46" >> .env
+```
+
+**Warning:** with the wrong group the log shows `Could not open serial port ...
+Permission denied`, and the Scotte plugin then **silently falls back to a dummy device
+that produces fake values**. The web UI looks normal. Always check the log for
+`serial port ok` (see troubleshooting) before believing any reading.
+
 **f) NBE discovery (untested).** NBE discovery is a UDP broadcast to port 8483. The
 default Docker bridge network usually does not forward broadcasts to your LAN. If the
 controller is not found, try `network_mode: host` for the `pellmonsrv` service while
@@ -184,11 +203,56 @@ name with the project folder name). Keep a copy before upgrades.
 **Cannot reach the UI:** check `PELLMON_WEB_HOST` and `PELLMON_WEB_PORT` in `.env`,
 and that the Pi's firewall allows the port.
 
-**Serial permission or device errors:** confirm the device name (4e) and that
-`serialport` matches it.
+**Serial permission or device errors:** confirm the device name (4e), that
+`serialport` matches it, and that `SERIAL_GID` in `.env` is the device's group.
+
+**Where the daemon's own log is.** The daemon writes its log to
+`/var/log/pellmon/pellmon.log` inside the container, so `docker compose logs` does not
+show plugin activation or serial messages. Read it with:
+
+```bash
+docker compose exec pellmonsrv tail -60 /var/log/pellmon/pellmon.log
+```
+
+If the container is stopped or restarting, read it from the volume instead:
+
+```bash
+docker run --rm -v pellmon_pellmon-logs:/var/log/pellmon --entrypoint tail pellmon:latest -40 /var/log/pellmon/pellmon.log
+```
+
+Look for `Activated plugins:` and then `serial port ok`. `Could not open serial port`
+means the permission or device problem above, and the values shown are fake.
+
+**`Fontconfig error: No writable cache directories`** spam in `docker compose logs`
+comes from `rrdtool graph` and is fixed by `XDG_CACHE_HOME=/tmp` in the compose file.
+
+**Serial timeouts.** A log full of `Timeout`, `Retrying`, `answer was empty` and
+`give up` means the port opened but the burner is not answering. That is a cabling or
+adapter problem, not software: check that the adapter is RS232 (not 3.3 V/5 V TTL) if
+the burner port is RS232, whether TX and RX are swapped (a null-modem cable or adapter
+may be needed), and that the settings are 9600 baud, 8N1, no flow control. Test the
+adapter itself with a loopback: stop the daemon, disconnect the burner, connect the
+adapter's TX and RX pins together, and run (use your `SERIAL_GID` in place of `46`):
+
+```bash
+docker compose stop pellmonsrv
+```
+
+```bash
+docker run --rm --group-add 46 --device /dev/ttyUSB0 --entrypoint python3 pellmon:latest -c "import serial; s=serial.Serial('/dev/ttyUSB0',9600,timeout=1); s.write(b'hello'); print(s.read(5))"
+```
+
+It should print `b'hello'`. `b''` means the adapter or the Pi port is at fault.
+
+**Editing `docker-compose.yml`.** Avoid broad `sed` replacements on it. The daemon's
+`dbus-daemon` command needs `--session --address=`, while the health check's
+`dbus-send` needs `--bus=`; a blanket replacement of one breaks the other and puts the
+container in a restart loop. Use `.env` for settings such as `SERIAL_GID` instead.
 
 ## 7. Caveats
 
-- Not run on a real Pi. RAM use and build time are unmeasured.
-- The Docker Compose setup has not been exercised end to end, even on a PC.
+- Run on a Pi 3A+ only as far as daemon start-up, the web containers and opening the
+  serial port. Communication with the burner itself is **not yet verified**.
+- RAM use on the Pi is only roughly known: about 240 MiB was available with the daemon
+  container running (some swap in use); it was not measured with the web container up.
 - Protocol code is verified against a simulator only, not a real burner.

@@ -104,3 +104,50 @@ def test_dockerfile_healthcheck():
     assert "curl -f http://localhost:8081/" in content, (
         "Dockerfile HEALTHCHECK must probe HTTP 8081"
     )
+
+
+def _service_block(content, name):
+    """Return the text of one top-level service in docker-compose.yml."""
+    match = re.search(r"^  %s:\r?\n(.*?)(?=^  \S|^\S|\Z)" % re.escape(name), content, flags=re.M | re.S)
+    assert match, "service %s not found in docker-compose.yml" % name
+    return match.group(1)
+
+
+def test_compose_raspberry_pi_fixes():
+    """Regressions found deploying to a real Raspberry Pi 3A+.
+
+    - The health check used `dbus-send --session --address=...`, an invalid option
+      combination that always exits 1, so pellmonsrv never became healthy and
+      pellmonweb (depends_on: service_healthy) never started.
+    - A blanket edit turned the daemon's `dbus-daemon --session --address=` into
+      `--bus=`, which dbus-daemon rejects (crash loop). Each command needs its own form.
+    - The non-root pellmon user needs the serial device's group (SERIAL_GID).
+    - The non-root user has no home dir, so Fontconfig needs XDG_CACHE_HOME.
+    """
+    content = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    srv = _service_block(content, "pellmonsrv")
+    web = _service_block(content, "pellmonweb")
+
+    assert "dbus-send --bus=unix:path=" in srv, "health check must use dbus-send --bus=ADDRESS"
+    assert "dbus-send --session --address" not in content, (
+        "dbus-send does not accept --session together with --address (health check always fails)"
+    )
+    assert "dbus-daemon --session --address=unix:path=" in srv, (
+        "dbus-daemon needs --session --address=; --bus= makes it print usage and exit"
+    )
+    assert "dbus-daemon --bus=" not in content
+
+    assert re.search(r"group_add:\s*\r?\n\s*- \"\$\{SERIAL_GID(:-\d+)?\}\"", srv), (
+        "pellmonsrv must add the serial device group via SERIAL_GID"
+    )
+    assert "XDG_CACHE_HOME=/tmp" in srv and "XDG_CACHE_HOME=/tmp" in web
+
+    for name, block in (("pellmonsrv", srv), ("pellmonweb", web)):
+        match = re.search(r"start_period:\s*(\d+)s", block)
+        assert match, "%s healthcheck needs a start_period" % name
+        assert int(match.group(1)) >= 60, "%s start_period too short for a Raspberry Pi" % name
+
+
+def test_env_example_documents_serial_gid():
+    env = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+    assert re.search(r"^SERIAL_GID=\d+\s*$", env, flags=re.M), ".env.example must define SERIAL_GID"
