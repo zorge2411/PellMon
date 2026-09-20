@@ -220,7 +220,7 @@ class Consumption_plugin(protocols):
                 command = ['rrdtool', 'graph', '--start', start, '--end', end,'-', 'DEF:a=%s:%s:AVERAGE'%(self.rrdfile,self.feeder_time),'DEF:b=%s:%s:AVERAGE'%(self.rrdfile,self.feeder_capacity), 'CDEF:c=a,b,*,360000,/', 'VDEF:s=c,TOTAL', 'PRINT:s:\"%.2lf\"']
                 cmd = subprocess.Popen(command, shell=False, stdout=subprocess.PIPE)
                 try:
-                    total = cmd.communicate()[0].splitlines()[1]
+                    total = cmd.communicate()[0].decode('utf-8', errors='replace').splitlines()[1]
                     if cache:
                         totalcontainer = self.Bardata(total)
                         try:
