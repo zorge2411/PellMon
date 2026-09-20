@@ -113,9 +113,13 @@ class PluginManager(object):
 
 		The attribute ``raise_on_error`` (default False) can be set to
 		True so that plugin load failures propagate instead of being
-		logged (used by `pellmonsrv debug`).
+		logged (used by `pellmonsrv debug`). The attribute
+		``raise_only_for`` (default None) can be set to a collection of
+		plugin names so that only failures of those plugins propagate;
+		other failures are logged and skipped.
 		"""
 		self.raise_on_error = False
+		self.raise_only_for = None
 		self.setPluginInfoClass(PluginInfo)
 		self.setCategoriesFilter(categories_filter)		
 		self.setPluginPlaces(directories_list)
@@ -309,7 +313,8 @@ class PluginManager(object):
 				plugin_module = self._load_plugin_module(candidate_filepath)
 			except Exception:
 				logging.exception("Unable to execute the code in plugin: %s", candidate_filepath)
-				if getattr(self, 'raise_on_error', False):
+				raise_only_for = getattr(self, 'raise_only_for', None)
+				if getattr(self, 'raise_on_error', False) and (raise_only_for is None or plugin_info.name in raise_only_for):
 					raise
 				continue
 
