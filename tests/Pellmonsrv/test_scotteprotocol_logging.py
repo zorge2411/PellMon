@@ -18,8 +18,9 @@ def test_scotteprotocol_import_and_dummy_database():
     assert protocol.setItem("power", "50") == "OK"
 
 
-def test_scotteprotocol_serial_open_failure_logs_exception(monkeypatch, caplog):
-    """Verify serial port open failure logs via logger.exception with exc_info attached."""
+def test_scotteprotocol_serial_open_failure_logs_error(monkeypatch, caplog):
+    """A port that cannot be opened is an expected condition: logged as an error (no
+    traceback) and reported as no_connection, never as silent dummy data."""
     def mock_open(self):
         raise serial.SerialException("Mocked serial open failure")
 
@@ -31,10 +32,11 @@ def test_scotteprotocol_serial_open_failure_logs_exception(monkeypatch, caplog):
     error_records = [r for r in caplog.records if r.levelno == logging.ERROR]
     assert error_records, "Expected an ERROR-level record when serial port open fails"
     record = error_records[0]
-    assert record.exc_info is not None
-    assert record.exc_info[0] is serial.SerialException
     assert "Could not open serial port" in record.getMessage()
-    assert protocol.dummyDevice is True
+    assert "Mocked serial open failure" in record.getMessage()
+    assert protocol.dummyDevice is False
+    assert protocol.port_failed is True
+    assert protocol.connection_state == "no_connection"
 
 
 def test_scotteprotocol_set_item_unexpected_error_logs_exception(caplog):

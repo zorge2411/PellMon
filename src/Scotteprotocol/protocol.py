@@ -26,17 +26,42 @@ from .enumerations import dataEnumerations
 from .transformations import dataTransformations
 logger = getLogger('pellMon')
 
+# Number of consecutive give-ups (each is one attempt plus one retry) after
+# which the burner is considered unreachable.
+FAILURE_THRESHOLD = 3
+
+# While unreachable, at most one real poll is attempted per this many seconds
+# (a probe); every other read fails immediately. Without this each read of a
+# stale frame would burn a full poll+retry timeout (~2 s), so the daemon's item
+# loop would take minutes and the state change would reach the UI far too late.
+PROBE_INTERVAL = 10.0
+
+CONNECTED = 'connected'
+NO_CONNECTION = 'no_connection'
+DEMO = 'demo'
+
 class Protocol(threading.Thread):
     """Provides read/write functions for parameters/measurement data 
     for a bio comfort pellet burner connected through rs232"""
     
     def __init__(self, device, version_string, transport=None, start_thread=True):   
         """Initialize the protocol and database according to given version"""
+        threading.Thread.__init__(self)
         self.dummyDevice = False
+        self.port_failed = False
         self.checksum = True
         self.frame_term_crlf = False
+        self.device = device
+        # Connection state, published by the plugin as burner_connection items
+        self.connection_state = CONNECTED
+        self.connection_reason = ''
+        self.on_connection_change = None
+        self._conn_lock = threading.Lock()
+        self._consecutive_failures = 0
+        self._last_probe = 0.0
         if transport is not None:
             self.dummyDevice = False
+            self.device = device if device else repr(transport)
             self.ser = transport
             self.dataBase = self.createDataBase('6.99' if not version_string else version_string)
             self.q = queue.Queue(300)
@@ -47,7 +72,10 @@ class Protocol(threading.Thread):
             return
 
         if device is None:
+            # Demo mode: no serial port configured, values are simulated
             self.dummyDevice = True
+            self.connection_state = DEMO
+            self.connection_reason = 'no serialport is configured, values are simulated'
             self.dataBase = self.createDataBase('6.99')
             return     
         # Open serial port
@@ -61,8 +89,12 @@ class Protocol(threading.Thread):
         try:
             s.open()
         except serial.SerialException as e:
-            logger.exception("Could not open serial port %s: %s\n", device, e)
-            self.dummyDevice=True
+            logger.error("Could not open serial port %s: %s", device, e)
+            # Do not pretend: serve no values, keep item names for the UI layout
+            self.port_failed = True
+            self.ser = None
+            self.connection_state = NO_CONNECTION
+            self.connection_reason = 'serial port %s cannot be opened: %s' % (device, e)
             self.dataBase = self.createDataBase('6.99')
             return 
         logger.info('serial port ok')
@@ -74,7 +106,7 @@ class Protocol(threading.Thread):
         
         # Create and start poll_thread
         threading.Thread.__init__(self)
-        self.setDaemon(True)
+        self.daemon = True
         self.start()
    
         if version_string == 'auto':
@@ -122,10 +154,61 @@ class Protocol(threading.Thread):
 
     def getDataBase(self):
         return self.dataBase  
+
+    def _set_connection_state(self, state, reason):
+        """Change the connection state; the callback fires once per transition."""
+        with self._conn_lock:
+            if state == self.connection_state and reason == self.connection_reason:
+                return
+            changed = state != self.connection_state
+            self.connection_state = state
+            self.connection_reason = reason
+            callback = self.on_connection_change
+        if not changed:
+            return
+        if state == NO_CONNECTION:
+            self._last_probe = time.time()
+            logger.warning('burner connection state: %s (%s)', state, reason)
+        else:
+            logger.info('burner connection state: %s (%s)', state, reason)
+        if callback is not None:
+            try:
+                callback(state, reason)
+            except Exception:
+                logger.exception('connection state callback failed')
+
+    def _probe_due(self):
+        """True if a real poll may be attempted while the burner is unreachable."""
+        with self._conn_lock:
+            if self.connection_state != NO_CONNECTION:
+                return True
+            now = time.time()
+            if now - self._last_probe >= PROBE_INTERVAL:
+                self._last_probe = now
+                return True
+            return False
+
+    def _notify_result(self, ok):
+        """Feed the outcome of a real device poll into the state machine."""
+        if self.dummyDevice or self.port_failed:
+            return
+        with self._conn_lock:
+            if ok:
+                self._consecutive_failures = 0
+                give_up = False
+            else:
+                self._consecutive_failures += 1
+                give_up = self._consecutive_failures >= FAILURE_THRESHOLD
+        if ok:
+            self._set_connection_state(CONNECTED, '')
+        elif give_up:
+            self._set_connection_state(NO_CONNECTION, 'burner not answering on %s' % self.device)
                 
     def getItem(self, param, raw=False): 
         if self.dummyDevice:
             return '1234'
+        if self.port_failed:
+            raise IOError(0, 'no connection to the burner')
         """Read data/parameter value"""
         #logger.debug('getitem')
         dataparam=self.dataBase[param]
@@ -139,6 +222,8 @@ class Protocol(threading.Thread):
             writeTime = dataparam.frame.indexWriteTime[dataparam.index]
             readTime = dataparam.frame.readtime
             if time.time()-readTime > 8.0 or writeTime>readTime or time.time()-writeTime < 4.0:
+                if not self._probe_due():
+                    raise IOError(0, 'no connection to the burner')
                 try:
                     responseQueue = queue.Queue(3)
                     try:  # Send "read parameter value" message to pollThread
@@ -157,6 +242,8 @@ class Protocol(threading.Thread):
                 except Exception:
                     logger.exception('Getitem: Create responsequeue failed') 
                     ok=False
+                # only real device polls drive the state machine
+                self._notify_result(bool(ok))
             if (ok):
                 if dataparam.decimals == -1: # not a number, return as is
                     return dataparam.frame.get(dataparam.index)
@@ -195,6 +282,8 @@ class Protocol(threading.Thread):
             pass
         if self.dummyDevice:
             return 'OK'
+        if self.port_failed:
+            raise IOError(0, 'no connection to the burner')
         dataparam=self.dataBase[param]
         if not hasattr(dataparam, 'address'):
             logger.warning('setItem %s: not a setting value', param)
@@ -223,6 +312,8 @@ class Protocol(threading.Thread):
         except Exception as e:
             logger.exception('Unexpected error in setItem: %s', e)
             raise IOError(0, 'SetItem failed')
+        # Only "no answer" says anything about connectivity; a rejection is still an answer
+        self._notify_result(response != "No answer")
         if response == self.addCheckSum('OK'):
             logger.info('Parameter %s = %s'%(param,s))
             return 'OK'
