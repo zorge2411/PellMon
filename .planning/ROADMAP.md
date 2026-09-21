@@ -175,3 +175,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 6 to break down)
+
+### Phase 7: Persist RRD database and other relevant settings outside the Docker container
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 6
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 7 to break down)
