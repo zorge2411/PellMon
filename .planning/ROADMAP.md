@@ -165,7 +165,6 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 4. Protocol Module Hardening | 4/4 | Complete    | 2026-09-18 |
 | 5. Security, CI & Deployment Hardening | 4/4 | Complete | 2026-09-18 |
 
-
 ### Phase 6: Enable Home Assistant MQTT device with settings on the web GUI
 
 **Goal:** [To be planned]
@@ -174,4 +173,38 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 **Plans:** 0 plans
 
 Plans:
+
 - [ ] TBD (run /gsd-plan-phase 6 to break down)
+
+### Phase 7: Persist RRD database and other relevant settings outside the Docker container
+
+**Goal:** PellMon's RRD database, settings database and logs live in a host folder the user controls, survive `docker compose down -v` and container recreation, keep correct ownership automatically, and can be backed up and restored across machine types.
+**Requirements**: D-01..D-12 (see 07-CONTEXT.md)
+**Depends on:** Phase 6
+**Plans:** 5 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 07-01-PLAN.md - Host bind mounts, pellmon-init ownership service, .env/.gitignore/.dockerignore, compose regression tests
+- [ ] 07-02-PLAN.md - Loud startup check for an unusable data folder, no /tmp settings fallback, 0600 settings database
+- [ ] 07-03-PLAN.md - Friendly read-only message in the web config editor
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 07-04-PLAN.md - tools/pellmon_backup.py backup/restore (rrdtool dump + SQLite backup API) and tests
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 07-05-PLAN.md - Deploy/bring-up documentation, example config fix, real Linux smoke test
+
+### Phase 8: Expose the burner SVG depiction in settings to make the visible representation more user friendly
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 8 to break down)

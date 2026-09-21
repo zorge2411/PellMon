@@ -7,15 +7,18 @@
 #     come from conf.d/database.conf
 #   - the default enabled plugins come from conf.d/enabled_plugins.conf
 #   - plugin settings (e.g. the Scotte serial port) come from conf.d/plugins/*.conf
+#
+# The RRD database path is NOT set here: it comes from conf.d/database.conf
+# (/var/lib/pellmon/rrd.db). /var/lib/pellmon is the host folder
+# ${PELLMON_DATA_DIR:-./pellmon-data}/data. Settings changed in the web GUI are
+# stored in pellmon_settings.db next to it, not in config files.
 
 [conf]
-# Database file (inside container volume)
-database = /var/lib/pellmon/pellmon.rrd
-
 # The Scotte serial port is NOT set here. Set `serialport` in
 # conf.d/plugins/scottecom.conf under [plugin_ScotteCom].
 
-# Config directory for additional plugin configs
+# Config directory for additional plugin configs (path INSIDE the container;
+# the host copy of these files is ./config/conf.d)
 config_dir = /etc/pellmon/conf.d
 
 # Main application log file (referenced by LogViewer)

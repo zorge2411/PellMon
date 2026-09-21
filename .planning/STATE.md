@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: complete
-stopped_at: Phase 5 verified
-last_updated: "2026-09-18T14:35:00.000Z"
-last_activity: 2026-09-18 -- Phase 5 verified and completed
+status: executing
+stopped_at: Phase 5 verified & Milestone v1.0 complete
+last_updated: "2026-09-21T07:42:53.036Z"
+last_activity: 2026-09-21 -- Phase 07 planning complete
 progress:
-  total_phases: 5
+  total_phases: 8
   completed_phases: 5
-  total_plans: 21
+  total_plans: 26
   completed_plans: 21
-  percent: 100
+  percent: 63
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 
 Phase: 5 (Security, CI & Deployment Hardening)
 Plan: 4 of 4
-Status: Complete
-Last activity: 2026-09-18 -- Phase 5 verified and completed
+Status: Ready to execute
+Last activity: 2026-09-21 -- Phase 07 planning complete
 
 Progress: [██████████] 100%
 
@@ -73,6 +73,8 @@ Recent decisions affecting current work:
 ### Roadmap Evolution
 
 - Phase 6 added: Enable Home Assistant MQTT device with settings on the web GUI (added 2026-09-20 after v1.0 closed; not yet planned)
+- Phase 7 added: Persist RRD database and other relevant settings outside the Docker container (added 2026-09-21; not yet planned)
+- Phase 8 added: Expose the burner SVG depiction in settings to make the visible representation more user friendly (added 2026-09-21; not yet planned)
 
 ### Pending Todos
 

@@ -136,6 +136,34 @@ default Docker bridge network usually does not forward broadcasts to your LAN. I
 controller is not found, try `network_mode: host` for the `pellmonsrv` service while
 keeping the shared D-Bus socket volume. This has not been tried.
 
+### Where PellMon keeps its data
+
+Persistent data lives in a host folder, `${PELLMON_DATA_DIR:-./pellmon-data}`, with this layout:
+
+- `pellmon-data/data/` - `rrd.db` (graphs) and `pellmon_settings.db` (settings changed in the GUI)
+- `pellmon-data/logs/` - `pellmon.log` and the web logs
+
+Set `PELLMON_DATA_DIR` in `.env` to an absolute path or a `./`-prefixed path (a bare name
+becomes a Docker named volume, which is not what you want). The folder survives
+`docker compose down -v` and Docker reinstalls, and it is gitignored. It must be on a
+Linux filesystem (see section 7).
+
+A one-shot service, `pellmon-init`, runs as root before `pellmonsrv`. It creates the folders
+and chowns only those data and log folders to 999:999 (the container user). It deliberately
+does **not** touch `config/conf.d`: you keep editing `config/conf.d/*.conf` on the host (for
+example over SFTP) as your normal user, with no `sudo`. `config/pellmon.conf` stays read-only
+in both containers. If the data folder ever gets the wrong owner, re-run
+`docker compose run --rm pellmon-init` (or `sudo chown -R 999:999 <PELLMON_DATA_DIR>`). Do not
+`chmod -R 777` to work around it.
+
+The config editor is the standalone `pellmonconf` tool on port 8083. It is **not started by
+the compose stack today**. The writable `conf.d` mount and the "read-only" message for
+`pellmon.conf` are in place for it, but nothing in `docker compose up` exercises them.
+Note that writing `conf.d` from inside the container (uid 999) only works if those files are
+writable by uid 999. Files owned by your host user are not, and that is intentional here; you
+would have to grant that yourself (for example a group/ACL on `config/conf.d`) if you ever run
+the editor in the container.
+
 ## 5. Build and start
 
 **Option 1: build on your PC (recommended for a 3A+).** Use `linux/arm64` for a
@@ -175,6 +203,10 @@ docker compose up -d
 docker compose logs -f pellmonsrv
 ```
 
+`pellmon-init` runs first and must show `Exited (0)` in `docker compose ps -a`. If the data
+folder is unusable, `pellmonsrv` exits with a message naming `/var/lib/pellmon`
+(`PELLMON_REQUIRE_DATADIR=1`) instead of silently running without persistence.
+
 Healthy looks like:
 
 - The log shows `Activated plugins: ScotteCom` (or your plugins).
@@ -189,8 +221,61 @@ Healthy looks like:
 docker compose build && docker compose up -d
 ```
 
-**Backup:** the RRD database lives in the `pellmon-data` volume (Docker prefixes the
-name with the project folder name). Keep a copy before upgrades.
+### Backup and restore
+
+Run these from the repo root (the folder with `docker-compose.yml` and `config/`):
+
+```bash
+python3 tools/pellmon_backup.py backup --out pellmon-backup-$(date +%F).tar.gz
+```
+
+```bash
+python3 tools/pellmon_backup.py restore pellmon-backup-<date>.tar.gz --yes
+```
+
+Restore stops the daemon, rebuilds the RRD with `rrdtool restore`, and restarts it. It works
+PC to Pi because the RRD travels as an XML dump. The RRD and settings DB are built as temp
+files, verified, and only then swapped in; the files they replace are kept as
+`rrd.db.pre-restore` and `pellmon_settings.db.pre-restore` next to them (mode 0600, an older
+`.pre-restore` is overwritten). If anything fails the originals stay in place and the service
+is started again. With `--local` (direct paths, no docker) restore asks for confirmation too,
+or pass `--yes`. A backup never overwrites an existing `--out` file.
+
+The archive is mode 0600 and contains the password hashes and the settings DB: keep it
+private and never email it or put it on shared storage.
+
+After a restore the daemon restarts on a new D-Bus socket, so also run
+`docker compose restart pellmonweb` (the web page shows "server not running" until you do).
+
+**Why the working directory matters:** the RRD path comes from `config/conf.d/database.conf`
+(`/var/lib/pellmon/rrd.db`), which overrides `config/pellmon.conf`. `[conf] config_dir` is the
+*container* path `/etc/pellmon/conf.d`, so the tool reads the host copy `./config/conf.d` next to
+`pellmon.conf` (even if a directory `/etc/pellmon/conf.d` also exists on the host; only
+`--local` trusts the configured path). From another directory pass `--config /path/to/config/pellmon.conf`; if your
+`conf.d` is elsewhere, pass `--host-config-dir /path/to/conf.d`. Add `--verbose` to see which
+directory and RRD path were resolved. If no `database` value can be found the tool exits 1 with
+a message naming the config file; it never guesses.
+
+### Moving data off the old named volume (one time)
+
+Older deployments kept data in a Docker named volume. Find its name with `docker volume ls`,
+then copy it once into the new folder. Create the folders first and run the copy as root
+inside the container, so it can write there and hand the files to the container user:
+
+```bash
+mkdir -p pellmon-data/data pellmon-data/logs
+```
+
+```bash
+docker run --rm --user root -v <project>_pellmon-data:/from -v "$PWD/pellmon-data/data":/to pellmon:latest sh -c 'cp -a /from/. /to/ && chown -R 999:999 /to'
+```
+
+```bash
+docker compose up -d
+```
+
+`pellmon-init` fixes the ownership. A raw copy is only valid on the same machine type; for
+PC to Pi use the backup tool instead.
 
 **No items appear:**
 
@@ -219,10 +304,10 @@ show plugin activation or serial messages. Read it with:
 docker compose exec pellmonsrv tail -60 /var/log/pellmon/pellmon.log
 ```
 
-If the container is stopped or restarting, read it from the volume instead:
+If the container is stopped or restarting, read it directly on the host:
 
 ```bash
-docker run --rm -v pellmon_pellmon-logs:/var/log/pellmon --entrypoint tail pellmon:latest -40 /var/log/pellmon/pellmon.log
+tail -40 "${PELLMON_DATA_DIR:-./pellmon-data}/logs/pellmon.log"
 ```
 
 Look for `Activated plugins:` and then `serial port ok`. `Could not open serial port`
@@ -239,14 +324,15 @@ adapter problem, not software: check that the adapter is RS232 (not 3.3 V/5 V TT
 the burner port is RS232, whether TX and RX are swapped (a null-modem cable or adapter
 may be needed), and that the settings are 9600 baud, 8N1, no flow control. Test the
 adapter itself with a loopback: stop the daemon, disconnect the burner, connect the
-adapter's TX and RX pins together, and run (use your `SERIAL_GID` in place of `46`):
+adapter's TX and RX pins together, and run (replace `/dev/ttyUSB0` with your `serialport`; the
+group id is read from the device, the same value as `SERIAL_GID` in `.env`):
 
 ```bash
 docker compose stop pellmonsrv
 ```
 
 ```bash
-docker run --rm --group-add 46 --device /dev/ttyUSB0 --entrypoint python3 pellmon:latest -c "import serial; s=serial.Serial('/dev/ttyUSB0',9600,timeout=1); s.write(b'hello'); print(s.read(5))"
+docker run --rm --group-add "$(stat -c %g /dev/ttyUSB0)" --device /dev/ttyUSB0 --entrypoint python3 pellmon:latest -c "import serial; s=serial.Serial('/dev/ttyUSB0',9600,timeout=1); s.write(b'hello'); print(s.read(5))"
 ```
 
 It should print `b'hello'`. `b''` means the adapter or the Pi port is at fault.
@@ -263,3 +349,7 @@ container in a restart loop. Use `.env` for settings such as `SERIAL_GID` instea
 - RAM use on the Pi is only roughly known: about 240 MiB was available with the daemon
   container running (some swap in use); it was not measured with the web container up.
 - Protocol code is verified against a simulator only, not a real burner.
+- `chown` is a no-op on Docker Desktop Windows/macOS mounts, so the data folder must live on
+  a Linux filesystem (ext4, or the Pi).
+- There is no backup button in the web GUI yet (deferred); use `tools/pellmon_backup.py`.
+- The config editor is not part of the compose stack (section 4).

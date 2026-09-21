@@ -8,6 +8,8 @@ Validates that:
 
 from pathlib import Path
 import re
+import shutil
+import subprocess
 import pytest
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -151,3 +153,125 @@ def test_compose_raspberry_pi_fixes():
 def test_env_example_documents_serial_gid():
     env = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
     assert re.search(r"^SERIAL_GID=\d+\s*$", env, flags=re.M), ".env.example must define SERIAL_GID"
+
+
+DATA = "${PELLMON_DATA_DIR:-./pellmon-data}"
+
+
+def test_compose_persists_data_on_the_host():
+    """D-01/D-02/D-03/D-04: RRD data and logs are host bind mounts, not named volumes."""
+    content = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    srv = _service_block(content, "pellmonsrv")
+    web = _service_block(content, "pellmonweb")
+
+    assert DATA + "/data:/var/lib/pellmon" in srv
+    assert DATA + "/logs:/var/log/pellmon" in srv
+    assert DATA + "/data:/var/lib/pellmon:ro" in web, "web must mount the data folder read-only (D-04)"
+    assert re.search(re.escape(DATA + "/logs:/var/log/pellmon") + r"\s*$", web, flags=re.M), (
+        "web logs mount must be writable"
+    )
+
+    assert "pellmon-data:" not in content, "named volume pellmon-data must be gone (D-03)"
+    assert "pellmon-logs:" not in content, "named volume pellmon-logs must be gone (D-03)"
+    assert "pellmon-run:" in content
+    assert "- pellmon-run:/var/run/pellmon" in srv
+    assert "- pellmon-run:/var/run/pellmon" in web
+
+
+def test_compose_init_service_fixes_ownership():
+    """D-06: a one-shot root init service creates and chowns the persistent paths."""
+    content = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    init = _service_block(content, "pellmon-init")
+    assert "user: root" in init
+    assert 'restart: "no"' in init
+    assert "image: pellmon:latest" in init
+    # WR-01: only pellmonsrv builds the image; two builders race to tag pellmon:latest
+    assert "build:" not in init
+    assert "pull_policy: never" in init
+    assert "build:" in _service_block(content, "pellmonsrv")
+    assert "build:" not in _service_block(content, "pellmonweb")
+    assert "mkdir -p" in init
+    assert "chown -R 999:999" in init
+    for target in ("/var/lib/pellmon", "/var/log/pellmon"):
+        assert target in init, "init service must handle %s" % target
+    # WR-03: the host user edits config/conf.d over SFTP; init must not take it over
+    assert "conf.d" not in init, "init must neither mount nor chown config/conf.d"
+
+    srv = _service_block(content, "pellmonsrv")
+    assert "pellmon-init:" in srv
+    assert "condition: service_completed_successfully" in srv
+    assert "PELLMON_REQUIRE_DATADIR=1" in srv
+
+
+def test_compose_conf_d_writable_for_web_only():
+    """D-08: only pellmonweb may write conf.d; pellmon.conf stays read-only for both."""
+    content = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    srv = _service_block(content, "pellmonsrv")
+    web = _service_block(content, "pellmonweb")
+
+    assert "./config/conf.d:/etc/pellmon/conf.d" in web
+    assert "./config/conf.d:/etc/pellmon/conf.d:ro" not in web
+    assert "./config/conf.d:/etc/pellmon/conf.d:ro" in srv
+    for block in (srv, web):
+        assert "./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro" in block
+
+
+def test_dockerfile_pins_pellmon_uid_gid():
+    """WR-02: compose (chown 999:999) and the docs assume uid/gid 999, so the image must pin it."""
+    text = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert re.search(r"groupadd\s+-r\s+-g\s+999\s+pellmon", text)
+    assert re.search(r"useradd\s+-r\s+-u\s+999\s+-g\s+pellmon\s+pellmon", text)
+
+
+def test_env_example_documents_data_dir():
+    """D-01/D-05: .env.example documents PELLMON_DATA_DIR."""
+    env = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
+    assert re.search(r"^PELLMON_DATA_DIR=\./pellmon-data\s*$", env, flags=re.M), (
+        ".env.example must define PELLMON_DATA_DIR=./pellmon-data"
+    )
+    assert "absolute" in env
+
+
+def test_data_dir_is_ignored_by_git_and_docker():
+    """D-05: the runtime data folder never enters git or the Docker build context."""
+    for name in (".gitignore", ".dockerignore"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        assert "pellmon-data/" in text, "%s must ignore pellmon-data/" % name
+
+
+@pytest.mark.skipif(shutil.which("docker") is None, reason="docker not installed")
+def test_compose_config_parses():
+    """docker-compose.yml must be valid for `docker compose config`."""
+    try:
+        result = subprocess.run(
+            ["docker", "compose", "-f", str(REPO_ROOT / "docker-compose.yml"), "config", "-q"],
+            cwd=str(REPO_ROOT), capture_output=True, text=True, timeout=120,
+        )
+    except (OSError, subprocess.TimeoutExpired) as exc:
+        pytest.skip("docker compose unavailable: %s" % exc)
+    assert result.returncode == 0, result.stderr
+
+
+def test_deploy_guide_documents_persistent_data():
+    """D-01/D-10/D-11: the deploy guide explains the host data folder, backup and migration."""
+    text = (REPO_ROOT / "DEPLOY-PI.md").read_text(encoding="utf-8")
+    for needle in ("PELLMON_DATA_DIR", "pellmon-data/data", "pellmon_backup.py",
+                   "docker volume ls", "pellmon-init"):
+        assert needle in text, "DEPLOY-PI.md must mention %s" % needle
+    assert "pellmon_pellmon-logs" not in text
+    # WR-08/WR-09: the volume copy must run as root; no hard-coded serial gid; no spliced sentence
+    assert "--user root" in text
+    assert "--group-add 46" not in text
+    assert "contains After a restore" not in text
+    assert "lives in the `pellmon-data` volume" not in text
+
+
+def test_conf_example_does_not_conflict_with_conf_d():
+    """The RRD path is owned by conf.d/database.conf; the example must not set another."""
+    text = (REPO_ROOT / "config" / "pellmon.conf.example").read_text(encoding="utf-8")
+    lines = [l for l in text.splitlines() if not l.strip().startswith("#")]
+    assert not [l for l in lines if re.match(r"^\s*database\s*=", l)], (
+        "pellmon.conf.example must not set database (conf.d/database.conf is authoritative)"
+    )
+    assert any(re.match(r"^\s*config_dir\s*=", l) for l in lines)
+    assert any(re.match(r"^\s*logfile\s*=", l) for l in lines)

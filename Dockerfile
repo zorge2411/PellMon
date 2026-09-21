@@ -39,7 +39,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && apt-get clean
 
 # Create non-root user for security
-RUN groupadd -r pellmon && useradd -r -g pellmon pellmon
+RUN groupadd -r -g 999 pellmon && useradd -r -u 999 -g pellmon pellmon
 
 # Create required directories
 RUN mkdir -p /etc/pellmon /var/lib/pellmon /var/log/pellmon /var/run/pellmon \
