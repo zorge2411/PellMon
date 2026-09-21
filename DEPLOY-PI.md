@@ -148,6 +148,11 @@ becomes a Docker named volume, which is not what you want). The folder survives
 `docker compose down -v` and Docker reinstalls, and it is gitignored. It must be on a
 Linux filesystem (see section 7).
 
+GUI-chosen settings (currently the system image picked on the Settings page) are stored in
+`pellmon_settings.db` in this data folder. The daemon writes it, because the web container
+mounts the folder read-only. The choice therefore survives `docker compose down -v` and
+container recreation, and is included in backups.
+
 A one-shot service, `pellmon-init`, runs as root before `pellmonsrv`. It creates the folders
 and chowns only those data and log folders to 999:999 (the container user). It deliberately
 does **not** touch `config/conf.d`: you keep editing `config/conf.d/*.conf` on the host (for
@@ -240,6 +245,9 @@ files, verified, and only then swapped in; the files they replace are kept as
 `.pre-restore` is overwritten). If anything fails the originals stay in place and the service
 is started again. With `--local` (direct paths, no docker) restore asks for confirmation too,
 or pass `--yes`. A backup never overwrites an existing `--out` file.
+
+The archive's `pellmon_settings.db` carries the GUI settings, so a restore also brings back
+the chosen system image along with the plugin settings, with no separate step.
 
 The archive is mode 0600 and contains the password hashes and the settings DB: keep it
 private and never email it or put it on shared storage.

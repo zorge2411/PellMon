@@ -35,6 +35,9 @@ d15 = #2F2FFF
 
 [conf]
 # Select system image. Set an absolute path to use your own.
+# This value is the fallback: the image chosen on the Settings page of the web GUI
+# overrides it. The absolute-path option can only be set here, not from the GUI,
+# which offers only the shipped images.
 # Choices: system.svg|system_nbe.svg|system_nbe_2w.svg|system_nbe_3w.svg|system_nbe_v7.svg
 #          |system_matene.svg|/path/to/your_own_image.svg
 ############################
