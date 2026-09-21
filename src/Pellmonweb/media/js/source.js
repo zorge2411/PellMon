@@ -19,9 +19,9 @@ $(function() {
                 line = filedata.line
                 editor.setCursor(line+40, 0);
                 editor.setCursor(line-2, 0);
-                $('#filename_header').html(filedata.filename);
+                $('#filename_header').text(filedata.filename);
                 if (filedata.error) {
-                    $('#filename_header').append('<br>'+filedata.error);
+                    $('#filename_header').append('<br>').append($('<span>').text(filedata.error));
                 }
         });
         
@@ -39,12 +39,12 @@ $(function() {
 
 $('.savebutton').click(function(e) {
     e.preventDefault();
-    $('#filename_header').html('Saving: ' + filedata.filename)
+    $('#filename_header').text('Saving: ' + filedata.filename)
     filedata.data = editor.getValue(filedata.linesep);
     $.post('/save', {filename:filedata.filename, data:filedata.data}, function (data) {
         if (JSON.parse(data).success) {
             setTimeout(function() {
-                $('#filename_header').html(filedata.filename)
+                $('#filename_header').text(filedata.filename)
             }, 800);
         }
         else {
