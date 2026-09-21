@@ -350,3 +350,94 @@ def test_backup_refuses_existing_out_and_keeps_it_untouched(tmp_path, monkeypatc
     with pytest.raises(FileExistsError):
         pellmon_backup._write_archive(str(tmp_path), str(link))
     assert not (tmp_path / 'target.tgz').exists()
+
+
+def test_dash_prefixed_config_paths_are_rejected(tmp_path):
+    """WR-10: a config-derived path must never be parsed as an rrdtool option."""
+    conf = _write(tmp_path / 'pellmon.conf', '[conf]\ndatabase = -evil.rrd\n')
+    with pytest.raises(ValueError, match='must not start with'):
+        pellmon_backup.read_effective_config(str(conf), local=True)
+
+
+def test_local_backup_does_not_create_missing_settings_db(tmp_path, monkeypatch, capsys):
+    conf = _write(tmp_path / 'pellmon.conf',
+                  '[conf]\ndatabase = %s\nsettings_db = %s\nconfig_dir = %s\n' %
+                  (tmp_path / 'rrd.db', tmp_path / 'nope.db', tmp_path / 'cd'))
+    monkeypatch.setattr(pellmon_backup, '_require_rrdtool', lambda: None)
+    monkeypatch.setattr(pellmon_backup, '_run', _fake_run([]))
+    out = tmp_path / 'o.tgz'
+    rc = pellmon_backup.main(['backup', '--local', '--config', str(conf), '--out', str(out)])
+    assert rc != 0
+    assert 'settings database' in capsys.readouterr().err
+    assert not (tmp_path / 'nope.db').exists()
+    assert not out.exists()
+
+
+@pytest.mark.parametrize('exc', [sqlite3.OperationalError('disk I/O error'), EOFError()])
+def test_sqlite_and_eof_errors_are_reported_not_traceback(tmp_path, monkeypatch, capsys, exc):
+    conf = _container_style(tmp_path)
+
+    def boom(cfg, out):
+        raise exc
+    monkeypatch.setattr(pellmon_backup, 'backup_local', boom)
+    rc = pellmon_backup.main(['backup', '--local', '--config', str(conf), '--out', str(tmp_path / 'o.tgz')])
+    assert rc == 1
+    assert capsys.readouterr().err.startswith('error:')
+
+
+def test_missing_rrdtool_is_a_clear_error(tmp_path, monkeypatch, capsys):
+    conf = _container_style(tmp_path)
+    monkeypatch.setattr(shutil, 'which', lambda name: None)
+    rc = pellmon_backup.main(['backup', '--local', '--config', str(conf), '--out', str(tmp_path / 'o.tgz')])
+    assert rc == 1
+    assert 'rrdtool was not found' in capsys.readouterr().err
+
+
+def test_docker_backup_removes_container_temp_file_on_failure(tmp_path, monkeypatch):
+    conf = _container_style(tmp_path)
+    calls = []
+    ok = _fake_run(calls)
+
+    def run(argv, **kw):
+        if argv[4:5] == ['cp']:
+            calls.append(argv)
+            raise subprocess.CalledProcessError(1, argv)
+        return ok(argv, **kw)
+    monkeypatch.setattr(pellmon_backup, '_run', run)
+    rc = pellmon_backup.main(['backup', '--compose-file', str(tmp_path / 'c.yml'), '--config', str(conf),
+                              '--out', str(tmp_path / 'o.tgz')])
+    assert rc == 1
+    assert calls[-1][4:] == ['exec', '-T', 'pellmonsrv', 'rm', '-f', pellmon_backup._TMP_SETTINGS]
+
+
+def _tar_with(path, members):
+    with tarfile.open(path, 'w:gz') as t:
+        for name, data, mode in members:
+            ti = tarfile.TarInfo(name)
+            ti.size = len(data)
+            ti.mode = mode
+            t.addfile(ti, io.BytesIO(data))
+
+
+def test_extraction_size_is_capped(tmp_path, monkeypatch):
+    arc = tmp_path / 'big.tgz'
+    _tar_with(arc, [('rrd.xml', b'x' * 100, 0o644)])
+    monkeypatch.setattr(pellmon_backup, 'MAX_EXTRACT_BYTES', 10)
+    with pytest.raises(ValueError, match='too large'):
+        pellmon_backup._extract_archive(str(arc), str(tmp_path / 'out'))
+
+
+@posix_only
+def test_extraction_is_validated_member_by_member(tmp_path, monkeypatch):
+    """No unfiltered extractall on any Python version; special mode bits are dropped."""
+    arc = tmp_path / 'a.tgz'
+    _tar_with(arc, [('rrd.xml', b'<rrd/>', 0o4755), ('config/conf.d/x.conf', b'a=b', 0o644)])
+
+    def no_extractall(*a, **kw):
+        raise AssertionError('extractall must not be used')
+    monkeypatch.setattr(tarfile.TarFile, 'extractall', no_extractall)
+    out = tmp_path / 'out'
+    out.mkdir()
+    pellmon_backup._extract_archive(str(arc), str(out))
+    assert (out / 'config' / 'conf.d' / 'x.conf').read_text() == 'a=b'
+    assert stat.S_IMODE(os.stat(out / 'rrd.xml').st_mode) & 0o7000 == 0

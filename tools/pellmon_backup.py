@@ -46,6 +46,7 @@ import datetime
 import json
 import logging
 import os
+import pathlib
 import platform
 import shlex
 import shutil
@@ -59,8 +60,14 @@ import time
 logger = logging.getLogger('pellmon_backup')
 
 # executed inside the container; the two paths come from the config
+# read-only URI: a wrong path must fail instead of silently creating an empty database;
+# umask 077 keeps the temporary copy (password hashes/secrets) private inside the container
 _SETTINGS_BACKUP_SCRIPT = (
-    "import sqlite3; s=sqlite3.connect(%r); d=sqlite3.connect(%r); s.backup(d); d.close(); s.close()")
+    "import os,sqlite3,urllib.parse; os.umask(0o077); "
+    "s=sqlite3.connect('file:'+urllib.parse.quote(%r)+'?mode=ro', uri=True); "
+    "d=sqlite3.connect(%r); s.backup(d); d.close(); s.close()")
+# refuse absurd archives (tar bomb); a multi-year RRD dump is far below this
+MAX_EXTRACT_BYTES = 4 * 1024 ** 3
 _TMP_SETTINGS = '/tmp/pellmon_settings_backup.db'
 
 
@@ -112,6 +119,9 @@ def read_effective_config(conf_file, host_config_dir=None, local=False):
                          (conf_file, resolved or '<no conf.d dir found>'))
     settings_db = parser.get('conf', 'settings_db', fallback=None) or \
         os.path.join(os.path.dirname(database), 'pellmon_settings.db')
+    for key, value in (('database', database), ('settings_db', settings_db)):
+        if value.startswith('-'):
+            raise ValueError("%s value %r must not start with '-'" % (key, value))
     return {'database': database, 'settings_db': settings_db,
             'config_dir': configured, 'host_config_dir': resolved,
             'conf_file': conf_file}
@@ -178,9 +188,12 @@ def _rrd_version_text(res):
 
 
 def backup_local(cfg, out_path):
+    _require_rrdtool()
+    if not os.path.isfile(cfg['settings_db']):
+        raise ValueError('settings database %s not found (not creating an empty one)' % cfg['settings_db'])
     with tempfile.TemporaryDirectory() as tmp:
         _dump_with_retry(['rrdtool', 'dump', cfg['database']], os.path.join(tmp, 'rrd.xml'))
-        src = sqlite3.connect(cfg['settings_db'])
+        src = sqlite3.connect(pathlib.Path(os.path.abspath(cfg['settings_db'])).as_uri() + '?mode=ro', uri=True)
         dst = sqlite3.connect(os.path.join(tmp, 'pellmon_settings.db'))
         try:
             src.backup(dst)
@@ -195,17 +208,37 @@ def backup_local(cfg, out_path):
 
 
 def _safe_extract(tar, dest):
+    """Validate and extract member by member (no extractall on any Python version): only regular
+    files and directories, no traversal, capped total size, no setuid/sticky bits."""
     members = tar.getmembers()
+    total = 0
     for m in members:
         parts = m.name.replace('\\', '/').split('/')
         if m.name.startswith(('/', '\\')) or os.path.isabs(m.name) or '..' in parts:
             raise ValueError("unsafe path in archive: %s" % m.name)
-        if m.issym() or m.islnk() or m.isdev():
+        if not (m.isreg() or m.isdir()):
             raise ValueError("unsafe link/device member in archive: %s" % m.name)
-    if hasattr(tarfile, 'data_filter'):
-        tar.extractall(dest, members=members, filter='data')
-    else:
-        tar.extractall(dest, members=members)
+        if m.isreg():
+            total += m.size
+            if total > MAX_EXTRACT_BYTES:
+                raise ValueError("archive is too large (more than %d bytes)" % MAX_EXTRACT_BYTES)
+    real_dest = os.path.realpath(dest)
+    for m in members:
+        parts = [q for q in m.name.replace('\\', '/').split('/') if q not in ('', '.')]
+        if not parts:
+            continue
+        target = os.path.realpath(os.path.join(dest, *parts))
+        if target != real_dest and not target.startswith(real_dest + os.sep):
+            raise ValueError("unsafe path in archive: %s" % m.name)
+        if m.isdir():
+            os.makedirs(target, exist_ok=True)
+            continue
+        os.makedirs(os.path.dirname(target), exist_ok=True)
+        mode = (m.mode & 0o755) | 0o600
+        fd = os.open(target, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), mode)
+        with os.fdopen(fd, 'wb') as out:
+            shutil.copyfileobj(tar.extractfile(m), out)
+        os.chmod(target, mode)
 
 
 def _extract_archive(archive, tmp):
@@ -328,10 +361,13 @@ def backup_docker(cfg, args):
         _dump_with_retry(compose + ['exec', '-T', svc, 'rrdtool', 'dump', cfg['database']],
                          os.path.join(tmp, 'rrd.xml'))
         script = _SETTINGS_BACKUP_SCRIPT % (cfg['settings_db'], _TMP_SETTINGS)
-        _run(compose + ['exec', '-T', svc, 'python3', '-c', script])
-        _run(compose + ['cp', '%s:%s' % (svc, _TMP_SETTINGS),
-                        os.path.join(tmp, 'pellmon_settings.db')])
-        _run(compose + ['exec', '-T', svc, 'rm', '-f', _TMP_SETTINGS])
+        try:
+            _run(compose + ['exec', '-T', svc, 'python3', '-c', script])
+            _run(compose + ['cp', '%s:%s' % (svc, _TMP_SETTINGS),
+                            os.path.join(tmp, 'pellmon_settings.db')])
+        finally:
+            # the temporary copy holds secrets: never leave it behind, even on failure
+            _run(compose + ['exec', '-T', svc, 'rm', '-f', _TMP_SETTINGS], check=False)
         _collect_config(cfg, tmp)
         ver = _rrd_version_text(_run(compose + ['exec', '-T', svc, 'rrdtool', '--version'],
                                      capture=True, check=False))
@@ -442,7 +478,8 @@ def main(argv=None):
                 restore_local(cfg, args.archive, args.with_config, args.yes)
             else:
                 restore_docker(cfg, args)
-    except (ValueError, OSError, subprocess.CalledProcessError, tarfile.TarError) as e:
+    except (ValueError, OSError, EOFError, sqlite3.Error,
+            subprocess.CalledProcessError, tarfile.TarError) as e:
         sys.stderr.write('error: %s\n' % e)
         return 1
     return 0
