@@ -55,3 +55,6 @@ ENV/
 # Local environment
 .env
 !.env.example
+
+# PellMon runtime data (RRD, settings DB with secrets, logs)
+pellmon-data/

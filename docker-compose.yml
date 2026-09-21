@@ -1,12 +1,35 @@
 # PellMon Docker Compose Configuration
 #
 # Usage:
-#   docker-compose build            # Build image first
-#   docker-compose up -d            # Start all services
-#   docker-compose logs -f          # Follow logs
-#   docker-compose down             # Stop all services
+#   docker compose build            # Build image first
+#   docker compose up -d            # Start all services
+#   docker compose logs -f          # Follow logs
+#   docker compose down             # Stop all services
 
 services:
+  # ===========================================
+  # One-shot init: create the host data folders and give them to the
+  # non-root pellmon user (uid/gid 999) before the daemon starts
+  # ===========================================
+  pellmon-init:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: pellmon:latest
+    container_name: pellmon-init
+    user: root
+    restart: "no"
+    command: >
+      sh -c "mkdir -p /var/lib/pellmon /var/log/pellmon &&
+             chown -R 999:999 /var/lib/pellmon /var/log/pellmon /etc/pellmon/conf.d &&
+             chmod 755 /var/lib/pellmon /var/log/pellmon"
+    volumes:
+      - ${PELLMON_DATA_DIR:-./pellmon-data}/data:/var/lib/pellmon
+      - ${PELLMON_DATA_DIR:-./pellmon-data}/logs:/var/log/pellmon
+      - ./config/conf.d:/etc/pellmon/conf.d
+    networks:
+      - pellmon-network
+
   # ===========================================
   # PellMon Server (pellmonsrv)
   # Main service that communicates with pellet burner
@@ -28,10 +51,16 @@ services:
     group_add:
       - "${SERIAL_GID:-20}"
 
+    depends_on:
+      pellmon-init:
+        condition: service_completed_successfully
+
     environment:
       - TZ=${TZ:-Europe/Stockholm}
       # Non-root user has no home dir: give Fontconfig (used by rrdtool graph) a writable cache
       - XDG_CACHE_HOME=/tmp
+      # Exit loudly instead of falling back to /tmp when the data folder is unusable (D-07)
+      - PELLMON_REQUIRE_DATADIR=1
       # Use a shared session bus socket
       - DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket
 
@@ -40,11 +69,11 @@ services:
       - ./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro
       - ./config/conf.d:/etc/pellmon/conf.d:ro
 
-      # Data persistence (RRD database)
-      - pellmon-data:/var/lib/pellmon
+      # Data persistence (RRD database) on the host
+      - ${PELLMON_DATA_DIR:-./pellmon-data}/data:/var/lib/pellmon
 
       # Logs
-      - pellmon-logs:/var/log/pellmon
+      - ${PELLMON_DATA_DIR:-./pellmon-data}/logs:/var/log/pellmon
 
       # Shared socket location (using the pellmon run directory)
       - pellmon-run:/var/run/pellmon
@@ -101,13 +130,13 @@ services:
     volumes:
       # Configuration
       - ./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro
-      - ./config/conf.d:/etc/pellmon/conf.d:ro
+      - ./config/conf.d:/etc/pellmon/conf.d
 
-      # Shared data with server
-      - pellmon-data:/var/lib/pellmon:ro
+      # Shared data with server (read-only)
+      - ${PELLMON_DATA_DIR:-./pellmon-data}/data:/var/lib/pellmon:ro
 
       # Logs
-      - pellmon-logs:/var/log/pellmon
+      - ${PELLMON_DATA_DIR:-./pellmon-data}/logs:/var/log/pellmon
 
       # Shared socket location
       - pellmon-run:/var/run/pellmon
@@ -127,13 +156,9 @@ services:
       start_period: 120s
 
 # ===========================================
-# Named volumes for data persistence
+# Only the D-Bus socket is a named volume; data and logs are host bind mounts
 # ===========================================
 volumes:
-  pellmon-data:
-    driver: local
-  pellmon-logs:
-    driver: local
   pellmon-run:
     driver: local
 
