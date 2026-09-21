@@ -200,11 +200,21 @@ Plans:
 
 ### Phase 8: Expose the burner SVG depiction in settings to make the visible representation more user friendly
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** The user picks which burner diagram the main page shows from a Settings page in the web GUI - no config-file edit, no daemon restart - and that choice persists in the Phase 7 data folder across container recreation and backup/restore.
+**Requirements**: D-01..D-07 (see 08-CONTEXT.md)
 **Depends on:** Phase 7
-**Plans:** 0 plans
+**Plans:** 4 plans (3 waves)
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 8 to break down)
+- [ ] 08-01-PLAN.md - Daemon settings store: `Keyval_storage.getval`, `ALLOWED_SETTINGS` whitelist, `GetSetting`/`SetSetting` D-Bus methods, real-sqlite tests (D-02, D-05)
+- [ ] 08-02-PLAN.md - dbus-free web layer: shared `security.check_same_origin`, `settings.py` whitelist/resolver/`Settings` controller with auth + CSRF gates (D-01, D-02, D-05, D-06, D-07)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 08-03-PLAN.md - Wiring and UI: `/settings/` route, D-Bus proxy methods, per-request `systemimage` with no-cache, `settings.html` gallery, navbar entry, gallery CSS (D-01, D-03, D-04)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 08-04-PLAN.md - Backup round-trip proof, config comment and DEPLOY-PI docs, full-suite gate, live human verification (D-04, D-05)
