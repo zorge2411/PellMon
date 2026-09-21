@@ -259,6 +259,10 @@ def test_deploy_guide_documents_persistent_data():
                    "docker volume ls", "pellmon-init"):
         assert needle in text, "DEPLOY-PI.md must mention %s" % needle
     assert "pellmon_pellmon-logs" not in text
+    # WR-08/WR-09: the volume copy must run as root; no hard-coded serial gid; no spliced sentence
+    assert "--user root" in text
+    assert "--group-add 46" not in text
+    assert "contains After a restore" not in text
     assert "lives in the `pellmon-data` volume" not in text
 
 

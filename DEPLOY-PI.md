@@ -234,8 +234,18 @@ python3 tools/pellmon_backup.py restore pellmon-backup-<date>.tar.gz --yes
 ```
 
 Restore stops the daemon, rebuilds the RRD with `rrdtool restore`, and restarts it. It works
-PC to Pi because the RRD travels as an XML dump. The archive is mode 0600 and contains After a restore the daemon restarts on a new D-Bus socket, so also run `docker compose restart pellmonweb` (the web page shows "server not running" until you do).
-password hashes and the settings DB: keep it private and never email it or put it on shared storage.
+PC to Pi because the RRD travels as an XML dump. The RRD and settings DB are built as temp
+files, verified, and only then swapped in; the files they replace are kept as
+`rrd.db.pre-restore` and `pellmon_settings.db.pre-restore` next to them (mode 0600, an older
+`.pre-restore` is overwritten). If anything fails the originals stay in place and the service
+is started again. With `--local` (direct paths, no docker) restore asks for confirmation too,
+or pass `--yes`. A backup never overwrites an existing `--out` file.
+
+The archive is mode 0600 and contains the password hashes and the settings DB: keep it
+private and never email it or put it on shared storage.
+
+After a restore the daemon restarts on a new D-Bus socket, so also run
+`docker compose restart pellmonweb` (the web page shows "server not running" until you do).
 
 **Why the working directory matters:** the RRD path comes from `config/conf.d/database.conf`
 (`/var/lib/pellmon/rrd.db`), which overrides `config/pellmon.conf`. `[conf] config_dir` is the
@@ -249,10 +259,15 @@ a message naming the config file; it never guesses.
 ### Moving data off the old named volume (one time)
 
 Older deployments kept data in a Docker named volume. Find its name with `docker volume ls`,
-then copy it once into the new folder:
+then copy it once into the new folder. Create the folders first and run the copy as root
+inside the container, so it can write there and hand the files to the container user:
 
 ```bash
-docker run --rm -v <project>_pellmon-data:/from -v "$PWD/pellmon-data/data":/to pellmon:latest sh -c 'cp -a /from/. /to/'
+mkdir -p pellmon-data/data pellmon-data/logs
+```
+
+```bash
+docker run --rm --user root -v <project>_pellmon-data:/from -v "$PWD/pellmon-data/data":/to pellmon:latest sh -c 'cp -a /from/. /to/ && chown -R 999:999 /to'
 ```
 
 ```bash
@@ -309,14 +324,15 @@ adapter problem, not software: check that the adapter is RS232 (not 3.3 V/5 V TT
 the burner port is RS232, whether TX and RX are swapped (a null-modem cable or adapter
 may be needed), and that the settings are 9600 baud, 8N1, no flow control. Test the
 adapter itself with a loopback: stop the daemon, disconnect the burner, connect the
-adapter's TX and RX pins together, and run (use your `SERIAL_GID` in place of `46`):
+adapter's TX and RX pins together, and run (replace `/dev/ttyUSB0` with your `serialport`; the
+group id is read from the device, the same value as `SERIAL_GID` in `.env`):
 
 ```bash
 docker compose stop pellmonsrv
 ```
 
 ```bash
-docker run --rm --group-add 46 --device /dev/ttyUSB0 --entrypoint python3 pellmon:latest -c "import serial; s=serial.Serial('/dev/ttyUSB0',9600,timeout=1); s.write(b'hello'); print(s.read(5))"
+docker run --rm --group-add "$(stat -c %g /dev/ttyUSB0)" --device /dev/ttyUSB0 --entrypoint python3 pellmon:latest -c "import serial; s=serial.Serial('/dev/ttyUSB0',9600,timeout=1); s.write(b'hello'); print(s.read(5))"
 ```
 
 It should print `b'hello'`. `b''` means the adapter or the Pi port is at fault.
