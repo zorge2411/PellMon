@@ -656,10 +656,11 @@ class config:
             try:
                 logdir = os.path.dirname(self.logfile)
                 mkdir_p(logdir)
-            except:
-                pass
+            except Exception as e:
+                logger.warning('could not create log directory for %s: %s'%(self.logfile, e))
             fh = logging.handlers.WatchedFileHandler(self.logfile)
-        except:
+        except Exception as e:
+            logger.warning('could not open logfile %s: %s, logging to stderr'%(getattr(self, 'logfile', '?'), e))
             fh = logging.StreamHandler()
 
         # create formatter and add it to the handlers
@@ -834,10 +835,13 @@ class config:
             self.keyval_db = parser.get('conf', 'settings_db')
         except:
             try:
-                self.keyval_db = os.path.join(os.path.dirname(self.nvdb), 'pellmon_settings.db')
-            except:
+                self.keyval_db = os.path.join(os.path.dirname(self.db), 'pellmon_settings.db')
+            except (AttributeError, TypeError):
                 self.keyval_db = '/tmp/pellmon_settings.db'
-            mkdir_p(os.path.dirname(self.keyval_db))
+            try:
+                mkdir_p(os.path.dirname(self.keyval_db))
+            except OSError as e:
+                logger.warning('could not create settings directory %s: %s'%(os.path.dirname(self.keyval_db), e))
 
         self.plugin_dirs = []
         try:
@@ -886,6 +890,40 @@ def mkdir_p(path):
             pass
         else: raise
 
+def check_data_dirs(conf):
+    """Verify data folders are usable. Exit 1 if PELLMON_REQUIRE_DATADIR=1, else warn."""
+    dirs = []
+    for path in (conf.db, conf.keyval_db, getattr(conf, 'logfile', None)):
+        if path:
+            d = os.path.dirname(path)
+            if d and d not in dirs:
+                dirs.append(d)
+    problems = []
+    for d in dirs:
+        try:
+            mkdir_p(d)
+        except OSError as e:
+            problems.append('%s (%s)'%(d, e))
+            continue
+        if not os.access(d, os.W_OK | os.X_OK):
+            problems.append(d)
+    for f in (conf.db, conf.keyval_db):
+        if os.path.exists(f) and not os.access(f, os.R_OK | os.W_OK):
+            problems.append(f)
+    if not problems:
+        return True
+    uid = os.getuid() if hasattr(os, 'getuid') else 'unknown'
+    msg = ('pellmonsrv: data directory %s is not writable by uid %s. In Docker run "docker compose up" '
+           'so pellmon-init can fix ownership, or run "chown -R 999:999 $PELLMON_DATA_DIR" on the host.'
+           %(', '.join(problems), uid))
+    if os.environ.get('PELLMON_REQUIRE_DATADIR') == '1':
+        logger.error(msg)
+        sys.stderr.write(msg + '\n')
+        sys.exit(1)
+    logger.warning(msg)
+    sys.stderr.write(msg + '\n')
+    return False
+
 #########################################################################################
 
 
@@ -929,6 +967,8 @@ def run():
         conf.USER = args.USER
     if args.GROUP:
         conf.GROUP = args.GROUP
+
+    check_data_dirs(conf)
 
     if conf.polling:
         dbfile = conf.db

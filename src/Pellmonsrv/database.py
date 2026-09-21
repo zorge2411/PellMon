@@ -15,6 +15,7 @@
 """
 
 from weakref import WeakValueDictionary
+import os
 import time
 import sqlite3, threading
 from logging import getLogger
@@ -159,6 +160,12 @@ class Keyval_storage(object):
             cursor.execute("CREATE TABLE keyval (id TEXT PRIMARY KEY, value TEXT, confvalue TEXT NOT NULL DEFAULT '-')")
         conn.commit()
         conn.close()
+        # file holds GUI-stored settings incl. the future MQTT password (D-09);
+        # sqlite journal side files inherit the main file's mode
+        try:
+            os.chmod(self.dbfile, 0o600)
+        except OSError as e:
+            logger.warning('could not set mode 0600 on settings database %s: %s'%(self.dbfile, e))
 
     def readval(self, item):
         with self.lock:

@@ -88,4 +88,4 @@ def test_settings_db_next_to_rrd_when_polling_off(daemon_module, tmp_path):
     c = daemon_module.config(str(conffile))
     assert c.polling is False
     assert c.keyval_db == os.path.join(str(tmp_path), "pellmon_settings.db")
-    assert "/tmp" not in c.keyval_db
+    assert c.keyval_db != "/tmp/pellmon_settings.db"
