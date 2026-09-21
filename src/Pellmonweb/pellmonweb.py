@@ -128,6 +128,26 @@ class Sensor(object):
 class DbusNotConnected(Exception):
     pass
 
+def resolve_connection_state(dbus_handler):
+    """Return (state, reason) for the burner connection banner.
+
+    State identifiers only; all banner text lives in html/connectionbanner.
+    A missing item (no plugin publishing it) counts as connected, so installs
+    without such a plugin show no banner."""
+    try:
+        state = dbus_handler.getItem('burner_connection')
+    except DbusNotConnected:
+        return 'server_down', ''
+    except Exception:
+        return 'connected', ''
+    try:
+        reason = dbus_handler.getItem('burner_connection_reason')
+    except Exception:
+        reason = ''
+    if state not in ('connected', 'no_connection', 'demo'):
+        return 'connected', ''
+    return state, reason
+
 class Dbus_handler:
     def __init__(self, bus='SESSION'):
         self.bus = bus
@@ -635,7 +655,12 @@ class PellMonWeb:
                 timeName = timeNames[i]
                 break;
 
-        parameterlist = dbus.getFullDB(['','','','',''])
+        connection_state, connection_reason = resolve_connection_state(dbus)
+        try:
+            parameterlist = dbus.getFullDB(['','','','',''])
+        except DbusNotConnected:
+            parameterlist = []
+            connection_state, connection_reason = 'server_down', ''
         parameterdict = {p['name']: p for p in parameterlist}
         for l in graph_lines:
             try:
@@ -652,7 +677,7 @@ class PellMonWeb:
             widgets.append(wr)
         tmpl = Template(plugintemplate, lookup=lookup)
 
-        return tmpl.render(username=cherrypy.session.get('_cp_username'), empty=False, autorefresh=autorefresh, timeSeconds = timeSeconds, timeChoices=timeChoices, timeNames=timeNames, timeChoice=timespan, graphlines=graph_lines, selectedlines = lines, timeName = timeName, websockets=websockets, webroot=cherrypy.request.script_name, widgets = widgets, version = __version__, rand=self.rand)
+        return tmpl.render(username=cherrypy.session.get('_cp_username'), empty=False, autorefresh=autorefresh, timeSeconds = timeSeconds, timeChoices=timeChoices, timeNames=timeNames, timeChoice=timespan, graphlines=graph_lines, selectedlines = lines, timeName = timeName, websockets=websockets, webroot=cherrypy.request.script_name, widgets = widgets, version = __version__, rand=self.rand, connection_state=connection_state, connection_reason=connection_reason)
         
     @cherrypy.expose
     def systemimage(self, **args):

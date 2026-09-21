@@ -126,10 +126,10 @@ Raspberry Pi OS; some adapters use another group, for example `46`):
 echo "SERIAL_GID=46" >> .env
 ```
 
-**Warning:** with the wrong group the log shows `Could not open serial port ...
-Permission denied`, and the Scotte plugin then **silently falls back to a dummy device
-that produces fake values**. The web UI looks normal. Always check the log for
-`serial port ok` (see troubleshooting) before believing any reading.
+**Note:** with the wrong group the log shows `Could not open serial port ...
+Permission denied`, and the main page shows the red "No connection to the burner"
+banner with the reason; no burner values are served. Check the main page (no
+banner) and the log (`serial port ok`, see troubleshooting) before believing any reading.
 
 **f) NBE discovery (untested).** NBE discovery is a UDP broadcast to port 8483. The
 default Docker bridge network usually does not forward broadcasts to your LAN. If the
@@ -203,8 +203,13 @@ name with the project folder name). Keep a copy before upgrades.
 **Cannot reach the UI:** check `PELLMON_WEB_HOST` and `PELLMON_WEB_PORT` in `.env`,
 and that the Pi's firewall allows the port.
 
-**Serial permission or device errors:** confirm the device name (4e), that
-`serialport` matches it, and that `SERIAL_GID` in `.env` is the device's group.
+**No values / serial permission or device errors:** look at the main page first.
+A red banner "No connection to the burner" (with the reason underneath) means the
+serial port cannot be opened or the burner is not answering; in that state no burner
+values are served at all. A yellow "Demo mode: values are simulated" banner means
+`serialport` is not set. If the banner names a permission or missing-device error,
+confirm the device name (4e), that `serialport` matches it, and that `SERIAL_GID` in
+`.env` is the device's group.
 
 **Where the daemon's own log is.** The daemon writes its log to
 `/var/log/pellmon/pellmon.log` inside the container, so `docker compose logs` does not
@@ -221,13 +226,15 @@ docker run --rm -v pellmon_pellmon-logs:/var/log/pellmon --entrypoint tail pellm
 ```
 
 Look for `Activated plugins:` and then `serial port ok`. `Could not open serial port`
-means the permission or device problem above, and the values shown are fake.
+means the permission or device problem above; the main page then shows the red "No
+connection to the burner" banner and no burner values are served.
 
 **`Fontconfig error: No writable cache directories`** spam in `docker compose logs`
 comes from `rrdtool graph` and is fixed by `XDG_CACHE_HOME=/tmp` in the compose file.
 
 **Serial timeouts.** A log full of `Timeout`, `Retrying`, `answer was empty` and
-`give up` means the port opened but the burner is not answering. That is a cabling or
+`give up` means the port opened but the burner is not answering (the main page shows
+the "No connection to the burner" banner after a few failed polls). That is a cabling or
 adapter problem, not software: check that the adapter is RS232 (not 3.3 V/5 V TTL) if
 the burner port is RS232, whether TX and RX are swapped (a null-modem cable or adapter
 may be needed), and that the settings are 9600 baud, 8N1, no flow control. Test the

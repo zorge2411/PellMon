@@ -309,6 +309,25 @@ function changeSystemImageText(name, value)
     }
 }
 
+var connectionParams = 'burner_connection,burner_connection_reason';
+
+/**
+ * Show the banner element matching state and grey out the widgets while
+ * disconnected. All text comes from the elements rendered by connectionbanner.
+ */
+function setConnectionState(state) {
+    var states = ['connected', 'no_connection', 'demo', 'server_down'];
+    $('#connection-banner').attr('data-state', state);
+    for (var i = 0; i < states.length; i++) {
+        $('#conn-' + states[i]).toggleClass('hidden', states[i] != state);
+    }
+    var disconnected = (state == 'no_connection' || state == 'server_down');
+    $('#pellmon-widgets').toggleClass('pellmon-disconnected', disconnected);
+    if (state == 'connected' || state == 'server_down') {
+        $('#conn-reason').text('');
+    }
+}
+
 function url(s) {
     var l = window.location;
     return ((l.protocol === "https:") ? "wss://" : "ws://") + l.hostname + (((l.port != 80) && (l.port != 443)) ? ":" + l.port : "") +webroot+'/websocket' +s;
@@ -331,7 +350,7 @@ function setupWebSocket() {
         }
         else
         {
-            websocket = url('/ws/?parameters='+ params + '&events=yes');
+            websocket = url('/ws/?parameters='+ params + ',' + connectionParams + '&events=yes');
             if (window.WebSocket) {
                 ws = new ReconnectingWebSocket(websocket);
             }
@@ -347,12 +366,27 @@ function setupWebSocket() {
                 ws.close();
             };
 
+            ws.onopen = function () {
+                // the server pushes changed values only; the state is already
+                // rendered on page load, so just clear a stale server_down
+                if ($('#connection-banner').attr('data-state') == 'server_down')
+                    location.reload();
+            };
+
+            ws.onclose = function () {
+                setConnectionState('server_down');
+            };
+
             ws.onmessage = function (evt) {
                 jsonObject = $.parseJSON(evt.data);
                 for (i in jsonObject) {
                     obj = jsonObject[i];
                     if (obj.name == '__event__') 
                         getLog();
+                    else if (obj.name == 'burner_connection')
+                        setConnectionState(obj.value);
+                    else if (obj.name == 'burner_connection_reason')
+                        $('#conn-reason').text(obj.value);
                     else
                         changeSystemImageText(obj.name, obj.value);
                 }
@@ -383,14 +417,19 @@ function setupPolling() {
         }
         else
         {
-            pollparameters = params
+            pollparameters = params + ',' + connectionParams
             var pollParams = function() {
                 $.get('getparamlist?parameters='+ pollparameters,
                     function(data) {
                         jsonObject = $.parseJSON(data);
                         for (i in jsonObject) {
                             obj = jsonObject[i];
-                            changeSystemImageText(obj.name, obj.value);
+                            if (obj.name == 'burner_connection')
+                                setConnectionState(obj.value);
+                            else if (obj.name == 'burner_connection_reason')
+                                $('#conn-reason').text(obj.value);
+                            else
+                                changeSystemImageText(obj.name, obj.value);
                         }
                     }
                 )

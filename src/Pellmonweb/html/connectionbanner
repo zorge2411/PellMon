@@ -1,0 +1,21 @@
+<%page args="connection_state='connected', connection_reason=''"/>
+<%
+    def hidden(state):
+        return '' if state == connection_state else ' hidden'
+%>
+## All connection banner copy lives in this file. JS only toggles visibility.
+<div id="connection-banner" data-state="${connection_state | h}">
+    <div id="conn-connected" class="hidden"></div>
+    <div id="conn-no_connection" class="alert alert-danger${hidden('no_connection')}" role="alert">
+        <strong>No connection to the burner.</strong>
+        Check that the USB-serial adapter and cable are connected and the serial port setting is correct.
+    </div>
+    <div id="conn-demo" class="alert alert-warning${hidden('demo')}" role="alert">
+        <strong>Demo mode: values are simulated.</strong>
+    </div>
+    <div id="conn-server_down" class="alert alert-danger${hidden('server_down')}" role="alert">
+        <strong>The PellMon daemon is not running or not reachable.</strong>
+        This page will recover automatically when it comes back.
+    </div>
+    <div id="conn-reason" class="small text-muted">${connection_reason if connection_state in ('no_connection', 'demo') else '' | h}</div>
+</div>

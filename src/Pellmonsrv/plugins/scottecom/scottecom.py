@@ -20,7 +20,7 @@ from Scotteprotocol import Protocol
 import logging
 import threading
 from Pellmonsrv.plugin_categories import protocols
-from Pellmonsrv.database import Item, Getsetitem
+from Pellmonsrv.database import Item, Getsetitem, Plainitem
 from . import menus
 from .descriptions import dataDescriptions
 
@@ -33,14 +33,24 @@ class scottecom(protocols):
         self.logger = logging.getLogger('pellMon')
         self.dbvalues={}
         self.itemrefs = []
+        self.protocol = None
+
+        # Connection state items. Generic names (no scotte prefix) so other protocol
+        # plugins can publish the same pair. Registered before, and outside of, the
+        # protocol setup so they exist even when setup fails.
+        self.conn_state_item = self._make_state_item('burner_connection', 'Burner connection',
+            'Connection state of the burner: connected, no_connection or demo', 'no_connection')
+        self.conn_reason_item = self._make_state_item('burner_connection_reason', 'Burner connection details',
+            'Why the burner is not connected, or that values are simulated', 'burner setup has not completed')
 
         # Initialize protocol and setup the database according to version_string
         try:
-            try:
-                self.protocol = Protocol(self.conf['serialport'], self.conf['chipversion'])
-            except:
-                # Create testprotocol if conf is missing
-                self.protocol = Protocol(None, '')
+            # A missing or blank serialport means demo mode; anything else is a real port
+            serialport = (self.conf.get('serialport') or '').strip()
+            chipversion = self.conf.get('chipversion') or 'auto'
+            self.protocol = Protocol(serialport if serialport else None, chipversion)
+            self._on_connection_change(self.protocol.connection_state, self.protocol.connection_reason)
+            self.protocol.on_connection_change = self._on_connection_change
             self.allparameters = self.protocol.getDataBase()
 
             """Get list of all data/parameter/command items"""
@@ -77,8 +87,28 @@ class scottecom(protocols):
             ht.start()
 
             self.dataDescriptions = dataDescriptions
-        except:
-            self.logger.info('scottecom protocol setup failed')
+        except Exception as e:
+            self.logger.exception('scottecom protocol setup failed')
+            if self.protocol is None:
+                self._on_connection_change('no_connection', 'burner protocol setup failed: %s' % e)
+
+    def _make_state_item(self, name, longname, description, value):
+        item = Plainitem(name, value)
+        item.longname = longname
+        item.unit = ''
+        item.description = description
+        item.type = 'R'
+        item.tags = ['All']
+        self.db.insert(item)
+        self.itemrefs.append(item)
+        return item
+
+    def _on_connection_change(self, state, reason):
+        """Protocol state callback: the daemon's Database thread notices the changed
+        values within 2 s and pushes them to the web UI."""
+        self.conn_state_item.value = state
+        self.conn_reason_item.value = reason
+        self.logger.info('burner connection: %s (%s)', state, reason)
 
     def getItem(self, item, raw=False):
         return self.protocol.getItem(item, raw)
