@@ -1,3 +1,5 @@
+import logging
+
 import pytest
 import serial
 
@@ -57,3 +59,24 @@ def cherrypy_request_ctx(mocker):
     mocker.patch.object(cherrypy, "session", {}, create=True)
     mocker.patch.object(cherrypy, "log")
     return fake_request
+
+
+@pytest.fixture(autouse=True)
+def _restore_pellmon_logger():
+    """Give every test the shared 'pellMon' logger it found.
+
+    Building the daemon config (Pellmonsrv.pellmonsrv.config) sets the level and adds file
+    handlers on this process-wide logger. Without this, one test's level leaks into the next
+    (the default used to be DEBUG, which made unrelated tests pass by accident)."""
+    logger = logging.getLogger('pellMon')
+    level = logger.level
+    handlers = list(logger.handlers)
+    yield
+    logger.setLevel(level)
+    for handler in list(logger.handlers):
+        if handler not in handlers:
+            logger.removeHandler(handler)
+            try:
+                handler.close()
+            except Exception:
+                pass

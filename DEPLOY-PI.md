@@ -314,6 +314,16 @@ Look for `Activated plugins:` and then `serial port ok`. `Could not open serial 
 means the permission or device problem above; the main page then shows the red "No
 connection to the burner" banner and no burner values are served.
 
+**Log level and log size.** The daemon logs at `info` by default. `debug` logs every
+serial frame (dozens of lines per poll), which fills the log folder quickly, adds CPU load
+and wears an SD card, so use it only while troubleshooting: set `loglevel = debug` under
+`[conf]` in `config/pellmon.conf`, then `docker compose restart pellmonsrv`, and set it back
+to `info` afterwards. There is no log rotation yet, so check the size now and then:
+
+```bash
+ls -lh "${PELLMON_DATA_DIR:-./pellmon-data}/logs/"
+```
+
 **`Fontconfig error: No writable cache directories`** spam in `docker compose logs`
 comes from `rrdtool graph` and is fixed by `XDG_CACHE_HOME=/tmp` in the compose file.
 
