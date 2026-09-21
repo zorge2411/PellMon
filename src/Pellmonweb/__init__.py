@@ -1,4 +1,4 @@
 from .auth import AuthController, require, member_of, name_is
 from .logview import LogViewer
 from .consumption import Consumption
-
+from .security import check_same_origin

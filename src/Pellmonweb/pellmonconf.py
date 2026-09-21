@@ -37,6 +37,7 @@ import errno
 import configparser
 import urllib.parse
 from logging import getLogger
+from .security import check_same_origin as _check_same_origin
 
 logger = getLogger('pellMon')
 
@@ -150,18 +151,6 @@ except ImportError:
     DATADIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     CONFDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..'))
     LOCALSTATEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), '..', '..'))
-
-def _check_same_origin():
-    """True only if the Origin (or Referer) header names the same host as the request Host header"""
-    headers = cherrypy.request.headers
-    origin = headers.get('Origin') or headers.get('Referer')
-    if not origin:
-        return False
-    try:
-        netloc = urllib.parse.urlparse(origin).netloc
-    except ValueError:
-        return False
-    return bool(netloc) and netloc == headers.get('Host')
 
 def run():
     MEDIA_DIR = os.path.join(DATADIR, 'Pellmonweb', 'media')
