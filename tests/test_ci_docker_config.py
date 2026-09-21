@@ -192,8 +192,10 @@ def test_compose_init_service_fixes_ownership():
     assert "build:" not in _service_block(content, "pellmonweb")
     assert "mkdir -p" in init
     assert "chown -R 999:999" in init
-    for target in ("/var/lib/pellmon", "/var/log/pellmon", "/etc/pellmon/conf.d"):
+    for target in ("/var/lib/pellmon", "/var/log/pellmon"):
         assert target in init, "init service must handle %s" % target
+    # WR-03: the host user edits config/conf.d over SFTP; init must not take it over
+    assert "conf.d" not in init, "init must neither mount nor chown config/conf.d"
 
     srv = _service_block(content, "pellmonsrv")
     assert "pellmon-init:" in srv

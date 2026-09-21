@@ -149,15 +149,20 @@ becomes a Docker named volume, which is not what you want). The folder survives
 Linux filesystem (see section 7).
 
 A one-shot service, `pellmon-init`, runs as root before `pellmonsrv`. It creates the folders
-and chowns them **and `config/conf.d`** to 999:999 (the container user). Consequence: editing
-`config/conf.d/*.conf` on the host afterwards needs `sudo`. Do not `chmod -R 777` to work
-around it; the supported fix is `docker compose run --rm pellmon-init` (or
-`sudo chown -R 999:999 <PELLMON_DATA_DIR> config/conf.d`). `config/pellmon.conf` stays
-read-only in both containers.
+and chowns only those data and log folders to 999:999 (the container user). It deliberately
+does **not** touch `config/conf.d`: you keep editing `config/conf.d/*.conf` on the host (for
+example over SFTP) as your normal user, with no `sudo`. `config/pellmon.conf` stays read-only
+in both containers. If the data folder ever gets the wrong owner, re-run
+`docker compose run --rm pellmon-init` (or `sudo chown -R 999:999 <PELLMON_DATA_DIR>`). Do not
+`chmod -R 777` to work around it.
 
 The config editor is the standalone `pellmonconf` tool on port 8083. It is **not started by
 the compose stack today**. The writable `conf.d` mount and the "read-only" message for
 `pellmon.conf` are in place for it, but nothing in `docker compose up` exercises them.
+Note that writing `conf.d` from inside the container (uid 999) only works if those files are
+writable by uid 999. Files owned by your host user are not, and that is intentional here; you
+would have to grant that yourself (for example a group/ACL on `config/conf.d`) if you ever run
+the editor in the container.
 
 ## 5. Build and start
 

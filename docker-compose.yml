@@ -21,12 +21,11 @@ services:
     restart: "no"
     command: >
       sh -c "mkdir -p /var/lib/pellmon /var/log/pellmon &&
-             chown -R 999:999 /var/lib/pellmon /var/log/pellmon /etc/pellmon/conf.d &&
+             chown -R 999:999 /var/lib/pellmon /var/log/pellmon &&
              chmod 755 /var/lib/pellmon /var/log/pellmon"
     volumes:
       - ${PELLMON_DATA_DIR:-./pellmon-data}/data:/var/lib/pellmon
       - ${PELLMON_DATA_DIR:-./pellmon-data}/logs:/var/log/pellmon
-      - ./config/conf.d:/etc/pellmon/conf.d
     networks:
       - pellmon-network
 
@@ -130,6 +129,9 @@ services:
     volumes:
       # Configuration
       - ./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro
+      # Writable per D-08, but the container user is uid 999: files owned by the host user are
+      # NOT writable from inside the container unless you make them so. pellmon-init does not
+      # chown this folder (you edit it on the host), and no writer runs in this stack today.
       - ./config/conf.d:/etc/pellmon/conf.d
 
       # Shared data with server (read-only)
