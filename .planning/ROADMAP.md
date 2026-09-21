@@ -203,7 +203,7 @@ Plans:
 **Goal:** The user picks which burner diagram the main page shows from a Settings page in the web GUI - no config-file edit, no daemon restart - and that choice persists in the Phase 7 data folder across container recreation and backup/restore.
 **Requirements**: D-01..D-07 (see 08-CONTEXT.md)
 **Depends on:** Phase 7
-**Plans:** 2/4 plans executed
+**Plans:** 3/4 plans executed
 
 Plans:
 **Wave 1**
@@ -213,7 +213,7 @@ Plans:
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 08-03-PLAN.md - Wiring and UI: `/settings/` route, D-Bus proxy methods, per-request `systemimage` with no-cache, `settings.html` gallery, navbar entry, gallery CSS (D-01, D-03, D-04)
+- [x] 08-03-PLAN.md - Wiring and UI: `/settings/` route, D-Bus proxy methods, per-request `systemimage` with no-cache, `settings.html` gallery, navbar entry, gallery CSS (D-01, D-03, D-04)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
