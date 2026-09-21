@@ -237,3 +237,24 @@ def test_compose_config_parses():
     except (OSError, subprocess.TimeoutExpired) as exc:
         pytest.skip("docker compose unavailable: %s" % exc)
     assert result.returncode == 0, result.stderr
+
+
+def test_deploy_guide_documents_persistent_data():
+    """D-01/D-10/D-11: the deploy guide explains the host data folder, backup and migration."""
+    text = (REPO_ROOT / "DEPLOY-PI.md").read_text(encoding="utf-8")
+    for needle in ("PELLMON_DATA_DIR", "pellmon-data/data", "pellmon_backup.py",
+                   "docker volume ls", "pellmon-init"):
+        assert needle in text, "DEPLOY-PI.md must mention %s" % needle
+    assert "pellmon_pellmon-logs" not in text
+    assert "lives in the `pellmon-data` volume" not in text
+
+
+def test_conf_example_does_not_conflict_with_conf_d():
+    """The RRD path is owned by conf.d/database.conf; the example must not set another."""
+    text = (REPO_ROOT / "config" / "pellmon.conf.example").read_text(encoding="utf-8")
+    lines = [l for l in text.splitlines() if not l.strip().startswith("#")]
+    assert not [l for l in lines if re.match(r"^\s*database\s*=", l)], (
+        "pellmon.conf.example must not set database (conf.d/database.conf is authoritative)"
+    )
+    assert any(re.match(r"^\s*config_dir\s*=", l) for l in lines)
+    assert any(re.match(r"^\s*logfile\s*=", l) for l in lines)
