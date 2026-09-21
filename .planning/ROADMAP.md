@@ -165,3 +165,13 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 | 4. Protocol Module Hardening | 4/4 | Complete    | 2026-09-18 |
 | 5. Security, CI & Deployment Hardening | 4/4 | Complete | 2026-09-18 |
 
+
+### Phase 6: Enable Home Assistant MQTT device with settings on the web GUI
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 5
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 6 to break down)

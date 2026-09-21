@@ -70,6 +70,10 @@ Recent decisions affecting current work:
 - Phase 2 planning: Same decision-coverage gate false negative recurred for D-01..D-05 (same root cause — grep-based, only scans must_haves/truths). The independent gsd-plan-checker LLM review confirmed "Context compliance (D-01 through D-05): All five locked decisions are followed exactly as specified" with per-decision evidence (shared logger, 3-file scope, per-site Category A/B dispositions, print-sweep boundary, `logger.exception` idiom). Overridden and proceeded without re-planning. Plan-checker also found 1 blocker (RESEARCH.md Open Questions not marked resolved — fixed) and 2 warnings (02-05 touches 11 files, mitigated per checker's own note; REQUIREMENTS.md OBS-02/OBS-03 wording drift vs. locked CONTEXT.md decisions — fixed by syncing REQUIREMENTS.md to drop the Scotteprotocol mention and the `__name__`-logger wording).
 - Research (Phase 2): Found a second, independent import-time bug in `plugins/calculate/__init__.py` — `from string import maketrans` at line 28 raises `ImportError` on Linux/WSL, distinct from the known `unicode()` bug at line 351. Tracked as new requirement `PROTO-05` (Phase 4). Also confirmed `Scotteprotocol/protocol.py` is unreachable via import today (fails in `Scotteprotocol/__init__.py:2` before reaching `protocol.py`'s own bug), so ROADMAP Phase 2 success criterion 3 and REQUIREMENTS.md OBS-02 were amended to exclude it — that file's exception-visibility work is deferred to Phase 3, bundled with IMPORT-01.
 
+### Roadmap Evolution
+
+- Phase 6 added: Enable Home Assistant MQTT device with settings on the web GUI (added 2026-09-20 after v1.0 closed; not yet planned)
+
 ### Pending Todos
 
 None yet.
