@@ -1,0 +1,46 @@
+<%inherit file="layout.html"/>
+<%def name="title()">
+Settings
+</%def>
+<div class="container">
+	<h1>Settings</h1>
+	<section class="panel panel-default">
+		<div class="panel-heading">System image</div>
+		<div class="panel-body">
+			<p>Choose the burner diagram shown on the main page.</p>
+			% if msg:
+			<div class="alert alert-${msg_level | h}" role="${'status' if msg_level == 'success' else 'alert'}">${msg | h}</div>
+			% endif
+			% if not images:
+			<h3>No system images available</h3>
+			<p>No burner diagrams were found in the media directory. Check the installation.</p>
+			% else:
+			<form method="post" action="${webroot | h}/settings/save">
+				<fieldset>
+					<legend>System image</legend>
+					<div class="row">
+						% for img in images:
+						<div class="col-xs-12 col-sm-6 col-md-4">
+							<label class="sysimg-tile${' sysimg-tile-selected' if img['file'] == current else ''}">
+								<input type="radio" class="sysimg-radio" name="image" value="${img['file'] | h}"${' checked' if img['file'] == current else ''}>
+								<img class="sysimg-thumb" src="${webroot | h}/media/img/${img['file'] | h}" alt="${img['name'] | h}">
+								<span class="sysimg-caption">${img['name'] | h}
+								% if img['file'] == current:
+								<span class="label label-default">Current</span><span class="glyphicon glyphicon-ok sysimg-check"></span>
+								% endif
+								</span>
+							</label>
+						</div>
+						% endfor
+					</div>
+				</fieldset>
+				<button type="submit" class="btn btn-primary"${'' if auth_configured else ' disabled'}>Save image</button>
+				<p class="help-block">Shown on the main page. Your choice here overrides the <code>system_image</code> setting in webinterface.conf.</p>
+				% if not auth_configured:
+				<p class="help-block">Saving is disabled until web login credentials are configured.</p>
+				% endif
+			</form>
+			% endif
+		</div>
+	</section>
+</div>
