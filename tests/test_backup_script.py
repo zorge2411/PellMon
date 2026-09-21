@@ -135,6 +135,21 @@ def test_local_round_trip(tmp_path):
     assert Keyval(str(settings)).readval('k') == 'v1'
 
 
+@needs_rrdtool
+def test_system_image_setting_round_trip(tmp_path):
+    conf, rrd, settings, Keyval = _make_rrd_setup(tmp_path)
+    Keyval(str(settings)).writeval('web.system_image', 'system_nbe.svg')
+    archive = tmp_path / 'img.tar.gz'
+    assert pellmon_backup.main(['backup', '--local', '--config', str(conf),
+                                '--out', str(archive)]) == 0
+    rrd.unlink()
+    settings.unlink()
+    assert pellmon_backup.main(['restore', '--local', '--yes', '--config', str(conf), str(archive)]) == 0
+    restored = Keyval(str(settings))
+    assert restored.getval('web.system_image') == 'system_nbe.svg'
+    assert restored.getval('web.never_stored', default='') == ''
+
+
 @pytest.mark.parametrize('member', ['../evil', '/etc/evil'])
 def test_restore_rejects_traversal(tmp_path, member):
     conf = _write(tmp_path / 'pellmon.conf',
