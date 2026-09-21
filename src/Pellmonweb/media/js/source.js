@@ -49,7 +49,7 @@ $('.savebutton').click(function(e) {
         }
         else {
             data = JSON.parse(data)
-            $('#filename_header').html(data.error);
+            $('#filename_header').text(data.error);
         }
     });
 });

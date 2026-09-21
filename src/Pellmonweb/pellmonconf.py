@@ -30,6 +30,7 @@ import json
 #import parser
 from html import escape
 import codecs
+import errno
 #from weakref import WeakValueDictionary
 #import dbparser as parser
 #import webbrowser
@@ -132,7 +133,12 @@ class Pellmonconf:
                 with codecs.open(path, 'w', 'utf-8') as f:
                     f.write(data)
                     return json.dumps({'success':True})
-            except (ValueError, OSError) as e:
+            except ValueError as e:
+                return json.dumps({'success':False, 'error':str(e)})
+            except OSError as e:
+                if e.errno in (errno.EROFS, errno.EACCES, errno.EPERM):
+                    logger.warning('read-only config file save rejected: %r (errno %s)', filename, e.errno)
+                    return json.dumps({'success':False, 'error':'%s is read-only (mounted read-only or not writable by the web user); edit it on the host and restart the containers'%filename})
                 return json.dumps({'success':False, 'error':str(e)})
         else:
             error = {'msg':'only POST'}
