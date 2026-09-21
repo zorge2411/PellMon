@@ -46,6 +46,7 @@ import json
 import logging
 import os
 import platform
+import shlex
 import shutil
 import sqlite3
 import subprocess
@@ -221,18 +222,88 @@ def _restore_config(cfg, tmp):
         logger.info('restored %s', cfg['host_config_dir'])
 
 
-def restore_local(cfg, archive, with_config=False):
+def _require_rrdtool():
+    if shutil.which('rrdtool') is None:
+        raise ValueError("rrdtool was not found in PATH (install it, or drop --local to use docker)")
+
+
+def _confirm(message, yes):
+    """Destructive operations need --yes or an interactive 'yes'."""
+    if yes:
+        return
+    print(message)
+    if not sys.stdin.isatty() or input('Type "yes" to continue: ').strip() != 'yes':
+        raise ValueError('restore not confirmed (use --yes)')
+
+
+def _remove_quiet(path):
+    try:
+        os.remove(path)
+    except FileNotFoundError:
+        pass
+
+
+def _create_private(path):
+    """Create a fresh file that is 0600 from the very first moment."""
+    _remove_quiet(path)
+    return os.open(path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+
+
+def _verify_sqlite(path):
+    try:
+        con = sqlite3.connect(path)
+        try:
+            ok = con.execute('PRAGMA integrity_check').fetchone()
+        finally:
+            con.close()
+    except sqlite3.Error as e:
+        raise ValueError('restored settings database is not a valid SQLite file: %s' % e)
+    if not ok or ok[0] != 'ok':
+        raise ValueError('restored settings database failed the integrity check')
+
+
+def _keep_pre_restore(path):
+    """Copy the file about to be replaced to <path>.pre-restore (0600, overwriting an older one)."""
+    if not os.path.isfile(path):
+        return
+    dst = path + '.pre-restore'
+    fd = _create_private(dst)
+    with os.fdopen(fd, 'wb') as out, open(path, 'rb') as src:
+        shutil.copyfileobj(src, out)
+    logger.info('previous %s kept as %s', path, dst)
+
+
+def restore_local(cfg, archive, with_config=False, yes=False):
+    _require_rrdtool()
+    db = os.path.abspath(cfg['database'])
+    sdb = os.path.abspath(cfg['settings_db'])
+    _confirm('This will OVERWRITE %s and %s (the old files are kept as .pre-restore).' % (db, sdb), yes)
     with tempfile.TemporaryDirectory() as tmp:
         _extract_archive(archive, tmp)
-        for p in (cfg['database'], cfg['settings_db']):
-            os.makedirs(os.path.dirname(os.path.abspath(p)), exist_ok=True)
-        _run(['rrdtool', 'restore', '-f', os.path.join(tmp, 'rrd.xml'), cfg['database']])
-        logger.info('rebuilt RRD %s', cfg['database'])
-        sdb = os.path.join(tmp, 'pellmon_settings.db')
-        if os.path.isfile(sdb):
-            shutil.copyfile(sdb, cfg['settings_db'])
-            os.chmod(cfg['settings_db'], 0o600)
-            logger.info('restored settings database %s', cfg['settings_db'])
+        for p in (db, sdb):
+            os.makedirs(os.path.dirname(p), exist_ok=True)
+        staged = []
+        new_db, new_sdb = db + '.restore-new', sdb + '.restore-new'
+        try:
+            _remove_quiet(new_db)
+            _run(['rrdtool', 'restore', os.path.join(tmp, 'rrd.xml'), new_db])
+            _run(['rrdtool', 'info', new_db], capture=True)
+            staged.append((db, new_db))
+            src_sdb = os.path.join(tmp, 'pellmon_settings.db')
+            if os.path.isfile(src_sdb):
+                with os.fdopen(_create_private(new_sdb), 'wb') as out, open(src_sdb, 'rb') as src:
+                    shutil.copyfileobj(src, out)
+                _verify_sqlite(new_sdb)
+                staged.append((sdb, new_sdb))
+            else:
+                logger.warning('archive has no settings database, the current one is left as it is')
+            for target, new in staged:
+                _keep_pre_restore(target)
+                os.replace(new, target)
+                logger.info('restored %s', target)
+        finally:
+            for new in (new_db, new_sdb):
+                _remove_quiet(new)
         if with_config:
             _restore_config(cfg, tmp)
         logger.info('restart the daemon: it reads the RRD lastupdate only at startup')
@@ -261,26 +332,62 @@ def backup_docker(cfg, args):
         _write_archive(tmp, args.out)
 
 
+def _container_restore_script(db, sdb):
+    """sh script run as root in the service image; everything is staged next to the target and
+    verified before the (atomic) rename, the old files are kept as .pre-restore."""
+    q = shlex.quote
+    check = ('import sqlite3,sys; c=sqlite3.connect(sys.argv[1]); '
+             'sys.exit(0 if c.execute("PRAGMA integrity_check").fetchone()[0]=="ok" else 1)')
+    return '\n'.join([
+        'set -e',
+        'umask 077',
+        'db=%s; sdb=%s' % (q(db), q(sdb)),
+        'rm -f "$db.restore-new" "$sdb.restore-new"',
+        'rrdtool restore /restore/rrd.xml "$db.restore-new"',
+        'rrdtool info "$db.restore-new" >/dev/null',
+        'chmod 644 "$db.restore-new"; chown 999:999 "$db.restore-new"',
+        'if [ -f /restore/pellmon_settings.db ]; then',
+        '  cp /restore/pellmon_settings.db "$sdb.restore-new"',
+        '  python3 -c %s "$sdb.restore-new"' % q(check),
+        '  chmod 600 "$sdb.restore-new"; chown 999:999 "$sdb.restore-new"',
+        'fi',
+        'if [ -f "$db" ]; then cp "$db" "$db.pre-restore"; chmod 600 "$db.pre-restore"; fi',
+        'if [ -f "$sdb.restore-new" ] && [ -f "$sdb" ]; then cp "$sdb" "$sdb.pre-restore"; chmod 600 "$sdb.pre-restore"; fi',
+        'mv -f "$db.restore-new" "$db"',
+        'if [ -f "$sdb.restore-new" ]; then mv -f "$sdb.restore-new" "$sdb"; fi',
+    ])
+
+
 def restore_docker(cfg, args):
-    if not args.yes:
-        print('This will OVERWRITE %s and %s inside the %s service.' %
-              (cfg['database'], cfg['settings_db'], args.service))
-        if not sys.stdin.isatty() or input('Type "yes" to continue: ').strip() != 'yes':
-            raise ValueError('restore not confirmed (use --yes)')
+    _confirm('This will OVERWRITE %s and %s inside the %s service '
+             '(the old files are kept as .pre-restore).' %
+             (cfg['database'], cfg['settings_db'], args.service), args.yes)
     compose = _compose(args)
     svc = args.service
+    if args.with_config and cfg['host_config_dir'] and not os.access(cfg['host_config_dir'], os.W_OK):
+        raise ValueError('%s is not writable by you; fix that or drop --with-config '
+                         '(nothing was changed)' % cfg['host_config_dir'])
     with tempfile.TemporaryDirectory() as tmp:
         _extract_archive(args.archive, tmp)
         _run(compose + ['stop', svc])
-        script = ('rrdtool restore -f /restore/rrd.xml %(db)s && '
-                  'cp /restore/pellmon_settings.db %(sdb)s && '
-                  'chown 999:999 %(db)s %(sdb)s && chmod 600 %(sdb)s') % {
-                      'db': cfg['database'], 'sdb': cfg['settings_db']}
-        _run(compose + ['run', '--rm', '--no-deps', '-T', '-u', 'root',
-                        '-v', '%s:/restore:ro' % os.path.abspath(tmp),
-                        svc, 'sh', '-c', script])
-        if args.with_config:
-            _restore_config(cfg, tmp)
+        try:
+            _run(compose + ['run', '--rm', '--no-deps', '-T', '-u', 'root',
+                            '-v', '%s:/restore:ro' % os.path.abspath(tmp),
+                            svc, 'sh', '-c', _container_restore_script(cfg['database'], cfg['settings_db'])])
+            if args.with_config:
+                _restore_config(cfg, tmp)
+        except Exception as e:
+            restart = ' '.join(compose + ['up', '-d', svc])
+            sys.stderr.write(
+                'restore FAILED after the %s service was stopped: %s\n'
+                'The RRD and settings database are replaced only at the very end, so they are '
+                'either untouched or the previous copies are kept as <file>.pre-restore.\n'
+                'Trying to start the service again; if that fails run:\n  %s\n' % (svc, e, restart))
+            try:
+                _run(compose + ['up', '-d', svc])
+            except Exception as e2:
+                sys.stderr.write('could not restart the service (%s); run: %s\n' % (e2, restart))
+            raise
         _run(compose + ['up', '-d', svc])
         logger.info('service restarted: the daemon reloads lastupdate only at startup')
 
@@ -322,7 +429,7 @@ def main(argv=None):
                 backup_docker(cfg, args)
         else:
             if args.local:
-                restore_local(cfg, args.archive, args.with_config)
+                restore_local(cfg, args.archive, args.with_config, args.yes)
             else:
                 restore_docker(cfg, args)
     except (ValueError, OSError, subprocess.CalledProcessError, tarfile.TarError) as e:

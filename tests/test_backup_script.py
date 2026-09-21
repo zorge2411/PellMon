@@ -6,6 +6,7 @@ import os
 import shutil
 import stat
 import subprocess
+import sqlite3
 import sys
 import tarfile
 import types
@@ -116,7 +117,7 @@ def test_local_round_trip(tmp_path):
     assert any(n == 'config' or n.startswith('config/') for n in names)
     rrd.unlink()
     settings.unlink()
-    assert pellmon_backup.main(['restore', '--local', '--config', str(conf), str(archive)]) == 0
+    assert pellmon_backup.main(['restore', '--local', '--yes', '--config', str(conf), str(archive)]) == 0
     info = subprocess.run(['rrdtool', 'info', str(rrd)], capture_output=True, text=True).stdout
     assert 'ds[t]' in info and 'step = 10' in info
     assert Keyval(str(settings)).readval('k') == 'v1'
@@ -205,3 +206,115 @@ def test_docker_restore_stops_then_starts(tmp_path, monkeypatch):
     assert calls[0] == pre + ['stop', 'pellmonsrv']
     assert calls[-1] == pre + ['up', '-d', 'pellmonsrv']
     assert any(c[4] == 'run' for c in calls)
+
+
+def _local_restore_env(tmp_path, monkeypatch):
+    """A local config, an existing RRD/settings pair and an archive that can be restored."""
+    data = tmp_path / 'data'
+    data.mkdir()
+    rrd = data / 'rrd.db'
+    rrd.write_bytes(b'OLD-RRD')
+    settings = data / 'pellmon_settings.db'
+    con = sqlite3.connect(str(settings))
+    con.execute('create table keyval (id text, value text)')
+    con.execute("insert into keyval values ('k', 'old')")
+    con.commit()
+    con.close()
+    conf = _write(tmp_path / 'config' / 'pellmon.conf',
+                  '[conf]' + chr(10) + 'database = %s' % rrd + chr(10) + 'config_dir = %s' % (tmp_path / 'config' / 'conf.d') + chr(10))
+    src = tmp_path / 'src'
+    src.mkdir()
+    (src / 'rrd.xml').write_text('<rrd/>')
+    newdb = src / 'pellmon_settings.db'
+    con = sqlite3.connect(str(newdb))
+    con.execute('create table keyval (id text, value text)')
+    con.execute("insert into keyval values ('k', 'new')")
+    con.commit()
+    con.close()
+    arc = tmp_path / 'a.tgz'
+    with tarfile.open(arc, 'w:gz') as t:
+        for n in ('rrd.xml', 'pellmon_settings.db'):
+            t.add(src / n, arcname=n)
+    monkeypatch.setattr(pellmon_backup, '_require_rrdtool', lambda: None)
+    return conf, rrd, settings, arc
+
+
+def _fake_rrdtool(fail_restore=False):
+    def fake(argv, **kw):
+        if argv[:2] == ['rrdtool', 'restore']:
+            if fail_restore:
+                raise subprocess.CalledProcessError(1, argv)
+            Path(argv[-1]).write_bytes(b'NEW-RRD')
+        return types.SimpleNamespace(returncode=0, stdout=b'', stderr=b'')
+    return fake
+
+
+def test_failed_local_restore_leaves_originals_intact(tmp_path, monkeypatch, capsys):
+    conf, rrd, settings, arc = _local_restore_env(tmp_path, monkeypatch)
+    monkeypatch.setattr(pellmon_backup, '_run', _fake_rrdtool(fail_restore=True))
+    rc = pellmon_backup.main(['restore', '--local', '--yes', '--config', str(conf), str(arc)])
+    assert rc != 0
+    assert rrd.read_bytes() == b'OLD-RRD'
+    con = sqlite3.connect(str(settings))
+    assert con.execute("select value from keyval where id='k'").fetchone()[0] == 'old'
+    con.close()
+    assert sorted(os.listdir(rrd.parent)) == ['pellmon_settings.db', 'rrd.db']
+
+
+def test_local_restore_keeps_pre_restore_copies(tmp_path, monkeypatch):
+    conf, rrd, settings, arc = _local_restore_env(tmp_path, monkeypatch)
+    (rrd.parent / 'rrd.db.pre-restore').write_bytes(b'ANCIENT')
+    monkeypatch.setattr(pellmon_backup, '_run', _fake_rrdtool())
+    rc = pellmon_backup.main(['restore', '--local', '--yes', '--config', str(conf), str(arc)])
+    assert rc == 0
+    assert rrd.read_bytes() == b'NEW-RRD'
+    assert (rrd.parent / 'rrd.db.pre-restore').read_bytes() == b'OLD-RRD'
+    pre = rrd.parent / 'pellmon_settings.db.pre-restore'
+    con = sqlite3.connect(str(pre))
+    assert con.execute("select value from keyval where id='k'").fetchone()[0] == 'old'
+    con.close()
+    con = sqlite3.connect(str(settings))
+    assert con.execute("select value from keyval where id='k'").fetchone()[0] == 'new'
+    con.close()
+    if sys.platform != 'win32':
+        for p in (rrd.parent / 'rrd.db.pre-restore', pre, settings):
+            assert stat.S_IMODE(os.stat(p).st_mode) == 0o600, p
+    assert not [n for n in os.listdir(rrd.parent) if n.endswith('.restore-new')]
+
+
+def test_local_restore_without_yes_refuses_non_interactive(tmp_path, monkeypatch, capsys):
+    conf, rrd, settings, arc = _local_restore_env(tmp_path, monkeypatch)
+    calls = []
+    monkeypatch.setattr(pellmon_backup, '_run', _fake_run(calls))
+    monkeypatch.setattr(sys, 'stdin', io.StringIO(''))
+    rc = pellmon_backup.main(['restore', '--local', '--config', str(conf), str(arc)])
+    assert rc != 0
+    assert 'not confirmed' in capsys.readouterr().err
+    assert rrd.read_bytes() == b'OLD-RRD'
+    assert calls == []
+
+
+def test_docker_restore_failure_restarts_and_explains(tmp_path, monkeypatch, capsys):
+    conf = _container_style(tmp_path)
+    src = tmp_path / 'src'
+    src.mkdir()
+    (src / 'rrd.xml').write_text('<rrd/>')
+    arc = tmp_path / 'a.tgz'
+    with tarfile.open(arc, 'w:gz') as t:
+        t.add(src / 'rrd.xml', arcname='rrd.xml')
+    calls = []
+    ok = _fake_run(calls)
+
+    def run(argv, **kw):
+        if 'run' in argv[:6]:
+            calls.append(argv)
+            raise subprocess.CalledProcessError(1, argv)
+        return ok(argv, **kw)
+    monkeypatch.setattr(pellmon_backup, '_run', run)
+    cf = str(tmp_path / 'docker-compose.yml')
+    rc = pellmon_backup.main(['restore', '--compose-file', cf, '--config', str(conf),
+                              '--yes', str(arc)])
+    assert rc != 0
+    assert calls[-1] == ['docker', 'compose', '-f', cf, 'up', '-d', 'pellmonsrv']
+    err = capsys.readouterr().err
+    assert 'up -d pellmonsrv' in err and 'pre-restore' in err
