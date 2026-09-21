@@ -151,6 +151,12 @@ class Database(WeakValueDictionary):
 class Keyval_storage(object):
     def __init__(self, dbfile):
         self.dbfile = dbfile
+        # pre-create the file 0600 so it is never readable by others, not even briefly
+        # (sqlite would create it with the umask, 0644 in the daemon)
+        try:
+            os.close(os.open(dbfile, os.O_WRONLY | os.O_CREAT, 0o600))
+        except OSError as e:
+            logger.warning('could not pre-create settings database %s: %s'%(dbfile, e))
         conn = sqlite3.connect(dbfile)
         cursor = conn.cursor()
         self.lock = threading.Lock()
