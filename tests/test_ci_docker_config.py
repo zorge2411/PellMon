@@ -216,6 +216,13 @@ def test_compose_conf_d_writable_for_web_only():
         assert "./config/pellmon.conf:/etc/pellmon/pellmon.conf:ro" in block
 
 
+def test_dockerfile_pins_pellmon_uid_gid():
+    """WR-02: compose (chown 999:999) and the docs assume uid/gid 999, so the image must pin it."""
+    text = (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")
+    assert re.search(r"groupadd\s+-r\s+-g\s+999\s+pellmon", text)
+    assert re.search(r"useradd\s+-r\s+-u\s+999\s+-g\s+pellmon\s+pellmon", text)
+
+
 def test_env_example_documents_data_dir():
     """D-01/D-05: .env.example documents PELLMON_DATA_DIR."""
     env = (REPO_ROOT / ".env.example").read_text(encoding="utf-8")
