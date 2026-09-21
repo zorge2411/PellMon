@@ -156,12 +156,17 @@ def _collect_config(cfg, tmp):
 
 
 def _write_archive(tmp, out_path):
-    fd = os.open(out_path, os.O_WRONLY | os.O_CREAT | os.O_TRUNC, 0o600)
-    with os.fdopen(fd, 'wb') as raw:
-        with tarfile.open(fileobj=raw, mode='w:gz') as tar:
-            for name in sorted(os.listdir(tmp)):
-                tar.add(os.path.join(tmp, name), arcname=name)
-    os.chmod(out_path, 0o600)
+    # O_EXCL: never truncate/reuse an existing file or follow a symlink; the archive holds
+    # password hashes, so it is 0600 from the moment it exists
+    fd = os.open(out_path, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    try:
+        with os.fdopen(fd, 'wb') as raw:
+            with tarfile.open(fileobj=raw, mode='w:gz') as tar:
+                for name in sorted(os.listdir(tmp)):
+                    tar.add(os.path.join(tmp, name), arcname=name)
+    except BaseException:
+        _remove_quiet(out_path)
+        raise
     logger.info('wrote %s', out_path)
 
 
@@ -426,6 +431,8 @@ def main(argv=None):
         cfg = read_effective_config(args.config, args.host_config_dir, args.local)
         logger.debug('effective database: %s', cfg['database'])
         if args.command == 'backup':
+            if os.path.lexists(args.out):
+                raise ValueError('%s already exists; choose another --out or remove it first' % args.out)
             if args.local:
                 backup_local(cfg, args.out)
             else:

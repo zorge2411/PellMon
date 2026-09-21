@@ -330,3 +330,23 @@ def test_docker_restore_failure_restarts_and_explains(tmp_path, monkeypatch, cap
     assert calls[-1] == ['docker', 'compose', '-f', cf, 'up', '-d', 'pellmonsrv']
     err = capsys.readouterr().err
     assert 'up -d pellmonsrv' in err and 'pre-restore' in err
+
+
+@posix_only
+def test_backup_refuses_existing_out_and_keeps_it_untouched(tmp_path, monkeypatch, capsys):
+    """WR-04: an existing --out (perhaps 0644 or a symlink) is never truncated or reused."""
+    conf = _container_style(tmp_path)
+    calls = []
+    monkeypatch.setattr(pellmon_backup, '_run', _fake_run(calls))
+    out = tmp_path / 'existing.tgz'
+    out.write_bytes(b'precious')
+    os.chmod(out, 0o644)
+    rc = pellmon_backup.main(['backup', '--compose-file', str(tmp_path / 'c.yml'),
+                              '--config', str(conf), '--out', str(out)])
+    assert rc != 0 and 'already exists' in capsys.readouterr().err
+    assert out.read_bytes() == b'precious' and stat.S_IMODE(os.stat(out).st_mode) == 0o644
+    link = tmp_path / 'link.tgz'
+    link.symlink_to(tmp_path / 'target.tgz')
+    with pytest.raises(FileExistsError):
+        pellmon_backup._write_archive(str(tmp_path), str(link))
+    assert not (tmp_path / 'target.tgz').exists()
