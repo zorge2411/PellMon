@@ -21,6 +21,8 @@ session as a supervised test, not a deployment.
       `docker-compose.yml` sets `0.0.0.0` for the container.
 - [ ] Confirm `[rrd_ds_types]` (and the matching `[rrd_ds_names]`) exist in `pellmon.conf`.
       If they are missing, RRD polling is disabled and only a log line says so.
+- [ ] `PELLMON_DATA_DIR` (default `./pellmon-data`) must exist on a Linux filesystem before
+      the first start (chown does not work on Windows/macOS mounts).
 - [ ] Back up the RRD database and the settings sqlite (keyval) database.
 - [ ] Write down every setting currently on the burner, so you can restore it.
 - [ ] Have the burner's own display/manual at hand as the reference for "correct" values.
@@ -51,6 +53,7 @@ session as a supervised test, not a deployment.
 
 ## 3. Bring-up order
 
+0. [ ] `docker compose ps -a` shows `pellmon-init` as `Exited (0)` before you check the daemon.
 1. [ ] Start the daemon in the foreground so plugin errors are re-raised:
        `pellmonsrv debug` (add `-C /path/to/pellmon.conf` if needed).
    - [ ] Confirm the log shows `Activated plugins: ScotteCom` (or NBEcom) and no
