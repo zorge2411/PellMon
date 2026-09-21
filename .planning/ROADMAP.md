@@ -185,3 +185,13 @@ Plans:
 
 Plans:
 - [ ] TBD (run /gsd-plan-phase 7 to break down)
+
+### Phase 8: Expose the burner SVG depiction in settings to make the visible representation more user friendly
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 7
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 8 to break down)
