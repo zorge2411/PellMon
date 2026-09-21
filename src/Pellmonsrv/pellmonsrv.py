@@ -644,12 +644,18 @@ class config:
         self.polling=True
 
         # create logger
+        # default to INFO: DEBUG logs every serial frame, which fills the log and wears an SD card
         loglevels = {'info':logging.INFO, 'debug':logging.DEBUG}
+        logger.setLevel(logging.INFO)
         try:
             loglevel = parser.get('conf', 'loglevel')
-            logger.setLevel(loglevels[loglevel])
-        except:
-            logger.setLevel(logging.DEBUG)
+        except (configparser.NoSectionError, configparser.NoOptionError):
+            loglevel = None
+        if loglevel is not None:
+            if loglevel.lower() in loglevels:
+                logger.setLevel(loglevels[loglevel.lower()])
+            else:
+                logger.warning('invalid loglevel %r in [conf], using info (valid values: info, debug)'%loglevel)
         # create file handler for logger
         try:
             self.logfile = parser.get('conf', 'logfile')

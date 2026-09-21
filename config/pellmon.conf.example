@@ -14,6 +14,10 @@
 # stored in pellmon_settings.db next to it, not in config files.
 
 [conf]
+# Log level: info or debug. The default is info. debug logs every serial frame and is
+# only for troubleshooting (it grows the log quickly and wears an SD card).
+loglevel = info
+
 # The Scotte serial port is NOT set here. Set `serialport` in
 # conf.d/plugins/scottecom.conf under [plugin_ScotteCom].
 
