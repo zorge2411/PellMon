@@ -185,7 +185,11 @@ def test_compose_init_service_fixes_ownership():
     assert "user: root" in init
     assert 'restart: "no"' in init
     assert "image: pellmon:latest" in init
-    assert "build:" in init and "context: ." in init
+    # WR-01: only pellmonsrv builds the image; two builders race to tag pellmon:latest
+    assert "build:" not in init
+    assert "pull_policy: never" in init
+    assert "build:" in _service_block(content, "pellmonsrv")
+    assert "build:" not in _service_block(content, "pellmonweb")
     assert "mkdir -p" in init
     assert "chown -R 999:999" in init
     for target in ("/var/lib/pellmon", "/var/log/pellmon", "/etc/pellmon/conf.d"):

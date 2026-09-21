@@ -12,10 +12,10 @@ services:
   # non-root pellmon user (uid/gid 999) before the daemon starts
   # ===========================================
   pellmon-init:
-    build:
-      context: .
-      dockerfile: Dockerfile
+    # Deliberately no image build here: pellmonsrv is the only service that builds
+    # pellmon:latest (two parallel builders race to tag the same image name).
     image: pellmon:latest
+    pull_policy: never
     container_name: pellmon-init
     user: root
     restart: "no"
