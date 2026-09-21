@@ -240,7 +240,8 @@ password hashes and the settings DB: keep it private and never email it or put i
 **Why the working directory matters:** the RRD path comes from `config/conf.d/database.conf`
 (`/var/lib/pellmon/rrd.db`), which overrides `config/pellmon.conf`. `[conf] config_dir` is the
 *container* path `/etc/pellmon/conf.d`, so the tool reads the host copy `./config/conf.d` next to
-`pellmon.conf`. From another directory pass `--config /path/to/config/pellmon.conf`; if your
+`pellmon.conf` (even if a directory `/etc/pellmon/conf.d` also exists on the host; only
+`--local` trusts the configured path). From another directory pass `--config /path/to/config/pellmon.conf`; if your
 `conf.d` is elsewhere, pass `--host-config-dir /path/to/conf.d`. Add `--verbose` to see which
 directory and RRD path were resolved. If no `database` value can be found the tool exits 1 with
 a message naming the config file; it never guesses.

@@ -32,8 +32,6 @@ def _write(path, text):
 
 
 def _container_style(tmp_path, dbval='/var/lib/pellmon/rrd.db'):
-    if os.path.isdir('/etc/pellmon/conf.d'):
-        pytest.skip('real install present at /etc/pellmon/conf.d')
     conf = _write(tmp_path / 'config' / 'pellmon.conf',
                   '[conf]\ndatabase = /x/pellmon.rrd\nconfig_dir = /etc/pellmon/conf.d\n')
     _write(tmp_path / 'config' / 'conf.d' / 'database.conf',
@@ -56,6 +54,20 @@ def test_container_config_dir_falls_back_to_host_sibling(tmp_path):
     other = _write(tmp_path / 'other' / 'database.conf', '[conf]\ndatabase = /z/rrd.db\n')
     cfg = pellmon_backup.read_effective_config(str(conf), host_config_dir=str(other.parent))
     assert cfg['database'] == '/z/rrd.db'
+
+
+def test_docker_mode_prefers_sibling_over_coincidental_absolute_dir(tmp_path):
+    """WR-06: a same-named absolute dir on the host must not shadow ./config/conf.d."""
+    coincidence = tmp_path / 'etc' / 'pellmon' / 'conf.d'
+    _write(coincidence / 'database.conf', '[conf]\ndatabase = /native/rrd.db\n')
+    conf = _write(tmp_path / 'config' / 'pellmon.conf',
+                  '[conf]\ndatabase = /x/pellmon.rrd\nconfig_dir = %s\n' % coincidence)
+    _write(tmp_path / 'config' / 'conf.d' / 'database.conf', '[conf]\ndatabase = /var/lib/pellmon/rrd.db\n')
+    docker = pellmon_backup.read_effective_config(str(conf))
+    assert docker['database'] == '/var/lib/pellmon/rrd.db'
+    assert docker['host_config_dir'] == str(tmp_path / 'config' / 'conf.d')
+    local = pellmon_backup.read_effective_config(str(conf), local=True)
+    assert local['database'] == '/native/rrd.db'
 
 
 def test_host_config_dir_option_reaches_helper(tmp_path, monkeypatch):

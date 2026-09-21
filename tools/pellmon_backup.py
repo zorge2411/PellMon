@@ -33,8 +33,9 @@ SECURITY: the archive contains password hashes and the settings database
 (future MQTT secret). It is created mode 0600; keep it off shared storage.
 
 NOTE: [conf] config_dir in pellmon.conf is the path INSIDE the container
-(/etc/pellmon/conf.d). This tool runs on the host and reads the host copy
-next to pellmon.conf (or --host-config-dir). The database/settings_db
+(/etc/pellmon/conf.d). In docker mode this tool runs on the host and reads the
+host copy next to pellmon.conf (or --host-config-dir), never a same-named host
+directory; with --local the configured config_dir is used first. The database/settings_db
 values are used exactly as written (container paths in docker mode, host
 paths with --local).
 """
@@ -75,12 +76,14 @@ def _run(argv, stdout=None, check=True, capture=False):
     return subprocess.run(argv, check=check, **kw)
 
 
-def resolve_config_dir(conf_file, configured_dir, host_config_dir=None):
+def resolve_config_dir(conf_file, configured_dir, host_config_dir=None, local=False):
     if host_config_dir:
         d = os.path.abspath(os.path.expanduser(host_config_dir))
         logger.debug('conf.d: using --host-config-dir %s', d)
         return d
-    if configured_dir and os.path.isdir(configured_dir):
+    # --local: config_dir is a real host path. Docker mode: it is the in-container path, and a
+    # same-named directory that happens to exist on the host must not shadow ./config/conf.d.
+    if local and configured_dir and os.path.isdir(configured_dir):
         logger.debug('conf.d: configured config_dir %s exists on this host', configured_dir)
         return configured_dir
     sibling = os.path.join(os.path.dirname(os.path.abspath(conf_file)), 'conf.d')
@@ -90,13 +93,13 @@ def resolve_config_dir(conf_file, configured_dir, host_config_dir=None):
     return None
 
 
-def read_effective_config(conf_file, host_config_dir=None):
+def read_effective_config(conf_file, host_config_dir=None, local=False):
     parser = configparser.ConfigParser(interpolation=None)
     parser.optionxform = str
     if not parser.read(conf_file):
         raise ValueError("cannot read config file %s" % conf_file)
     configured = parser.get('conf', 'config_dir', fallback=None)
-    resolved = resolve_config_dir(conf_file, configured, host_config_dir)
+    resolved = resolve_config_dir(conf_file, configured, host_config_dir, local)
     if resolved:
         for root, dirs, files in os.walk(resolved):
             dirs.sort()
@@ -420,7 +423,7 @@ def main(argv=None):
     logging.basicConfig(level=logging.DEBUG if args.verbose else logging.INFO,
                         stream=sys.stderr, format='%(asctime)s %(message)s')
     try:
-        cfg = read_effective_config(args.config, args.host_config_dir)
+        cfg = read_effective_config(args.config, args.host_config_dir, args.local)
         logger.debug('effective database: %s', cfg['database'])
         if args.command == 'backup':
             if args.local:
