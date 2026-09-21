@@ -229,7 +229,7 @@ python3 tools/pellmon_backup.py restore pellmon-backup-<date>.tar.gz --yes
 ```
 
 Restore stops the daemon, rebuilds the RRD with `rrdtool restore`, and restarts it. It works
-PC to Pi because the RRD travels as an XML dump. The archive is mode 0600 and contains
+PC to Pi because the RRD travels as an XML dump. The archive is mode 0600 and contains After a restore the daemon restarts on a new D-Bus socket, so also run `docker compose restart pellmonweb` (the web page shows "server not running" until you do).
 password hashes and the settings DB: keep it private and never email it or put it on shared storage.
 
 **Why the working directory matters:** the RRD path comes from `config/conf.d/database.conf`
