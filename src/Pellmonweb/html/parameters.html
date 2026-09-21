@@ -74,11 +74,11 @@
                 %for key in data:
                         <dt class="editable">${key['longname']}</dt>
 			<dd class="editable">
-				<span id="${key['name']}-value" data-name="${key['name']}" class="param value"></span> ${key['unit'].decode('utf-8')}
+				<span id="${key['name']}-value" data-name="${key['name']}" class="param value"></span> ${key['unit']}
 				<div class="details hidden">
 				   <br>ID: ${key['name']}
 					%if key['description']:
-						<p><i>${key['description'].decode('utf-8')}</i></p>
+						<p><i>${key['description']}</i></p>
 					%endif
 				</div>
                 %endfor
@@ -93,10 +93,10 @@
                 %for key in params:
                     <dt class="editable">${key['longname']}</dt>
 			        <dd> 
-				        <span id="${key['name']}-value" data-name="${key['name']}" class="editable param value" ></span> ${key['unit'].decode('utf-8')}
+				        <span id="${key['name']}-value" data-name="${key['name']}" class="editable param value" ></span> ${key['unit']}
 				        <div style="z-index: 10000" class="details hidden">
 					        %if key['description']:
-						        <i>${key['description'].decode('utf-8')}</i><br>
+						        <i>${key['description']}</i><br>
 					        %endif
 					        ID: ${key['name']}<br>
 					        %if 'min' in key and 'max' in key:

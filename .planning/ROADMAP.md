@@ -181,22 +181,22 @@ Plans:
 **Goal:** PellMon's RRD database, settings database and logs live in a host folder the user controls, survive `docker compose down -v` and container recreation, keep correct ownership automatically, and can be backed up and restored across machine types.
 **Requirements**: D-01..D-12 (see 07-CONTEXT.md)
 **Depends on:** Phase 6
-**Plans:** 5 plans
+**Plans:** 5/5 plans complete
 
 Plans:
 **Wave 1**
 
-- [ ] 07-01-PLAN.md - Host bind mounts, pellmon-init ownership service, .env/.gitignore/.dockerignore, compose regression tests
-- [ ] 07-02-PLAN.md - Loud startup check for an unusable data folder, no /tmp settings fallback, 0600 settings database
-- [ ] 07-03-PLAN.md - Friendly read-only message in the web config editor
+- [x] 07-01-PLAN.md - Host bind mounts, pellmon-init ownership service, .env/.gitignore/.dockerignore, compose regression tests
+- [x] 07-02-PLAN.md - Loud startup check for an unusable data folder, no /tmp settings fallback, 0600 settings database
+- [x] 07-03-PLAN.md - Friendly read-only message in the web config editor
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 07-04-PLAN.md - tools/pellmon_backup.py backup/restore (rrdtool dump + SQLite backup API) and tests
+- [x] 07-04-PLAN.md - tools/pellmon_backup.py backup/restore (rrdtool dump + SQLite backup API) and tests
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 07-05-PLAN.md - Deploy/bring-up documentation, example config fix, real Linux smoke test
+- [x] 07-05-PLAN.md - Deploy/bring-up documentation, example config fix, real Linux smoke test
 
 ### Phase 8: Expose the burner SVG depiction in settings to make the visible representation more user friendly
 
