@@ -203,12 +203,12 @@ Plans:
 **Goal:** The user picks which burner diagram the main page shows from a Settings page in the web GUI - no config-file edit, no daemon restart - and that choice persists in the Phase 7 data folder across container recreation and backup/restore.
 **Requirements**: D-01..D-07 (see 08-CONTEXT.md)
 **Depends on:** Phase 7
-**Plans:** 4 plans (3 waves)
+**Plans:** 1/4 plans executed
 
 Plans:
 **Wave 1**
 
-- [ ] 08-01-PLAN.md - Daemon settings store: `Keyval_storage.getval`, `ALLOWED_SETTINGS` whitelist, `GetSetting`/`SetSetting` D-Bus methods, real-sqlite tests (D-02, D-05)
+- [x] 08-01-PLAN.md - Daemon settings store: `Keyval_storage.getval`, `ALLOWED_SETTINGS` whitelist, `GetSetting`/`SetSetting` D-Bus methods, real-sqlite tests (D-02, D-05)
 - [ ] 08-02-PLAN.md - dbus-free web layer: shared `security.check_same_origin`, `settings.py` whitelist/resolver/`Settings` controller with auth + CSRF gates (D-01, D-02, D-05, D-06, D-07)
 
 **Wave 2** *(blocked on Wave 1 completion)*

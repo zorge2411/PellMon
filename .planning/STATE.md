@@ -2,15 +2,15 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: planning
+status: executing
 stopped_at: Phase 8 context gathered
-last_updated: "2026-09-21T13:19:54.121Z"
+last_updated: "2026-09-21T13:40:01.083Z"
 last_activity: 2026-09-21
 progress:
   total_phases: 8
   completed_phases: 6
-  total_plans: 26
-  completed_plans: 26
+  total_plans: 30
+  completed_plans: 27
   percent: 75
 ---
 
@@ -21,13 +21,13 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 08 — expose the burner svg depiction in settings to make the visi
+**Current focus:** Phase 8 — expose-the-burner-svg-depiction-in-settings
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Ready to plan
+Phase: 8 (expose-the-burner-svg-depiction-in-settings) — EXECUTING
+Plan: 2 of 4
+Status: Ready to execute
 Last activity: 2026-09-21
 
 Progress: [██████████] 100%
