@@ -198,6 +198,20 @@ class Dbus_handler:
             except:
                 raise DbusNotConnected("server not running")
 
+    def get_setting(self, key):
+        with self.lock:
+            try:
+                return str(self.remote_object.GetSetting(key, dbus_interface ='org.pellmon.int'))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def set_setting(self, key, value):
+        with self.lock:
+            try:
+                return bool(self.remote_object.SetSetting(key, value, dbus_interface ='org.pellmon.int'))
+            except:
+                raise DbusNotConnected("server not running")
+
     def getdb(self):
         with self.lock:
             try:
@@ -238,6 +252,7 @@ class PellMonWeb:
         self.logview = LogViewer(logfile, lookup)
         self.auth = AuthController(credentials, lookup)
         self.consumptionview = Consumption(polling, db, dbus, lookup)
+        self.settings = Settings(lookup, dbus, system_image_dir, credentials)
         self.rand = random.random()
 
     @cherrypy.expose
@@ -681,7 +696,10 @@ class PellMonWeb:
         
     @cherrypy.expose
     def systemimage(self, **args):
-        return serve_file(system_image)
+        # resolved per request; no-cache because rand is fixed per process
+        cherrypy.response.headers['Cache-Control'] = 'no-cache'
+        cherrypy.response.headers['Pragma'] = 'no-cache'
+        return serve_file(effective_image(system_image_dir, dbus.get_setting, system_image))
 
     @cherrypy.expose
     def about(self):
@@ -905,6 +923,8 @@ def run():
         system_image = os.path.join(os.path.join(MEDIA_DIR, 'img'), parser.get ('conf', 'system_image'))
     except:
         system_image = os.path.join(MEDIA_DIR, 'img/system.svg')
+    global system_image_dir
+    system_image_dir = os.path.join(MEDIA_DIR, 'img')
 
     global frontpage_widgets
     frontpage_widgets = []
