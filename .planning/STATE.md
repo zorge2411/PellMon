@@ -76,6 +76,7 @@ Recent decisions affecting current work:
 - Phase 6 added: Enable Home Assistant MQTT device with settings on the web GUI (added 2026-09-20 after v1.0 closed; not yet planned)
 - Phase 7 added: Persist RRD database and other relevant settings outside the Docker container (added 2026-09-21; not yet planned)
 - Phase 8 added: Expose the burner SVG depiction in settings to make the visible representation more user friendly (added 2026-09-21; not yet planned)
+- Phase 9 added: Add Docker Hub image publishing with semver versioning (added 2026-09-22; base reference doc copied in from an external project at docs/versioning-and-publish-reference.md — PowerShell-only, will need porting notes for this repo's Linux/CI environment; not yet planned)
 
 ### Pending Todos
 
