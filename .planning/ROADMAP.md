@@ -211,10 +211,21 @@ Plans:
 
 ### Phase 9: Add Docker Hub image publishing with semver versioning
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** A single repo-root `VERSION` file drives the app's reported version, the git tag and the Docker Hub image tag; pushing a `vX.Y.Z` tag builds and publishes `peterscholer74/pellmon:latest` and `:X.Y.Z` for `linux/amd64` and `linux/arm/v7`, while the existing local `docker compose build` path keeps working unchanged.
+**Requirements**: D-01..D-05 (see 09-CONTEXT.md)
 **Depends on:** Phase 8
-**Plans:** 0 plans
+**Plans:** 4 plans (3 waves)
 
 Plans:
-- [ ] TBD (run /gsd-plan-phase 9 to break down)
+**Wave 1**
+
+- [ ] 09-01-PLAN.md — VERSION single source of truth: `VERSION`=1.1.0, `configure.ac` via `m4_esyscmd_s`, Dockerfile generates `version.py`, drift-guard test (D-02, D-05)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 09-02-PLAN.md — `scripts/bump-version.sh` Conventional-Commits semver bump + full unit coverage (D-02, D-03)
+- [ ] 09-03-PLAN.md — `.github/workflows/publish.yml` tag-triggered multi-arch build/push + static security tests (D-01, D-03, D-04, D-05)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 09-04-PLAN.md — Release docs, Docker Hub repo/PAT/secrets human setup, first v1.1.0 release verification (D-01..D-05)
