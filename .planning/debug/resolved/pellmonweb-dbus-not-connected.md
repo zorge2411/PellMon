@@ -1,9 +1,27 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "webpage does not load after doing Phase 8 checklist step 7 (docker compose stop pellmonsrv, then start pellmonsrv) -- pellmonweb main page returns 500, traceback ends in DbusNotConnected: server not running, despite pellmonsrv container showing healthy in docker ps"
 created: 2026-09-23T12:14:33Z
-updated: 2026-09-23T12:30:00Z
+updated: 2026-09-23T14:52:00Z
 ---
+
+## Human Verification (2026-09-23)
+
+Confirmed fixed on the real Pi after deploying PR #20 (v2.0.4) and doing a full
+`docker compose stop && docker compose up -d`, then repeating the step 7 test
+(`docker compose stop pellmonsrv` / `start pellmonsrv`) with all three services
+(`pellmon-dbus`, `pellmonsrv`, `pellmonweb`) healthy beforehand:
+
+- `docker logs pellmonweb` shows `GET / HTTP/1.1" 200` twice shortly after pellmonsrv
+  came back up -- the main page recovered on its own via pellmonweb's existing
+  watch_name_owner reconnect logic, exactly as the fix intended. No manual pellmonweb
+  restart was needed for THIS specific failure mode.
+- A separate, unrelated crash occurred moments later (a WebSocket upgrade request hit
+  a race against D-Bus not being ready yet, then an unhandled cheroot exception took
+  the whole HTTP server down). That is a distinct bug -- see
+  `.planning/debug/pellmonweb-cheroot-crash-no-restart.md`. It does NOT reopen this
+  session; the D-Bus-daemon-lifecycle root cause this session investigated is fixed
+  and confirmed.
 
 ## Current Focus
 <!-- OVERWRITE on each update - always reflects NOW -->

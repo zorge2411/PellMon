@@ -721,10 +721,32 @@ class WsHandler:
     @cherrypy.expose
     def ws(self, parameters='', events='no'):
         if websockets:
-            db=dbus.getdb()
-            parameters = parameters.split(',')
-            params = [param for param in parameters if param in(db)]
-            sensor = Sensor(params, cherrypy.request.ws_handler, events == 'yes')
+            # ws4py's WebSocketTool.upgrade() hook runs at before_request_body -- BEFORE
+            # this handler -- and already commits the HTTP response to
+            # '101 Switching Protocols' plus streaming. If anything below raises, cherrypy's
+            # normal error-response path collides with that already-committed upgrade while
+            # ws4py's on_end_request hook still unconditionally detaches the raw socket and
+            # hands it to WebSocketManager, corrupting the connection (observed on real
+            # hardware as cheroot's HTTP thread crashing on that same connection ~seconds
+            # later with AttributeError/OSError, taking the whole server down -- see debug
+            # session pellmonweb-cheroot-crash-no-restart). So this handler must never let
+            # a transient failure (e.g. pellmonsrv mid-restart) propagate once the upgrade
+            # has already started.
+            try:
+                db = dbus.getdb()
+                parameters = parameters.split(',')
+                params = [param for param in parameters if param in(db)]
+                sensor = Sensor(params, cherrypy.request.ws_handler, events == 'yes')
+            except DbusNotConnected:
+                logger.info('WebSocket upgrade requested while D-Bus server is not '
+                             'connected; closing the connection instead of registering a '
+                             'sensor')
+                ws_handler = getattr(cherrypy.request, 'ws_handler', None)
+                if ws_handler is not None:
+                    try:
+                        ws_handler.close(reason='server not running')
+                    except Exception:
+                        pass
 
 def parameterReader(q, parameterlist):
     #parameterlist=dbus.getdb()
@@ -1049,10 +1071,16 @@ def run():
         # A main loop is needed for dbus "name watching" to work
         main_loop = GLib.MainLoop()
 
+        # Set when shutdown was requested by us (SIGINT/SIGTERM), as opposed to cherrypy's
+        # engine exiting on its own because of an unhandled crash somewhere else (e.g. an
+        # uncaught exception in cheroot's background HTTP server thread -- see debug session
+        # pellmonweb-cheroot-crash-no-restart). Used below to decide the process exit code.
+        graceful_shutdown = threading.Event()
+
         # cherrypy has it's own mainloop, cherrypy.engine.block, that
         # regularly calls engine.publish every 100ms. The most reliable
         # way to run dbus and cherrypy together seems to be to use the
-        # glib mainloop for both, ie call engine.publish from the glib 
+        # glib mainloop for both, ie call engine.publish from the glib
         # mainloop instead of calling engine.block.
         def publish():
             try:
@@ -1068,11 +1096,28 @@ def run():
         # than subscribing to cherrypy's signal handler
         def signal_handler(signal_num, frame):
             logger.info('Signal %d received, exiting pellmonweb gracefully', signal_num)
+            graceful_shutdown.set()
             cherrypy.engine.exit()
             main_loop.quit()
 
         signal.signal(signal.SIGINT, signal_handler)
         signal.signal(signal.SIGTERM, signal_handler)
+
+        # cherrypy's own HTTP server thread (_start_http_thread in
+        # cherrypy/process/servers.py) catches any unhandled exception, logs it, calls
+        # self.bus.exit() -- which publishes this 'exit' channel -- and then re-raises
+        # inside that background thread. An uncaught exception in a non-main thread does
+        # NOT terminate the process by default, and this GLib main loop has no other way
+        # to learn the HTTP server died: without this listener, main_loop.run() below would
+        # block forever, leaving the container "Up" but permanently unable to serve HTTP,
+        # and docker-compose's `restart: unless-stopped` would never fire because PID 1
+        # never exits (confirmed real-hardware incident, debug session
+        # pellmonweb-cheroot-crash-no-restart). Subscribing here covers every path that
+        # ends the cherrypy engine, planned or not.
+        def on_engine_exit():
+            main_loop.quit()
+
+        cherrypy.engine.subscribe('exit', on_engine_exit)
 
         # Handle cherrypy's main loop needs from here
         GLib.timeout_add(100, publish)
@@ -1082,6 +1127,14 @@ def run():
             main_loop.run()
         except KeyboardInterrupt:
             pass
+
+        if not graceful_shutdown.is_set():
+            # The engine exited on its own (crash in a background thread, e.g. cheroot),
+            # not via our SIGINT/SIGTERM handler. Hard-exit so the container's restart
+            # policy can recover it -- see comment on on_engine_exit() above.
+            logger.error('pellmonweb HTTP engine exited unexpectedly (not via SIGINT/'
+                          'SIGTERM); exiting the process so it can be restarted')
+            os._exit(1)
 
 if __name__ == "__main__":
     run()
