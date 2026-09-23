@@ -173,6 +173,25 @@ class Keyval_storage(object):
         except OSError as e:
             logger.warning('could not set mode 0600 on settings database %s: %s'%(self.dbfile, e))
 
+    def getval(self, item, default=''):
+        """Read a value; absent key or NULL value returns default without logging a traceback"""
+        with self.lock:
+            conn = None
+            try:
+                conn = sqlite3.connect(self.dbfile)
+                cursor = conn.cursor()
+                cursor.execute("SELECT value FROM keyval WHERE id=?", (item,))
+                row = cursor.fetchone()
+                if row is None or row[0] is None:
+                    return default
+                return row[0]
+            except sqlite3.Error as e:
+                logger.warning('could not read setting %s: %s'%(item, e))
+                return default
+            finally:
+                if conn is not None:
+                    conn.close()
+
     def readval(self, item):
         with self.lock:
             try:

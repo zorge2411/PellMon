@@ -51,6 +51,9 @@
 					<li class="">
 						<a href="${webroot}/logview/logView">View log</a>
 					</li>
+					<li class="${'active' if context.get('active_page', '') == 'settings' else ''}">
+						<a href="${webroot}/settings/">Settings</a>
+					</li>
 					<li>
 						% if username == None:
 						<a href=${webroot}/auth/login>Login</a>

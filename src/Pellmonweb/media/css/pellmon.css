@@ -56,3 +56,44 @@ object {
     opacity: 0.35;
     filter: grayscale(100%);
 }
+
+/* settings page: system image gallery */
+.sysimg-tile {
+    display: block;
+    background: #fff;
+    border: 1px solid #ddd;
+    padding: 16px;
+    min-height: 44px;
+    margin-bottom: 20px;
+    cursor: pointer;
+    font-weight: normal;
+}
+.sysimg-tile:hover {
+    border-color: #adadad;
+}
+.sysimg-tile:focus-within {
+    outline: 2px solid #337ab7;
+    outline-offset: 2px;
+}
+.sysimg-tile-selected {
+    border: 2px solid #337ab7;
+    padding: 15px;
+}
+.sysimg-radio {
+    margin-right: 6px;
+}
+.sysimg-thumb {
+    display: block;
+    max-height: 160px;
+    width: 100%;
+    object-fit: contain;
+    margin-bottom: 8px;
+}
+.sysimg-caption {
+    font-size: 12px;
+    line-height: 1.5;
+}
+.sysimg-check {
+    color: #337ab7;
+    margin-left: 6px;
+}

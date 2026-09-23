@@ -17,7 +17,7 @@
     along with this program.  If not, see <http://www.gnu.org/licenses/>.
 """
 
-import signal, os, errno, queue, threading, shutil
+import signal, os, errno, queue, threading, shutil, re
 import dbus, dbus.service
 from dbus.mainloop.glib import DBusGMainLoop
 from gi.repository import GLib, GObject
@@ -43,6 +43,7 @@ import json
 from Pellmonsrv import __file__ as pluginpath
 from .database import Database as _Database
 from .database import init_keyval_storage
+from .database import Keyval_storage
 try:
     from version import __version__
 except ImportError:
@@ -144,6 +145,16 @@ class Database(threading.Thread, _Database):
             p.plugin_object.deactivate()
             logger.info('deactivated %s'%p.name)
 
+_SYSTEM_IMAGE_RE = re.compile(r'system[a-z0-9_]*\.svg')
+
+def _valid_system_image(value):
+    return isinstance(value, str) and _SYSTEM_IMAGE_RE.fullmatch(value) is not None
+
+# GUI-writable settings: key -> validator. Extension point for further settings.
+ALLOWED_SETTINGS = {
+    'web.system_image': _valid_system_image,
+}
+
 class MyDBUSService(dbus.service.Object):
     """Publish an interface over the DBUS system bus"""
     def __init__(self, bus='SESSION'):
@@ -203,6 +214,32 @@ class MyDBUSService(dbus.service.Object):
             if template:
                 return template
         return 'Template not found '+name
+
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='s')
+    def GetSetting(self, key):
+        """Get a whitelisted GUI setting, empty string when unset"""
+        if key not in ALLOWED_SETTINGS:
+            logger.warning('rejected settings read for unknown key %s'%key)
+            return ''
+        if Keyval_storage.keyval_storage is None:
+            return ''
+        return Keyval_storage.keyval_storage.getval(key, '')
+
+    @dbus.service.method('org.pellmon.int', in_signature='ss', out_signature='b')
+    def SetSetting(self, key, value):
+        """Store a whitelisted GUI setting after validating the value"""
+        if key not in ALLOWED_SETTINGS:
+            logger.warning('rejected settings write for unknown key %s'%key)
+            return False
+        if not ALLOWED_SETTINGS[key](value):
+            logger.warning('rejected value %r for setting %s'%(value, key))
+            return False
+        try:
+            Keyval_storage.keyval_storage.writeval(key, str(value))
+        except Exception:
+            logger.exception('could not store setting %s'%key)
+            return False
+        return True
 
     #@dbus.service.signal(dbus_interface='org.pellmon.int', signature='aa{sv}')
     @dbus.service.signal(dbus_interface='org.pellmon.int', signature='s')

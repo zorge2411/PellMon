@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: ready_to_plan
-stopped_at: Phase 7 complete (5/5) — ready to discuss Phase 08
-last_updated: 2026-09-21T13:11:58.342Z
-last_activity: 2026-09-21 -- Phase 07 planning complete
+status: executing
+stopped_at: "Phase 9 Wave 3 (09-03) paused at human-verify checkpoint: live Docker Hub publish run"
+last_updated: "2026-09-23T07:40:54.184Z"
+last_activity: 2026-09-23 -- Phase 09 execution started
 progress:
-  total_phases: 8
-  completed_phases: 5
-  total_plans: 26
-  completed_plans: 26
-  percent: 63
+  total_phases: 9
+  completed_phases: 8
+  total_plans: 33
+  completed_plans: 33
+  percent: 89
 ---
 
 # Project State
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 08 — expose the burner svg depiction in settings to make the visi
+**Current focus:** Phase 09 — add-docker-hub-image-publishing-with-semver-versioning
 
 ## Current Position
 
-Phase: 08
-Plan: Not started
-Status: Ready to plan
-Last activity: 2026-09-21
+Phase: 09 (add-docker-hub-image-publishing-with-semver-versioning) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 09
+Last activity: 2026-09-23 -- Phase 09 execution started
 
-Progress: [██████████] 100%
+Progress: [██████████] 97%
 
 ## Performance Metrics
 
@@ -76,6 +76,7 @@ Recent decisions affecting current work:
 - Phase 6 added: Enable Home Assistant MQTT device with settings on the web GUI (added 2026-09-20 after v1.0 closed; not yet planned)
 - Phase 7 added: Persist RRD database and other relevant settings outside the Docker container (added 2026-09-21; not yet planned)
 - Phase 8 added: Expose the burner SVG depiction in settings to make the visible representation more user friendly (added 2026-09-21; not yet planned)
+- Phase 9 added: Add Docker Hub image publishing with semver versioning, based on `versioning-and-publish-reference.md` (Kombikode tool project) (added 2026-09-23; not yet planned)
 
 ### Pending Todos
 
@@ -113,6 +114,6 @@ Known open Scotte bugs (not yet fixed): `setDaemon` at `Scotteprotocol/protocol.
 
 ## Session Continuity
 
-Last session: 2026-09-18
-Stopped at: Phase 5 verified & Milestone v1.0 complete
-Resume file: None (Milestone complete)
+Last session: 2026-09-23T07:40:54.174Z
+Stopped at: Phase 9 Wave 3 (09-03) paused at human-verify checkpoint: live Docker Hub publish run
+Resume file: RELEASING.md
