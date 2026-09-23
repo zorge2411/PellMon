@@ -142,6 +142,14 @@ The `docker-compose.yml` environment:
 - Data and logs are persisted to named Docker volumes (`pellmon-data`, `pellmon-logs`).
 - Hardware access (serial converters `/dev/ttyUSB*`) is passed through with container privileges.
 
+### Released images
+
+Tagged releases are published automatically to Docker Hub as
+`peterscholer74/pellmon:latest` and `peterscholer74/pellmon:{version}` for
+`linux/amd64` and `linux/arm64`. `VERSION` at the repo root is the source of truth
+for that tag. See [`RELEASING.md`](RELEASING.md) for the release process and its
+one-time setup.
+
 ### Run from source (Linux):
 ```bash
 # This prepares the project to run directly from the working directory
