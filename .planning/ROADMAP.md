@@ -218,3 +218,14 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [ ] 08-04-PLAN.md - Backup round-trip proof, config comment and DEPLOY-PI docs, full-suite gate, live human verification (D-04, D-05)
+
+### Phase 9: Add Docker Hub image publishing with semver versioning
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 8
+**Plans:** 0 plans
+
+Plans:
+
+- [ ] TBD (run /gsd-plan-phase 9 to break down)
