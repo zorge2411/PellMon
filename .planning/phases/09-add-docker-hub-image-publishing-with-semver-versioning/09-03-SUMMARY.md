@@ -22,8 +22,8 @@ decisions:
   - "VERSION seeded at 1.0.0 per D-09; configure.ac's 0.7.0 explicitly stated as unsynced legacy (D-08)"
   - "Both disclosed deviations from the reference algorithm (CI commits/tags VERSION; atomic multi-tag buildx push vs. independent per-tag docker push) written into RELEASING.md verbatim per the plan's required wording"
 metrics:
-  duration: "~35 min (Tasks 1-2 only; Task 3 is a human checkpoint, not yet run)"
-  completed: "2026-09-23 (Tasks 1-2); Task 3 pending human action"
+  duration: "~35 min (Tasks 1-2) + human checkpoint resolved same day"
+  completed: "2026-09-23 (all 3 tasks complete)"
 ---
 
 # Phase 9 Plan 3: Document the release pipeline and cross-reference it Summary
@@ -91,18 +91,47 @@ Commit: `e097bab` — `docs(09-03): add RELEASING.md and its config-assertion te
 
 Commit: `79f5a8e` — `docs(09-03): cross-reference RELEASING.md and the published image`
 
-### Task 3: NOT EXECUTED — human checkpoint pending
+### Task 3: EXECUTED by the human operator — checkpoint resolved
 
-This is a `checkpoint:human-verify` task (`gate="blocking"`) requiring:
-- Completion of RELEASING.md's One-time setup checklist with real Docker Hub/GitHub credentials
-  (creating the `peterscholer74/pellmon` repo, adding the two secrets, toggling workflow
-  permissions, checking branch protection) — none of which are reachable from this sandboxed
-  worktree.
-- A real push to `master` with a `docs:`-only commit (no-op verification) and a real `fix:` push
-  (release verification), observed in the GitHub Actions UI and on Docker Hub.
+The operator completed RELEASING.md's One-time setup checklist (Docker Hub repository
+`peterscholer74/pellmon` created, `DOCKERHUB_USERNAME`/`DOCKERHUB_TOKEN` secrets added via
+`gh secret set`, workflow permissions set to "Read and write" via `gh api
+repos/.../actions/permissions/workflow`, branch protection confirmed absent via `gh api
+repos/.../branches/master/protection` returning 404).
 
-None of this was performed, simulated, or approved. See "CHECKPOINT REACHED" in the final
-response for the verbatim what-built/how-to-verify/resume-signal content the human must act on.
+**Discovery during verification (process gap, not a pipeline bug):** the operator's first
+verification push landed on local `master`, which at that point still lacked the `publish` job
+entirely — all of Plan 09-01/09-02/09-03's work had been executed on git branch
+`feat/phase-8-burner-svg` and never merged to `master`. Opened
+[PR #16](https://github.com/zorge2411/PellMon/pull/16) (`feat/phase-8-burner-svg` -> `master`),
+CI passed (`test` job green, `publish` job correctly shown as `skipping` — its
+`if: github.event_name == 'push' && github.ref == 'refs/heads/master'` guard is exactly right
+for a `pull_request` event), operator merged it.
+
+The merge commit (`caea242`, a push to `master`) triggered the real `publish` job:
+- `Decide version bump` -> `bump=major`, `version=2.0.0`. Investigated: triggered by commit
+  `e4526fa` (`test(09-01): add failing pytest suite for version_bump bump algorithm`), whose
+  message body contains the literal substring `"BREAKING CHANGE > feat > fix > none"` — the
+  Wave 1 executor describing the algorithm's own priority order in prose. The unanchored
+  substring match (ported verbatim from the reference algorithm, and explicitly documented in
+  RELEASING.md and 09-CONTEXT.md as a known false-positive shape, e.g. `"see BREAKING CHANGE
+  below"`) correctly matched it per spec. Not a bug; an unlucky first real trigger.
+- `Commit and tag version bump` -> committed `VERSION=2.0.0`, pushed `chore: bump version to
+  2.0.0 [skip ci]` and annotated tag `v2.0.0` to `master`. Verified via `gh run list` that this
+  commit did NOT trigger a second workflow run (`[skip ci]` guard confirmed working).
+- QEMU/buildx/login/build-push -> `peterscholer74/pellmon:latest` and `:2.0.0` pushed. Verified
+  via `docker buildx imagetools inspect` on both tags: both list `Platform: linux/amd64` and
+  `Platform: linux/arm64` manifests.
+
+Also discovered: the repo already had a pre-existing lightweight tag `v1.0.0` (from an unrelated
+September 21 merge, predating this phase's research, which had incorrectly assumed zero tags
+existed). `git describe --tags --abbrev=0` correctly found it as the base for the commit-range
+scan — the "first-run bootstrap" concern RESEARCH.md flagged did not actually apply; the
+existing-tag code path was exercised instead, and worked correctly.
+
+**Resume signal received:** operator confirmed the live run via Docker Hub/GitHub verification
+(not a bare "approved" — verified directly with `gh` and `docker buildx imagetools inspect`
+against the actual published artifacts).
 
 ## Verification
 
@@ -120,10 +149,13 @@ in this sandboxed worktree run.
 
 ## Deviations from Plan
 
-None — Tasks 1 and 2 executed exactly as written. Task 3 is intentionally not executed per the
-plan's own `autonomous: false` design and this executor's explicit instructions: it requires
-live external credentials and a real GitHub Actions run that cannot be performed from a
-sandboxed worktree.
+None in Tasks 1-2. Task 3 surfaced one out-of-plan process gap (the executed branch was never
+merged to `master`, so the first verification attempt correctly showed no `publish` job) —
+resolved by opening and merging PR #16 rather than force-pushing directly to `master`, keeping
+a reviewable record. Not a deviation in the plan's own deliverables, but worth flagging per
+`/gsd:plan-phase --gaps` guidance for future phases: a phase's branching strategy should confirm
+before Wave 3 whether the working branch is expected to reach `master` before or as part of the
+human-verify checkpoint.
 
 ## Self-Check
 
