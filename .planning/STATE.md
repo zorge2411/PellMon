@@ -4,8 +4,8 @@ milestone: v1.0
 milestone_name: milestone
 status: executing
 stopped_at: Phase 9 planned (3 plans, plan-check passed)
-last_updated: "2026-09-23T07:07:59.140Z"
-last_activity: 2026-09-21
+last_updated: "2026-09-23T07:26:14.654Z"
+last_activity: 2026-09-23 -- Phase 09 execution started
 progress:
   total_phases: 9
   completed_phases: 7
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 8 — expose-the-burner-svg-depiction-in-settings
+**Current focus:** Phase 09 — add-docker-hub-image-publishing-with-semver-versioning
 
 ## Current Position
 
-Phase: 8 (expose-the-burner-svg-depiction-in-settings) — EXECUTING
-Plan: 4 of 4
-Status: Ready to execute
-Last activity: 2026-09-21
+Phase: 09 (add-docker-hub-image-publishing-with-semver-versioning) — EXECUTING
+Plan: 1 of 3
+Status: Executing Phase 09
+Last activity: 2026-09-23 -- Phase 09 execution started
 
 Progress: [██████████] 97%
 
