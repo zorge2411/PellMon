@@ -1,7 +1,7 @@
 ---
 phase: 08-expose-the-burner-svg-depiction-in-settings-to-make-the-visi
 plan: 04
-status: awaiting-human-verification
+status: verifying-in-progress
 requirements: [D-04, D-05]
 key-files:
   modified:
@@ -29,6 +29,32 @@ Status: tasks 1-3 complete; Task 4 (live Docker verification) is awaiting human 
 
 None.
 
-## Awaiting: Task 4 (blocking human-verify)
+## Task 4 (live Docker verification) — in progress
 
-Steps 1-9 in 08-04-PLAN.md must be run on a live Docker stack. Record any deviation verbatim, with its step number, here once the operator responds.
+Steps 1-4 approved on the real Pi deployment (2026-09-23).
+
+**Step 5 failed on first attempt, then failed again after an apparent fix, then passed on the
+real fix** — two real bugs were found and shipped as separate hotfix releases during this
+verification, outside this plan's original scope but directly blocking it from passing:
+
+1. **`v2.0.1`** (unrelated, found earlier in Phase 9 verification): published Docker image was
+   missing the `linux/arm/v7` platform, so the operator's Pi (32-bit ARM) couldn't even pull the
+   image this plan needed to test against.
+2. **`v2.0.2`** (`fix/systemimage-stale-rand`, PR #18): the main page's system-image `<object>`
+   embed used a `rand` cache-buster fixed once per web-process lifetime instead of per request,
+   so a browser never re-fetched it after a Settings save. Real fix, but not sufficient on its
+   own -- operator still saw the old image after this shipped.
+3. **`v2.0.3`** (`fix/systemimage-unbound-get-setting`, PR #19): the actual root cause.
+   `pellmonweb.py`'s `systemimage()` handler passed `dbus.get_setting` to `effective_image()`
+   **unbound** (missing the required `key` argument); `effective_image()`'s own bare
+   `except Exception: return config_path` silently swallowed the resulting `TypeError` on every
+   single request and always served the config-file default image. The Settings-saved choice
+   was never read at all -- this was present since Plan 08-03 shipped the feature, not a
+   regression from `v2.0.2`. Confirmed against the real `effective_image()` function that the
+   old call site always returns the default regardless of the stored setting.
+
+Operator confirmed on `v2.0.3`: **"finally fixed! image changes now tried them all!"** -- all
+six gallery images switch and persist visibly on the main page. Step 5 now passes for real.
+
+Steps 6-8 (persistence across `docker compose down -v`, daemon-down graceful message, auth gate
+on `/settings/`) and optional step 9 (no-JS) not yet confirmed -- see next checkpoint turn.
