@@ -146,7 +146,7 @@ The `docker-compose.yml` environment:
 
 Tagged releases are published automatically to Docker Hub as
 `peterscholer74/pellmon:latest` and `peterscholer74/pellmon:{version}` for
-`linux/amd64` and `linux/arm64`. `VERSION` at the repo root is the source of truth
+`linux/amd64`, `linux/arm64`, and `linux/arm/v7`. `VERSION` at the repo root is the source of truth
 for that tag. See [`RELEASING.md`](RELEASING.md) for the release process and its
 one-time setup.
 

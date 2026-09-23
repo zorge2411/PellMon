@@ -54,8 +54,10 @@ passes, the `publish` job runs next:
 3. `docker/setup-qemu-action` and `docker/setup-buildx-action` prepare a multi-arch
    builder, `docker/login-action` authenticates to Docker Hub using the two secrets
    above, and `docker/build-push-action` builds and pushes
-   `peterscholer74/pellmon:latest` and `peterscholer74/pellmon:X.Y.Z` for both
-   `linux/amd64` and `linux/arm64`.
+   `peterscholer74/pellmon:latest` and `peterscholer74/pellmon:X.Y.Z` for
+   `linux/amd64`, `linux/arm64` (64-bit Pi OS), and `linux/arm/v7` (32-bit Pi OS —
+   added after `2.0.0` shipped without it and failed `docker compose pull` on a
+   32-bit Raspberry Pi with "no matching manifest for linux/arm/v7").
 
 `VERSION` at the repo root is the sole source of truth for the published image tag.
 `configure.ac`'s `AC_INIT([PellMon], [0.7.0])` is legacy Autotools versioning that is
