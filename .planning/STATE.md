@@ -3,8 +3,8 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 9 Wave 3 (09-03) paused at human-verify checkpoint: live Docker Hub publish run"
-last_updated: "2026-09-23T07:40:54.184Z"
+stopped_at: "Phase 9 complete — verified live: v2.0.0 published to peterscholer74/pellmon (multi-arch amd64+arm64), PR #16 merged"
+last_updated: "2026-09-23T08:12:41.836Z"
 last_activity: 2026-09-23 -- Phase 09 execution started
 progress:
   total_phases: 9
@@ -21,16 +21,16 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 09 — add-docker-hub-image-publishing-with-semver-versioning
+**Current focus:** Phase 09 complete — Docker Hub publishing live (v2.0.0)
 
 ## Current Position
 
-Phase: 09 (add-docker-hub-image-publishing-with-semver-versioning) — EXECUTING
-Plan: 1 of 3
-Status: Executing Phase 09
-Last activity: 2026-09-23 -- Phase 09 execution started
+Phase: 09 (add-docker-hub-image-publishing-with-semver-versioning) — COMPLETE
+Plan: 3 of 3
+Status: Phase 09 complete, verified live (v2.0.0 published, multi-arch, PR #16 merged)
+Last activity: 2026-09-23 -- Phase 09 execution and live verification complete
 
-Progress: [██████████] 97%
+Progress: [██████████] 100%
 
 ## Performance Metrics
 
@@ -114,6 +114,6 @@ Known open Scotte bugs (not yet fixed): `setDaemon` at `Scotteprotocol/protocol.
 
 ## Session Continuity
 
-Last session: 2026-09-23T07:40:54.174Z
-Stopped at: Phase 9 Wave 3 (09-03) paused at human-verify checkpoint: live Docker Hub publish run
-Resume file: RELEASING.md
+Last session: 2026-09-23T08:12:41.826Z
+Stopped at: Phase 9 complete — verified live: v2.0.0 published to peterscholer74/pellmon (multi-arch amd64+arm64), PR #16 merged
+Resume file: 
