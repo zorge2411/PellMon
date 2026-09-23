@@ -1,5 +1,5 @@
 ---
-status: investigating
+status: awaiting_human_verify
 trigger: "During the same real-Pi Phase 8 checklist step 7 retest that confirmed the D-Bus reconnect fix (v2.0.4) working, a WebSocket upgrade request raced against pellmonsrv still being restarted, got a DbusNotConnected 500 from Dbus_handler.getdb(), and moments later cheroot (the CherryPy HTTP server) hit an unhandled AttributeError/OSError and the whole HTTP server thread died ('ENGINE Bus EXITED'). Unlike a normal crash, the pellmonweb container did NOT restart itself afterward -- docker-compose.yml sets `restart: unless-stopped` on pellmonweb, but no automatic recovery happened. Operator had to run `docker compose stop` (all 4 containers) then `docker compose up -d` to bring the stack back to healthy."
 created: 2026-09-23T15:05:00Z
 updated: 2026-09-23T15:05:00Z
@@ -8,11 +8,72 @@ updated: 2026-09-23T15:05:00Z
 ## Current Focus
 <!-- OVERWRITE on each update - always reflects NOW -->
 
-hypothesis: The CherryPy/cheroot engine caught the fatal socket exception internally (logged "Bus STOPPING" / "Bus STOPPED" / "Bus EXITED" -- CherryPy's own graceful-shutdown sequence) but the container's PID 1 Python process did not actually terminate/exit afterward. If PID 1 never exits, `restart: unless-stopped` has nothing to react to -- Docker only restarts a container when its main process exits (any exit code), not based on the container being internally broken-but-still-running. This would explain both this incident AND the very first symptom observed at the start of this whole investigation (docker ps showing pellmonweb "Up 5 minutes (unhealthy)" without ever restarting on its own, before any of today's fixes).
-test: Read cherrypy's engine.stop()/engine.exit() behavior in this codebase (search pellmonweb.py for any custom exception handling around the HTTP server or `cherrypy.engine`), and check whether pellmonweb.py or the Dockerfile/entrypoint has any wrapper that would keep the process alive after cherrypy's bus exits (e.g. a bare `main_loop.run()` GLib loop that doesn't itself exit when cherrypy's HTTP thread dies, matching the visible traceback's "Exception in thread HTTPServer Thread-3" -- the exception happened in a background thread, and an uncaught exception in a non-main Python thread does NOT terminate the process by default).
-expecting: If pellmonweb's actual process-level entry point runs cherrypy's HTTP server in a background thread (as the traceback's "Thread-3 (_start_http_thread)" and "CP Server Thread-9" names suggest) while a separate main thread runs something else (a GLib main_loop per pellmonweb.py's D-Bus watcher, matching the architecture pattern already seen in pellmonsrv's own MyDaemon), then a fatal exception in the HTTP thread would only kill that thread, leaving the main process (and therefore the container) alive but permanently unable to serve HTTP -- confirming the hypothesis and pointing to a fix: either make the process exit hard on this class of engine failure (`os._exit()`/`sys.exit()` from an exception hook attached to the HTTP thread), or fix the underlying cheroot exception so the crash never happens, or both.
-next_action: Read src/Pellmonweb/pellmonweb.py's run()/main entry point in full to find what runs in the main thread vs. the HTTP server thread, and how (if at all) a fatal HTTP-thread exception is supposed to propagate to process exit. Also grep for any existing SIGTERM/signal-based graceful-shutdown code from the OPS-02 phase 5 work (graceful lifecycle handling) that might interact with this.
-reasoning_checkpoint: null
+hypothesis: CONFIRMED (two-part root cause, see Resolution).
+test: n/a -- confirmed via direct source reading of cherrypy/process/servers.py,
+  ws4py/server/cherrypyserver.py, ws4py/compat.py (vendored in venv-py3/wsl site-packages).
+expecting: n/a
+next_action: Fix implemented, tested (432 passed/3 skipped on real Linux+dbus+gi via WSL;
+  381 passed/50 skipped/3 known-pre-existing-failed on required Windows venv-py3 run), and
+  PR opened. Awaiting human verification on real Pi hardware at next deploy (cannot be
+  live-retested this session -- see reasoning_checkpoint.blind_spots).
+reasoning_checkpoint:
+  hypothesis: "(1) WsHandler.ws() in pellmonweb.py calls dbus.getdb() with no try/except.
+    ws4py's WebSocketTool.upgrade() hook (before_request_body) already commits the HTTP
+    response to '101 Switching Protocols' + streaming BEFORE ws() runs. When getdb() raises
+    DbusNotConnected (pellmonsrv mid-restart), the exception propagates out of the page
+    handler after the protocol switch already started; cherrypy's normal error/finalize path
+    then collides with the already-committed 101 response while ws4py's on_end_request hook
+    (start_handler) still detaches the raw socket (BufferedReader.detach(), which sets
+    fileobj.raw = None) and hands it to WebSocketManager regardless of the handler's outcome.
+    This corrupts/double-owns the same socket between cheroot's connection object and
+    WebSocketManager, producing the observed AttributeError('NoneType' has no attribute
+    'read') then OSError(Bad file descriptor) ~5s later on the same connection. (2)
+    cherrypy/process/servers.py _start_http_thread catches any Exception from
+    httpserver.start(), calls self.bus.exit() (publishes the 'exit' bus channel, engine goes
+    STOPPING/STOPPED/EXITING/EXITED), then re-raises -- inside a background
+    threading.Thread, so nothing terminates the process. pellmonweb.py's run() runs
+    GLib main_loop.run() on the main thread; the only tie between it and cherrypy's bus is a
+    100ms publish() timeout that calls cherrypy.engine.publish('main') -- it never checks
+    engine state or quits the loop. So the main thread blocks in main_loop.run() forever
+    after the HTTP thread dies, the container stays 'Up' but unresponsive, and
+    `restart: unless-stopped` never fires because PID 1 never exits."
+  confirming_evidence:
+    - "cherrypy/process/servers.py:214-237 _start_http_thread: except Exception: ...
+      self.bus.log('Error in HTTP server: shutting down', ...); self.bus.exit(); raise --
+      matches evidence's 'ENGINE Error in HTTP server: shutting down' + 'Exception in
+      thread HTTPServer Thread-3' exactly."
+    - "ws4py/server/cherrypyserver.py WebSocketTool._setup(): upgrade() attached at
+      before_request_body (runs BEFORE the page handler), complete()/start_handler()
+      attached at before_finalize/on_end_request (run AFTER, unconditionally once
+      request.ws_handler exists) -- confirms the upgrade commits to 101 before WsHandler.ws()
+      executes, and detach/handoff happens regardless of whether ws() raised."
+    - "ws4py/compat.py: detach_connection(fileobj) calls fileobj.detach() (Python io
+      BufferedReader.detach()), which is documented to sever/null the raw stream -- matches
+      the observed 'NoneType has no attribute read' AttributeError on a later read of the
+      same connection."
+    - "pellmonweb.py WsHandler.ws() (line ~722): db=dbus.getdb() called with zero
+      try/except, unlike every other dbus call site in PellMonWeb (getparam, parameters,
+      index all catch DbusNotConnected)."
+    - "pellmonweb.py run() (line ~1057): publish() callback only calls
+      cherrypy.engine.publish('main'); no listener anywhere subscribes to cherrypy's 'exit'
+      bus channel or checks cherrypy.engine.state to quit main_loop or exit the process."
+  falsification_test: "If WsHandler.ws() already wrapped dbus.getdb() in try/except
+    DbusNotConnected (it does not -- confirmed by direct read), or if pellmonweb.py already
+    subscribed to the cherrypy 'exit' channel / exited the process after main_loop.run()
+    returns (it does not -- confirmed by direct read, only KeyboardInterrupt is caught),
+    this hypothesis would be false."
+  fix_rationale: "Fix targets both the proximate trigger (ws() raising mid-upgrade, which
+    corrupts the socket) and the structural gap (no path from 'HTTP thread died' to 'process
+    exits'), per the investigation's own constraint that a structural fix making ANY future
+    uncaught background-thread exception result in process exit is an acceptable and
+    necessary bar, not just papering over this one trigger."
+  blind_spots: "Cannot live-retest on the real Pi (no hardware access this session).
+    Cannot fully prove the exact interleaving that produces the specific AttributeError vs.
+    some other symptom of the same corrupted-detach condition -- treating 'ws() must never
+    raise after the websocket upgrade already began' as the defensible root-cause-level
+    fix regardless of the exact subsequent cheroot stack trace. Also not verifying whether
+    ws4py's WebSocketManager itself would have gracefully reaped this half-broken connection
+    given more time; the structural process-exit fix is the safety net regardless."
 tdd_checkpoint: null
 
 ## Symptoms
@@ -92,7 +153,70 @@ started: Today (2026-09-23), same live Phase 8 Task 4 / D-Bus-reconnect verifica
 ## Resolution
 <!-- OVERWRITE as understanding evolves -->
 
-root_cause: []
-fix: []
-verification: []
-files_changed: []
+root_cause: |
+  Two-part, confirmed by direct source reading of the vendored cherrypy/ws4py stack (not
+  just inference):
+  1) Proximate trigger: WsHandler.ws() (src/Pellmonweb/pellmonweb.py) called
+     dbus.getdb() with no try/except. ws4py's WebSocketTool.upgrade() hook runs at
+     before_request_body -- BEFORE this page handler -- and already commits the HTTP
+     response to '101 Switching Protocols' + streaming. When getdb() raised
+     DbusNotConnected (pellmonsrv mid-restart, a legitimate transient state), the exception
+     propagated out of the handler after the protocol switch had already begun. cherrypy's
+     normal error-response path then collided with the already-committed 101 response,
+     while ws4py's on_end_request hook (start_handler) still unconditionally detached the
+     raw socket (BufferedReader.detach(), which nulls fileobj.raw) and handed it to
+     WebSocketManager regardless of the handler's outcome -- corrupting/double-owning the
+     connection.
+  2) Structural gap: cherrypy/process/servers.py _start_http_thread catches any Exception
+     from httpserver.start(), logs 'Error in HTTP server: shutting down', calls
+     self.bus.exit() (publishes the engine's 'exit' channel), then re-raises -- inside a
+     background threading.Thread, so nothing terminates the process. pellmonweb.py's run()
+     blocks the main thread in a GLib main_loop.run() that was only tied to cherrypy via a
+     100ms publish() timeout (cherrypy.engine.publish('main')), which never checked engine
+     state. So when the HTTP thread died, the process stayed alive but permanently unable to
+     serve HTTP, and docker-compose's `restart: unless-stopped` never fired because PID 1
+     never exited -- this is what made the incident unrecoverable without a manual
+     stop/up of the whole stack.
+fix: |
+  1) src/Pellmonweb/pellmonweb.py WsHandler.ws(): wrap dbus.getdb()/Sensor creation in
+     try/except DbusNotConnected; on failure, log and gracefully close the
+     already-upgraded ws_handler instead of letting the exception propagate mid-handshake.
+  2) src/Pellmonweb/pellmonweb.py run(): subscribe a listener to cherrypy.engine's 'exit'
+     bus channel that always calls main_loop.quit() -- covering any path that ends the
+     engine, planned (our own SIGINT/SIGTERM handler) or not (a background-thread crash).
+     Track whether shutdown was self-initiated via a graceful_shutdown threading.Event; if
+     main_loop.run() returns without that event set, hard-exit the process
+     (os._exit(1)) so `restart: unless-stopped` can recover the container. This is a
+     structural fix: it makes ANY future uncaught background-thread exception in the
+     cherrypy engine result in process exit, not just this specific websocket trigger.
+verification: |
+  - Full test suite run in a real Linux environment with genuine dbus/gi available (WSL
+    Debian, system python3-dbus/python3-gi layered onto venv-wsl's site-packages via
+    PYTHONPATH, since Pellmonweb.pellmonweb cannot import without them):
+    432 passed, 3 skipped, 0 failed (up from 428 passed/3 skipped pre-fix; the 4 new tests
+    in tests/Pellmonweb/test_websocket_dbus_down.py and
+    tests/Pellmonweb/test_engine_exit_process_restart.py all pass).
+  - Required Windows run (PYTHONPATH=src venv-py3/Scripts/python.exe -m pytest tests/ -v):
+    381 passed, 50 skipped, 3 failed -- the exact same pre-existing 3 failures
+    (test_backup_script.py::test_conf_d_overrides_pellmon_conf,
+    test_plugin_loader.py::test_every_available_plugin_loads[consumption/silolevel]),
+    confirmed unrelated Windows-platform gaps (they pass under the real Linux run above).
+    No new failures.
+  - test_websocket_dbus_down.py::test_ws_does_not_raise_when_dbus_down directly reproduces
+    the proximate trigger (WsHandler.ws() with a DbusNotConnected-raising dbus handler after
+    the ws4py upgrade already began) and proves it no longer raises and gracefully closes
+    the connection instead.
+  - test_engine_exit_process_restart.py proves cherrypy's own bus.exit() (the exact call
+    _start_http_thread makes on any unhandled exception) reliably reaches a subscriber on
+    the 'exit' channel, and that the graceful_shutdown flag correctly distinguishes a
+    self-initiated signal-based shutdown from an engine exit triggered elsewhere (a crash) --
+    the two conditions run()'s exit-code decision depends on.
+  - NOT verified: live retest on the real Pi (no hardware access this session, per
+    investigation constraints). This is a defensible code-level fix backed by direct
+    reading of the exact vendored library code paths involved (cherrypy 18.10.0,
+    ws4py 0.6.0) plus targeted regression tests, not a live-Pi confirmation. Flagged for
+    human verification at next real-hardware deploy.
+files_changed:
+  - src/Pellmonweb/pellmonweb.py
+  - tests/Pellmonweb/test_websocket_dbus_down.py
+  - tests/Pellmonweb/test_engine_exit_process_restart.py
