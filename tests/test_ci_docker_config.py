@@ -331,6 +331,23 @@ def test_deploy_guide_documents_persistent_data():
     assert "lives in the `pellmon-data` volume" not in text
 
 
+def test_releasing_doc_documents_manual_setup():
+    """D-01/D-04/D-05/D-07/D-09: RELEASING.md names every blocking manual prerequisite."""
+    text = (REPO_ROOT / "RELEASING.md").read_text(encoding="utf-8")
+    for needle in (
+        "DOCKERHUB_USERNAME",
+        "DOCKERHUB_TOKEN",
+        "peterscholer74/pellmon",
+        "Read and write permissions",
+        "[skip ci]",
+        "BREAKING CHANGE",
+        "tools/version_bump.py",
+        "DEPLOY-PI.md",
+        "branch protection",
+    ):
+        assert needle in text, "RELEASING.md must document %r" % needle
+
+
 def test_conf_example_does_not_conflict_with_conf_d():
     """The RRD path is owned by conf.d/database.conf; the example must not set another."""
     text = (REPO_ROOT / "config" / "pellmon.conf.example").read_text(encoding="utf-8")
