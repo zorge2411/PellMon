@@ -116,6 +116,7 @@ useful for testing the tool itself.
 | `insufficient_scope` on the Docker push step | The Docker Hub repository `peterscholer74/pellmon` does not exist yet, or the token is read-only — see setup steps 1 and 2 |
 | Two back-to-back workflow runs for one release | The `[skip ci]` marker on the bump commit is not being honoured — confirm the bump commit message contains `[skip ci]` exactly |
 | `ValueError` about `VERSION` | `VERSION` must contain exactly three dot-separated integers after stripping whitespace, with no `v` prefix — check its exact contents |
+| `no matching manifest for linux/arm/... in the manifest list entries` on `docker compose pull`/`docker pull` | The published image is missing that platform. Fixed in `2.0.1` (linux/arm/v7 added, confirmed working on a 32-bit Raspberry Pi) — if it recurs, check the `platforms:` line in the `publish` job's `Build and push` step |
 
 ## Deploying a published image
 
