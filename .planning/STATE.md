@@ -3,14 +3,14 @@ gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
 status: executing
-stopped_at: "Phase 9 complete — verified live: v2.0.0 published to peterscholer74/pellmon (multi-arch amd64+arm64), PR #16 merged"
-last_updated: "2026-09-23T08:12:41.836Z"
-last_activity: 2026-09-23 -- Phase 09 execution started
+stopped_at: "Phase 8 complete — all 9 live-verify steps approved on real Pi hardware; surfaced/fixed 2 real bugs (stale cache-buster v2.0.2, unbound get_setting v2.0.3)"
+last_updated: "2026-09-23T11:55:00.000Z"
+last_activity: 2026-09-23 -- Phase 8 Task 4 live verification completed, Phase 9 hotfixes v2.0.1-v2.0.3
 progress:
   total_phases: 9
   completed_phases: 8
-  total_plans: 33
-  completed_plans: 33
+  total_plans: 34
+  completed_plans: 34
   percent: 89
 ---
 
@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 09 complete — Docker Hub publishing live (v2.0.0)
+**Current focus:** Phases 8 and 9 complete. Phase 6 (Home Assistant MQTT) is the only unplanned phase remaining in the milestone.
 
 ## Current Position
 
-Phase: 09 (add-docker-hub-image-publishing-with-semver-versioning) — COMPLETE
-Plan: 3 of 3
-Status: Phase 09 complete, verified live (v2.0.0 published, multi-arch, PR #16 merged)
-Last activity: 2026-09-23 -- Phase 09 execution and live verification complete
+Phase: 08 (expose-the-burner-svg-depiction-in-settings) — COMPLETE
+Plan: 4 of 4
+Status: Phase 08 complete, all live-verify steps approved on real Pi hardware
+Last activity: 2026-09-23 -- Phase 8 Task 4 live verification completed
 
 Progress: [██████████] 100%
 

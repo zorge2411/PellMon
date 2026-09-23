@@ -1,7 +1,7 @@
 ---
 phase: 08-expose-the-burner-svg-depiction-in-settings-to-make-the-visi
 plan: 04
-status: verifying-in-progress
+status: complete
 requirements: [D-04, D-05]
 key-files:
   modified:
@@ -12,7 +12,7 @@ key-files:
 
 # Phase 8 Plan 04: Backup proof, docs, phase gate Summary
 
-Status: tasks 1-3 complete; Task 4 (live Docker verification) is awaiting human verification and has not been run.
+Status: all 4 tasks complete. Task 4's live Docker verification passed on real hardware, including two real bugs found and fixed along the way (see below).
 
 ## Completed tasks
 
@@ -29,7 +29,7 @@ Status: tasks 1-3 complete; Task 4 (live Docker verification) is awaiting human 
 
 None.
 
-## Task 4 (live Docker verification) — in progress
+## Task 4 (live Docker verification) — complete, all steps approved
 
 Steps 1-4 approved on the real Pi deployment (2026-09-23).
 
@@ -56,5 +56,10 @@ verification, outside this plan's original scope but directly blocking it from p
 Operator confirmed on `v2.0.3`: **"finally fixed! image changes now tried them all!"** -- all
 six gallery images switch and persist visibly on the main page. Step 5 now passes for real.
 
-Steps 6-8 (persistence across `docker compose down -v`, daemon-down graceful message, auth gate
-on `/settings/`) and optional step 9 (no-JS) not yet confirmed -- see next checkpoint turn.
+Steps 6-8 approved by the operator (2026-09-23): persistence across `docker compose down -v`,
+the daemon-down graceful message on save with `pellmonsrv` stopped, and the `/settings/` auth
+redirect when logged out. Step 9 (no-JS) not separately confirmed but not required for sign-off
+per the plan's acceptance criteria ("step 9 optional").
+
+**All 9 how-to-verify steps (1-8 required, 9 optional-and-skipped) are approved.** Phase 8's
+Task 4 blocking checkpoint is resolved.

@@ -203,7 +203,7 @@ Plans:
 **Goal:** The user picks which burner diagram the main page shows from a Settings page in the web GUI - no config-file edit, no daemon restart - and that choice persists in the Phase 7 data folder across container recreation and backup/restore.
 **Requirements**: D-01..D-07 (see 08-CONTEXT.md)
 **Depends on:** Phase 7
-**Plans:** 3/4 plans executed
+**Plans:** 4/4 plans complete
 
 Plans:
 **Wave 1**
@@ -217,7 +217,7 @@ Plans:
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 08-04-PLAN.md - Backup round-trip proof, config comment and DEPLOY-PI docs, full-suite gate, live human verification (D-04, D-05)
+- [x] 08-04-PLAN.md - Backup round-trip proof, config comment and DEPLOY-PI docs, full-suite gate, live human verification (D-04, D-05) — all 9 how-to-verify steps approved on real hardware; surfaced and fixed two real bugs along the way (stale cache-buster + unbound `get_setting`, shipped as v2.0.2/v2.0.3)
 
 ### Phase 9: Add Docker Hub image publishing with semver versioning
 
