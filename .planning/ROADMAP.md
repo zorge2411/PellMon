@@ -221,8 +221,8 @@ Plans:
 
 ### Phase 9: Add Docker Hub image publishing with semver versioning
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** On every push to `master`, CI derives a semver bump from Conventional Commits since the last tag, commits/tags `VERSION`, and builds+pushes a multi-arch (amd64+arm64) Docker image to Docker Hub as `:latest` and `:{version}` — with a silent no-op when no commit warrants a release.
+**Requirements**: D-01..D-08 (see 09-CONTEXT.md)
 **Depends on:** Phase 8
 **Plans:** 0 plans
 
