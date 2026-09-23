@@ -253,7 +253,6 @@ class PellMonWeb:
         self.auth = AuthController(credentials, lookup)
         self.consumptionview = Consumption(polling, db, dbus, lookup)
         self.settings = Settings(lookup, dbus, system_image_dir, credentials)
-        self.rand = random.random()
 
     @cherrypy.expose
     def autorefresh(self, **args):
@@ -648,6 +647,12 @@ class PellMonWeb:
 
     @cherrypy.expose
     def index(self, **args):
+        # Fresh per request, not per process: the <object data="systemimage?rand=..."> embed
+        # is only re-fetched by the browser when this query string changes. A value fixed at
+        # __init__ time (self.rand) meant the SVG never updated after a Settings image change
+        # until the web process itself restarted, even with the /systemimage endpoint's own
+        # no-cache headers and hard reloads (confirmed on real hardware, 2026-09-23).
+        rand = random.random()
         autorefresh = cherrypy.session.get('autorefresh')=='yes'
         empty=True
         for key, val in polldata:
@@ -692,7 +697,7 @@ class PellMonWeb:
             widgets.append(wr)
         tmpl = Template(plugintemplate, lookup=lookup)
 
-        return tmpl.render(username=cherrypy.session.get('_cp_username'), empty=False, autorefresh=autorefresh, timeSeconds = timeSeconds, timeChoices=timeChoices, timeNames=timeNames, timeChoice=timespan, graphlines=graph_lines, selectedlines = lines, timeName = timeName, websockets=websockets, webroot=cherrypy.request.script_name, widgets = widgets, version = __version__, rand=self.rand, connection_state=connection_state, connection_reason=connection_reason)
+        return tmpl.render(username=cherrypy.session.get('_cp_username'), empty=False, autorefresh=autorefresh, timeSeconds = timeSeconds, timeChoices=timeChoices, timeNames=timeNames, timeChoice=timespan, graphlines=graph_lines, selectedlines = lines, timeName = timeName, websockets=websockets, webroot=cherrypy.request.script_name, widgets = widgets, version = __version__, rand=rand, connection_state=connection_state, connection_reason=connection_reason)
         
     @cherrypy.expose
     def systemimage(self, **args):
