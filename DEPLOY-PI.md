@@ -226,6 +226,15 @@ Healthy looks like:
 docker compose build && docker compose up -d
 ```
 
+**Running the published image instead of building locally.** A Pi can run the
+prebuilt multi-arch image `peterscholer74/pellmon:latest` (or a pinned
+`peterscholer74/pellmon:{version}`) instead of building on-device or copying a
+saved tarball. Set the `image:` value in `docker-compose.yml` to that reference;
+then `docker compose pull && docker compose up -d` is what picks up a new
+release (in place of the `docker compose build && docker compose up -d` update
+command above, which is for the build-locally path). See
+[`RELEASING.md`](RELEASING.md) for how and when new versions are published.
+
 ### Backup and restore
 
 Run these from the repo root (the folder with `docker-compose.yml` and `config/`):
