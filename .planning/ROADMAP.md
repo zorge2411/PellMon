@@ -224,13 +224,13 @@ Plans:
 **Goal:** On every push to `master`, CI derives a semver bump from Conventional Commits since the last tag, commits/tags `VERSION`, and builds+pushes a multi-arch (amd64+arm64) Docker image to Docker Hub as `:latest` and `:{version}` — with a silent no-op when no commit warrants a release.
 **Requirements**: D-01..D-09 (see 09-CONTEXT.md)
 **Depends on:** Phase 8
-**Plans:** 3 plans
+**Plans:** 1/3 plans executed
 
 Plans:
 
 **Wave 1**
 
-- [ ] 09-01-PLAN.md - Port the bump algorithm to tools/version_bump.py, pytest coverage, seed VERSION at 1.0.0 (D-03, D-05, D-06, D-08, D-09)
+- [x] 09-01-PLAN.md - Port the bump algorithm to tools/version_bump.py, pytest coverage, seed VERSION at 1.0.0 (D-03, D-05, D-06, D-08, D-09)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
