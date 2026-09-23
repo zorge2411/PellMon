@@ -31,7 +31,7 @@ def test_systemimage_no_cache_and_effective_image():
         else WEB_SRC
     assert "'Cache-Control'] = 'no-cache'" in src
     assert "'Pragma'] = 'no-cache'" in src
-    assert "effective_image(system_image_dir, dbus.get_setting, system_image)" in src
+    assert "effective_image(system_image_dir, lambda: dbus.get_setting(SETTING_KEY), system_image)" in src
     assert "return serve_file(system_image)" not in WEB_SRC
 
 
@@ -57,6 +57,56 @@ def test_index_rand_generated_fresh_per_request():
     )
     assert "rand=self.rand" not in index_src
     assert "rand=rand" in index_src
+
+
+def test_systemimage_passes_bound_get_setting():
+    """Regression: dbus.get_setting(self, key) requires `key`. It was passed to
+    effective_image() unbound (bare `dbus.get_setting`), which effective_image() then called
+    as get_setting() with zero args -- always raising TypeError, always swallowed by
+    effective_image()'s own bare `except Exception`, always silently falling back to the
+    config-file default. The Settings-saved image choice was never actually read; the picture
+    on the main page never changed no matter what was saved (confirmed on real hardware
+    2026-09-23, persisted even after the rand-per-request cache-buster fix).
+    """
+    src = ast.get_source_segment(WEB_SRC, _method(_class("PellMonWeb"), "systemimage"))
+    assert "dbus.get_setting)" not in src, "get_setting must not be passed unbound"
+    assert "lambda: dbus.get_setting(SETTING_KEY)" in src, (
+        "get_setting must be called with SETTING_KEY bound via a zero-arg closure"
+    )
+
+
+def test_systemimage_reads_saved_setting_not_just_config_default():
+    pytest.importorskip("cherrypy")
+    pytest.importorskip("dbus")
+    pytest.importorskip("gi")
+    import importlib
+    web = importlib.import_module("Pellmonweb.pellmonweb")
+
+    class _FakeDbus:
+        def get_setting(self, key):
+            assert key == web.SETTING_KEY
+            return 'system_nbe.svg'
+
+    import cherrypy
+    served = {}
+    cherrypy.response.headers = {}
+
+    def _fake_serve_file(path):
+        served['path'] = path
+        return b''
+
+    web.serve_file = _fake_serve_file
+    web.dbus = _FakeDbus()
+    web.system_image_dir = str(HTML_DIR.parent / 'media' / 'img')
+    web.system_image = str(HTML_DIR.parent / 'media' / 'img' / 'system.svg')  # the fallback
+
+    root = object.__new__(web.PellMonWeb)
+    root.systemimage()
+
+    assert served['path'].endswith('system_nbe.svg'), (
+        "must serve the FakeDbus-reported saved image, not silently fall back to "
+        f"the config default ({web.system_image!r}); got {served.get('path')!r}"
+    )
 
 
 def test_settings_mounted():
