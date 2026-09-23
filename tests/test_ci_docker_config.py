@@ -114,7 +114,10 @@ def test_publish_workflow_multiarch_and_tags():
     assert "peterscholer74/pellmon:" in content and "steps.bump.outputs.version" in content, (
         "must push the :{version} tag derived from the bump step's output (D-01)"
     )
-    assert "linux/amd64,linux/arm64" in content, "must build both target platforms (D-02)"
+    assert "linux/amd64,linux/arm64,linux/arm/v7" in content, (
+        "must build all three target platforms, including 32-bit ARM for older/32-bit-OS Pis "
+        "(D-02, amended after a real 32-bit Pi failed to pull the amd64+arm64-only image)"
+    )
     assert "docker/setup-qemu-action@" in content, "must register QEMU binfmt handlers (D-02)"
     assert "docker/setup-buildx-action@" in content, "must create a buildx builder (D-02)"
     assert "docker/login-action@" in content, "must authenticate via the maintained login action (D-07)"
