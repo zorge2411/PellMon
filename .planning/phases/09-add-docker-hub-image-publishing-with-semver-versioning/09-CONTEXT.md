@@ -81,6 +81,12 @@ already covers that and stays manual/operator-triggered).
   attempt to keep them in sync with the new `VERSION` file. `VERSION` becomes the sole source
   of truth for the Docker image tag only. No changes to `configure.ac`/`version.py.in` are in
   scope here.
+- **D-09:** Seed `VERSION` at `1.0.0` for the very first commit of this file (no prior tag
+  exists in the repo). Chosen over matching `configure.ac`'s `0.7.0` or starting fresh at
+  `0.1.0` — the Python 3 migration milestone (v1.0) is essentially complete, so the first
+  public Docker Hub image should signal production-readiness rather than pre-1.0 status. The
+  planner's bootstrap task must write this literal value; it is not derived by the bump
+  algorithm (there is no prior tag to diff against on the very first run).
 
 ### Claude's Discretion
 - Exact GitHub Actions job/workflow structure (new workflow file vs. extending `ci.yml`) —
