@@ -39,6 +39,26 @@ def test_caching_tool_not_enabled_for_systemimage():
     assert "tools.caching" not in WEB_SRC
 
 
+def test_index_rand_generated_fresh_per_request():
+    """Regression: the <object data="systemimage?rand=..."> embed in index.html is only
+    re-fetched by the browser when this query string changes. `self.rand` was set once in
+    __init__ (fixed for the whole process lifetime), so a Settings image change never showed
+    up on the main page -- even after a hard reload -- until the web process itself restarted.
+    Confirmed on real hardware 2026-09-23. `rand` must be a local variable computed fresh on
+    every index() call, not a `self.rand` instance attribute set at construction time.
+    """
+    init_src = ast.get_source_segment(WEB_SRC, _method(_class("PellMonWeb"), "__init__"))
+    assert "self.rand" not in init_src, (
+        "self.rand must not be set in __init__ -- it would be fixed for the process lifetime"
+    )
+    index_src = ast.get_source_segment(WEB_SRC, _method(_class("PellMonWeb"), "index"))
+    assert "rand = random.random()" in index_src, (
+        "index() must compute a fresh rand value on every call"
+    )
+    assert "rand=self.rand" not in index_src
+    assert "rand=rand" in index_src
+
+
 def test_settings_mounted():
     init = _method(_class("PellMonWeb"), "__init__")
     assert "self.settings = Settings(" in ast.get_source_segment(WEB_SRC, init)
