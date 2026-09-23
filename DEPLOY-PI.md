@@ -261,8 +261,13 @@ the chosen system image along with the plugin settings, with no separate step.
 The archive is mode 0600 and contains the password hashes and the settings DB: keep it
 private and never email it or put it on shared storage.
 
-After a restore the daemon restarts on a new D-Bus socket, so also run
-`docker compose restart pellmonweb` (the web page shows "server not running" until you do).
+Prior to the `pellmon-dbus` service split, a restore's daemon restart put the bus on a new
+socket and required `docker compose restart pellmonweb` afterward (the web page showed
+"server not running" until you did). The D-Bus daemon now runs as its own long-lived
+`pellmon-dbus` service, independent of `pellmonsrv`'s container lifecycle, so a plain
+`pellmonsrv` restart (restore included) should no longer strand pellmonweb's connection.
+If the web page still shows "server not running" after a restore, `docker compose restart
+pellmonweb` remains the fallback.
 
 **Why the working directory matters:** the RRD path comes from `config/conf.d/database.conf`
 (`/var/lib/pellmon/rrd.db`), which overrides `config/pellmon.conf`. `[conf] config_dir` is the

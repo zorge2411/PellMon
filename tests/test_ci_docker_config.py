@@ -191,19 +191,29 @@ def test_compose_raspberry_pi_fixes():
       pellmonweb (depends_on: service_healthy) never started.
     - A blanket edit turned the daemon's `dbus-daemon --session --address=` into
       `--bus=`, which dbus-daemon rejects (crash loop). Each command needs its own form.
+      dbus-daemon itself now runs in its own `pellmon-dbus` service (split out so a
+      pellmonsrv restart doesn't kill/recreate the shared bus and strand pellmonweb's
+      one-shot D-Bus connection) -- the flag-combination regression this guards against
+      moved with it.
     - The non-root pellmon user needs the serial device's group (SERIAL_GID).
     - The non-root user has no home dir, so Fontconfig needs XDG_CACHE_HOME.
     """
     content = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
     srv = _service_block(content, "pellmonsrv")
     web = _service_block(content, "pellmonweb")
+    dbus_svc = _service_block(content, "pellmon-dbus")
 
     assert "dbus-send --bus=unix:path=" in srv, "health check must use dbus-send --bus=ADDRESS"
     assert "dbus-send --session --address" not in content, (
         "dbus-send does not accept --session together with --address (health check always fails)"
     )
-    assert "dbus-daemon --session --address=unix:path=" in srv, (
+    assert "dbus-daemon --session --address=unix:path=" in dbus_svc, (
         "dbus-daemon needs --session --address=; --bus= makes it print usage and exit"
+    )
+    assert "dbus-daemon --session --address=unix:path=" not in srv, (
+        "dbus-daemon must not be started inside pellmonsrv's command -- that couples the "
+        "shared bus's lifecycle to pellmonsrv's, so restarting pellmonsrv kills/recreates "
+        "the whole bus and permanently strands pellmonweb's one-shot D-Bus connection"
     )
     assert "dbus-daemon --bus=" not in content
 
@@ -216,6 +226,38 @@ def test_compose_raspberry_pi_fixes():
         match = re.search(r"start_period:\s*(\d+)s", block)
         assert match, "%s healthcheck needs a start_period" % name
         assert int(match.group(1)) >= 60, "%s start_period too short for a Raspberry Pi" % name
+
+
+def test_dbus_daemon_lifecycle_independent_of_pellmonsrv_restarts():
+    """Regression: `docker compose stop pellmonsrv && docker compose start pellmonsrv`
+    (Phase 8 checklist step 7) permanently broke pellmonweb's main page with a 500
+    (DbusNotConnected: server not running), confirmed on real Pi hardware 2026-09-23.
+
+    Root cause: dbus-daemon ran inline inside pellmonsrv's own command, so restarting
+    pellmonsrv killed and recreated the entire shared D-Bus bus, not just the
+    org.pellmon.int service on it. pellmonweb opens exactly one D-Bus connection for its
+    whole process lifetime (Dbus_handler.start() in pellmonweb.py) and has no path to
+    reconnect once the bus daemon itself is replaced -- its watch_name_owner callback
+    only detects a service appearing/disappearing on a STABLE bus.
+
+    Fix: dbus-daemon now runs as its own `pellmon-dbus` service with an independent
+    `restart: unless-stopped` policy, so pellmonsrv restarting never touches the bus.
+    """
+    content = (REPO_ROOT / "docker-compose.yml").read_text(encoding="utf-8")
+    srv = _service_block(content, "pellmonsrv")
+    dbus_svc = _service_block(content, "pellmon-dbus")
+
+    assert "restart: unless-stopped" in dbus_svc, (
+        "pellmon-dbus needs its own restart policy independent of pellmonsrv/pellmonweb"
+    )
+    assert re.search(r"depends_on:\s*\r?\n(?:.*\r?\n)*?\s*pellmon-dbus:\s*\r?\n\s*condition: service_healthy", srv), (
+        "pellmonsrv must wait for pellmon-dbus to be healthy before starting, "
+        "since it no longer starts the bus daemon itself"
+    )
+    assert "DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket" in srv, (
+        "pellmonsrv must point at the shared bus socket owned by pellmon-dbus, not a "
+        "socket it creates itself"
+    )
 
 
 def test_env_example_documents_serial_gid():

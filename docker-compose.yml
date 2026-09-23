@@ -30,6 +30,51 @@ services:
       - pellmon-network
 
   # ===========================================
+  # Shared D-Bus session bus daemon
+  #
+  # Deliberately its own service, independent of pellmonsrv and pellmonweb's
+  # container lifecycles. If the bus daemon lived inside pellmonsrv's command
+  # (as it did previously), stopping/restarting pellmonsrv would kill and
+  # recreate the bus itself -- pellmonweb only ever opens ONE D-Bus connection
+  # for its whole process lifetime (see Dbus_handler.start() in pellmonweb.py)
+  # and relies on watch_name_owner to notice org.pellmon.int coming and going
+  # on a STABLE bus. A brand-new bus daemon process breaks that connection
+  # permanently, with no recovery short of restarting pellmonweb itself. Keeping
+  # the bus daemon alive across pellmonsrv restarts is what makes pellmonweb's
+  # existing reconnect logic actually work.
+  # ===========================================
+  pellmon-dbus:
+    image: pellmon:latest
+    pull_policy: never
+    container_name: pellmon-dbus
+    restart: unless-stopped
+    user: pellmon
+
+    depends_on:
+      pellmon-init:
+        condition: service_completed_successfully
+
+    volumes:
+      # Shared socket location (using the pellmon run directory)
+      - pellmon-run:/var/run/pellmon
+
+    # Run dbus-daemon in the foreground (no --fork) so it stays PID 1 and
+    # compose/Docker can supervise and restart it independently.
+    command: >
+      sh -c "rm -f /var/run/pellmon/bus_socket &&
+             exec dbus-daemon --session --address=unix:path=/var/run/pellmon/bus_socket --nofork"
+
+    networks:
+      - pellmon-network
+
+    healthcheck:
+      test: [ "CMD-SHELL", "dbus-send --bus=unix:path=/var/run/pellmon/bus_socket --print-reply --dest=org.freedesktop.DBus / org.freedesktop.DBus.ListNames > /dev/null 2>&1 || exit 1" ]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+
+  # ===========================================
   # PellMon Server (pellmonsrv)
   # Main service that communicates with pellet burner
   # ===========================================
@@ -41,7 +86,7 @@ services:
     container_name: pellmonsrv
     restart: unless-stopped
 
-    # Required for D-Bus and serial port access
+    # Required for serial port access
     privileged: true
 
     # The container runs as the non-root "pellmon" user, so it needs the group that owns the
@@ -53,6 +98,8 @@ services:
     depends_on:
       pellmon-init:
         condition: service_completed_successfully
+      pellmon-dbus:
+        condition: service_healthy
 
     environment:
       - TZ=${TZ:-Europe/Stockholm}
@@ -60,7 +107,8 @@ services:
       - XDG_CACHE_HOME=/tmp
       # Exit loudly instead of falling back to /tmp when the data folder is unusable (D-07)
       - PELLMON_REQUIRE_DATADIR=1
-      # Use a shared session bus socket
+      # Use a shared session bus socket -- owned by the pellmon-dbus service now,
+      # not started by this container, so restarting pellmonsrv never touches the bus.
       - DBUS_SESSION_BUS_ADDRESS=unix:path=/var/run/pellmon/bus_socket
 
     volumes:
@@ -80,12 +128,8 @@ services:
       # Serial device access (adjust as needed)
       - /dev:/dev:ro
 
-    # Start private D-Bus daemon and then run pellmonsrv
-    # We use sh to chain the commands
     command: >
-      sh -c "rm -f /var/run/pellmon/bus_socket &&
-             dbus-daemon --session --address=unix:path=/var/run/pellmon/bus_socket --fork &&
-             exec python3 -m Pellmonsrv.pellmonsrv -C /etc/pellmon/pellmon.conf -D SESSION debug"
+      python3 -m Pellmonsrv.pellmonsrv -C /etc/pellmon/pellmon.conf -D SESSION debug
 
     networks:
       - pellmon-network
