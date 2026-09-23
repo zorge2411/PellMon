@@ -701,10 +701,16 @@ class PellMonWeb:
         
     @cherrypy.expose
     def systemimage(self, **args):
-        # resolved per request; no-cache because rand is fixed per process
+        # resolved per request
         cherrypy.response.headers['Cache-Control'] = 'no-cache'
         cherrypy.response.headers['Pragma'] = 'no-cache'
-        return serve_file(effective_image(system_image_dir, dbus.get_setting, system_image))
+        # dbus.get_setting(self, key) requires `key` -- it was passed here unbound and called
+        # as get_setting() with zero args inside effective_image(), which always raised
+        # TypeError, was swallowed by effective_image()'s bare `except Exception`, and silently
+        # fell back to the config-file default image every single time. The saved Settings
+        # choice was NEVER actually read here. Confirmed on real hardware 2026-09-23: the
+        # picture never changed no matter what was saved, even after the rand-per-request fix.
+        return serve_file(effective_image(system_image_dir, lambda: dbus.get_setting(SETTING_KEY), system_image))
 
     @cherrypy.expose
     def about(self):
