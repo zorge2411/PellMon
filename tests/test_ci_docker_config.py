@@ -68,6 +68,71 @@ def test_github_actions_workflow():
     assert re.search(r"pytest\s+tests/", content), "Workflow must execute pytest tests/"
 
 
+def test_publish_workflow_permissions_and_skip_ci():
+    """D-03/D-04: the publish job is master-push-only, minimally privileged, and self-quiets."""
+    ci_path = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+    content = ci_path.read_text(encoding="utf-8")
+
+    assert "  publish:" in content, "a top-level publish job must exist in ci.yml"
+    assert "needs: test" in content, "publish must be gated on the existing test job (D-03)"
+    assert "contents: write" in content, (
+        "publish needs contents: write to commit VERSION and push a tag (D-04)"
+    )
+    assert "fetch-depth: 0" in content, (
+        "full history is required for git describe/git log range queries (D-04)"
+    )
+    assert "[skip ci]" in content, (
+        "the bump commit must carry [skip ci] so it does not re-trigger the workflow (D-04)"
+    )
+    assert "tools/version_bump.py decide" in content, (
+        "publish must call the Plan 01 CLI to decide the bump (D-03)"
+    )
+    assert "github-actions[bot]" in content, "the bump commit must use the bot git identity (D-04)"
+    assert "git tag -a" in content, "the release tag must be annotated (D-04)"
+    assert "refs/heads/master" in content, (
+        "publish must be scoped to the master branch only (D-03)"
+    )
+
+    # Negative guards
+    assert "git tag -f" not in content, (
+        "tag creation must never force-overwrite an existing release tag (Tampering)"
+    )
+    assert "--force" not in content, (
+        "no step may force-push or force-tag over an existing release (Tampering)"
+    )
+    assert "workflow_run" not in content, (
+        "publish must use a plain push: trigger, not workflow_run, for reliable [skip ci] (Pitfall 1)"
+    )
+
+
+def test_publish_workflow_multiarch_and_tags():
+    """D-01/D-02/D-07: multi-arch Docker Hub publish with credentials via docker/login-action."""
+    ci_path = REPO_ROOT / ".github" / "workflows" / "ci.yml"
+    content = ci_path.read_text(encoding="utf-8")
+
+    assert "peterscholer74/pellmon:latest" in content, "must push the :latest tag (D-01)"
+    assert "peterscholer74/pellmon:" in content and "steps.bump.outputs.version" in content, (
+        "must push the :{version} tag derived from the bump step's output (D-01)"
+    )
+    assert "linux/amd64,linux/arm64" in content, "must build both target platforms (D-02)"
+    assert "docker/setup-qemu-action@" in content, "must register QEMU binfmt handlers (D-02)"
+    assert "docker/setup-buildx-action@" in content, "must create a buildx builder (D-02)"
+    assert "docker/login-action@" in content, "must authenticate via the maintained login action (D-07)"
+    assert "docker/build-push-action@" in content, "must build+push via the maintained action (D-01/D-02)"
+    assert "secrets.DOCKERHUB_USERNAME" in content, "Docker Hub username must come from a secret (D-07)"
+    assert "secrets.DOCKERHUB_TOKEN" in content, "Docker Hub token must come from a secret (D-07)"
+    assert "push: true" in content, "the build-push-action step must actually push (D-01)"
+
+    # Negative guards
+    assert "docker login -p" not in content, (
+        "credentials must flow through docker/login-action, never an echoing shell step (D-07)"
+    )
+    assert "--password " not in content, (
+        "credentials must flow through docker/login-action, never a raw --password flag (D-07)"
+    )
+    assert "ghcr.io" not in content, "Docker Hub only this phase; GHCR is a deferred idea"
+
+
 def test_docker_healthchecks():
     """Verify docker-compose.yml healthchecks and dependency conditions."""
     compose_path = REPO_ROOT / "docker-compose.yml"
