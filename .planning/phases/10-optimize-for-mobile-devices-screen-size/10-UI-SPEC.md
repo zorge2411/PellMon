@@ -317,6 +317,6 @@ Dev/CI-only note: a headless browser dependency for D-06(b) is a test-time tool 
 - [x] Dimension 3 Color: PASS
 - [x] Dimension 4 Typography: PASS
 - [x] Dimension 5 Spacing: PASS
-- [ ] Dimension 6 Registry Safety: PASS
+- [x] Dimension 6 Registry Safety: PASS
 
 **Approval:** approved 2026-09-24 (gsd-ui-checker, 6/6 after 2 revisions)
