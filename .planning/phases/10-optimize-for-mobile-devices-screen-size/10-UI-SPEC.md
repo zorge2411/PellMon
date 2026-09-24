@@ -62,7 +62,7 @@ Declared values (multiples of 4), used by all new rules:
 | 2xl | 48px | Not used |
 | 3xl | 64px | Not used |
 
-Exceptions: (1) Bootstrap 3 native 15px column gutters and container padding are kept as-is. (2) Touch target minimum is 44px (see Tap Targets); it is a size, not spacing, and overrides the scale for heights. (3) Graph and chart heights (260 / 320 / 400px), the 96px events preview and the 96px gallery thumbnail cap are layout dimensions, not spacing. (4) The 3px transparent `border-top` on `a.lineselection:not(.selected)` mirrors Bootstrap's existing 3px selected border so links do not jump; it is a border width, not a spacing token. Every padding and margin value newly declared by this phase is on the 4/8/16/24 scale.
+Exceptions: (1) Bootstrap 3 native 15px column gutters and container padding are kept as-is. (2) Touch target minimum is 44px (see Tap Targets); it is a size, not spacing, and overrides the scale for heights. (3) Graph and chart heights (260 / 320 / 400px), the 230px `#systemimage` min-height, the 96px events preview and the 96px gallery thumbnail cap are layout dimensions, not spacing. (4) The 3px transparent `border-top` on `a.lineselection:not(.selected)` mirrors Bootstrap's existing 3px selected border so links do not jump; it is a border width, not a spacing token. Every padding and margin value newly declared by this phase is on the 4/8/16/24 scale.
 
 Page must never overflow horizontally: container padding stays 15px at 390px, giving 360px of content width.
 
@@ -76,10 +76,16 @@ Bootstrap 3 base retained; no size or weight is changed on desktop. New rules us
 |------|------|--------|-------------|
 | Body / control text (also helper text, gallery captions, toggle sub-text) | 14px | 400 | 1.43 (Bootstrap default, accepted) |
 | Input (phone `.form-control` only) | 16px | 400 | 1.43 |
-| Heading (widget `h4`, Parameters section `h3`) | 18px | 600 | 1.2 |
+| Heading (widget `h4`, Parameters section heading/toggle) | 18px | 600 on phones (Bootstrap default 500 on tablet/desktop, unchanged) | 1.2 on phones (Bootstrap default 1.1 on tablet/desktop, unchanged) |
 | Display (page `h1`) | 24px on phones (Bootstrap is 36px), unchanged from 768px up | 600 | 1.2 |
 
-Weights: exactly 400 and 600. Phone rule: `h1 { font-size: 24px; }` inside the `max-width: 767px` query only. Text inputs on phones use `font-size: 16px` (prevents iOS focus-zoom); this is the one place 16px is used, applied via `.form-control` at `max-width: 767px`. Helper text, gallery captions and toggle sub-text use the 14px body size.
+Weights: exactly 400 and 600 for every value declared or set by this phase. Every new rule sets weight explicitly (400 or 600) and, for headings, line-height 1.2. Pre-existing Bootstrap values that this phase does not touch (desktop/tablet headings at weight 500 and line-height 1.1, Bootstrap `h3` at 24px on desktop/tablet) are inherited and unchanged, and are not roles of this phase.
+
+Explicit phone rules (all inside `@media (max-width: 767px)`, desktop and tablet unchanged):
+`h1, #pellmon-widgets h4 { font-weight: 600; line-height: 1.2; }`
+`.param-section-heading { margin: 0 0 8px; font-size: 18px; font-weight: 600; line-height: 1.2; }`
+`.param-section-toggle { font-size: 18px; font-weight: 600; line-height: 1.2; }` (a `.btn` would otherwise render 14px/400, and `font:inherit` is applied only from 768px, where the toggle inherits the h3 look of today).
+Result: on phones the Parameters section toggle renders at 18px/600, matching the table. Phone rule: `h1 { font-size: 24px; }` inside the `max-width: 767px` query only. Text inputs on phones use `font-size: 16px` (prevents iOS focus-zoom); this is the one place 16px is used, applied via `.form-control` at `max-width: 767px`. Helper text, gallery captions and toggle sub-text use the 14px body size.
 
 ---
 
@@ -105,19 +111,19 @@ Rule: every interactive element added or restyled by this phase has a rendered h
 | Element | Selector | Required size at 390px |
 |---------|----------|------------------------|
 | Navbar hamburger | `.navbar-toggle` | 44 x 44px (`width:44px; height:44px; padding:8px 0; margin:4px 16px 4px 0; display:flex; flex-direction:column; justify-content:center; align-items:center`; keep the three `icon-bar`s) |
-| Navbar links (collapsed menu) | `.navbar-nav > li > a` | `padding: 8px 15px; line-height: 28px` (= 44px tall) |
+| Navbar links (collapsed menu) | `.navbar-nav > li > a` | `padding: 8px 16px; line-height: 28px` (= 44px tall) |
 | Graph line-selection links | `a.lineselection` | `display:inline-block; min-height:44px; line-height:40px; padding:0 16px` |
 | Graph time-range links | `a.timeChoice`, `a.autorefresh` | same as line-selection |
 | Graph Back / Forward | `.graph-nav .btn` | `min-height:44px`, each half width (`col-xs-6`) |
 | Events toggle | `.events-toggle` | full width, `min-height:44px` |
 | Parameters section headers | `.param-section-toggle` | full width, `min-height:44px` |
-| Parameters tag pills | `.param-tags a` | `min-height:44px; padding:8px; line-height:28px` (= 44px tall) |
+| Parameters tag pills | `.param-tags a` | `min-height:44px; padding:8px; line-height:28px` (= 44px tall); the `li` carries the gap (`margin:0 4px 8px`), see Parameters page |
 | Parameters commands | `.command.btn` | `min-height:44px` |
 | Text / select inputs | `.form-control` | `height:44px` |
 | "Set" and "Save image" buttons | `.btn` in forms | `min-height:44px` |
 | Settings gallery tile | `.sysimg-tile` | whole label >= 44px (already true) |
 
-Spacing between adjacent tap targets: >= 8px (sm).
+Spacing between adjacent tap targets: >= 8px (sm). Graph links get it from `margin: 0 8px 8px 0`, Back/Forward from `gap:8px`, command buttons from `margin:0 0 8px`, tag pills from `margin: 0 4px 8px` on the `li` (4px per side = 8px horizontally between pills, 8px vertically; this overrides Bootstrap's 2px `nav-stacked` li margin).
 
 ---
 
@@ -174,7 +180,7 @@ The plugin templates hard-code `style="height:400px"` (`src/Pellmonsrv/plugins/c
 ### Parameters page (`parameters.html`, D-05)
 Structure on phones, top to bottom: `h1`, tag navigation, "Less../More.." link, Control section, Data section, Settings section.
 - Grid: sidebar `col-xs-12 col-md-2`; content `col-xs-12 col-md-10`; Data and Settings columns `col-xs-12 col-md-5`; Control `col-xs-12`.
-- Tag navigation on phones: two pills per row. `.param-tags` class added to the `nav nav-pills nav-stacked` list; `@media (max-width:767px) { .param-tags > li { float:left; width:50%; } .param-tags > li > a { min-height:44px; padding:8px; line-height:28px; } }`. From 768px up it stays stacked as today.
+- Tag navigation on phones: two pills per row. `.param-tags` class added to the `nav nav-pills nav-stacked` list; `@media (max-width:767px) { .param-tags > li, .param-tags > li + li { float:left; width:calc(50% - 8px); margin:0 4px 8px; } .param-tags > li > a { min-height:44px; padding:8px; line-height:28px; } }`. From 768px up it stays stacked as today.
 - Collapsible sections (Bootstrap 3 `collapse`): each of Control, Data, Settings gets a header toggle and a body:
   ```
   <h3 class="param-section-heading">
@@ -211,7 +217,7 @@ Only the new controls need copy. All existing labels are unchanged.
 | Navbar hamburger accessible name | Toggle navigation (`aria-label` and `sr-only` text) |
 | Events toggle accessible name | Same as visible text; `aria-expanded` reflects state |
 | Parameters section headers | Control, Data, Settings (unchanged wording); chevron glyph carries the state, with `aria-expanded` |
-| Primary CTA (this phase) | none new; existing "Set" and "Save image" are kept |
+| Primary CTA (this phase) | none new; existing "Set" and "Save image" are kept. "Set" is an intentionally unchanged pre-existing single-word label (out of scope for this phase) |
 | Empty state | Events empty: existing empty output of `getlines` (no new copy); toggle stays visible but harmless. Gallery empty state: unchanged from Phase 8 ("No system images available") |
 | Error state | none new (no new network calls); existing alerts unchanged |
 | Destructive confirmation | none: this phase adds no destructive actions |
@@ -259,7 +265,7 @@ At 390px, main page:
 - B7. `.pellmon-chart` heights = 260 (+/- 1).
 
 At 390px, Parameters:
-- C1. `.param-tags > li` width = 50% of its list (+/- 2px); each link height >= 44.
+- C1. `.param-tags > li` width = 50% of its list minus 8px (+/- 2px), two per row; horizontal gap between pills in a row >= 8px and vertical gap between rows >= 8px; each link height >= 44.
 - C2. `#param-settings` (Settings section) is collapsed (`offsetHeight` 0) initially; after clicking its toggle it is visible. Control and Data sections are visible initially. All three toggles have height >= 44.
 - C3. Any visible `.form-control` has height >= 44 and width >= 300 (full width) after expanding a `.details` block; `input[type=submit]` height >= 44.
 
