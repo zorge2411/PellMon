@@ -108,3 +108,25 @@ def page_at(browser, request):
 def shot(page, name):
     SHOTS_DIR.mkdir(parents=True, exist_ok=True)
     page.screenshot(path=str(SHOTS_DIR / ("%s.png" % name)), full_page=True)
+
+
+SVG_READY_JS = ("() => { const o = document.getElementById('systemimage'); "
+                "return !!(o && o.contentDocument && o.contentDocument.querySelector('svg')); }")
+
+
+def wait_dashboard(page):
+    """Wait for the concrete render signals of the dashboard (never networkidle)."""
+    page.wait_for_selector("#graph canvas", state="attached", timeout=20000)
+    page.wait_for_selector("#consumption7d canvas", state="attached", timeout=20000)
+    page.wait_for_selector("#silolevel canvas", state="attached", timeout=20000)
+    page.wait_for_function(SVG_READY_JS, timeout=20000)
+
+
+def wait_ready(page, path):
+    """Wait for the readiness signal of a page, keyed by its path."""
+    if path == "/":
+        wait_dashboard(page)
+    elif path.startswith("/consumptionview"):
+        page.wait_for_selector("#consumption7d canvas", state="attached", timeout=20000)
+    else:
+        page.wait_for_selector(".navbar", state="attached", timeout=20000)
