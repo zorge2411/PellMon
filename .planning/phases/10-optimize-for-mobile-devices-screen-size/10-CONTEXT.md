@@ -30,6 +30,13 @@ and `pellmon.css` has a single `@media` rule.
   (tablet). Nothing may cause horizontal page scroll at either width. Desktop rendering (>= 992px)
   must not change.
 
+- **D-07 (added after research, 2026-09-24):** Fix the Python 3 float-division bug in
+  `index.html` (`12 / len(row)` renders `col-md-6.0`, which matches no Bootstrap rule, so the
+  desktop dashboard is stacked today). Use integer division (`12 // len(row)`) so desktop gets the
+  originally intended side-by-side widget rows again. This deliberately overrides D-02's
+  "desktop unchanged" for this one visible regression; every other desktop rule stays unchanged.
+  The user confirms the desktop look during the real-device check.
+
 ### Main page (dashboard)
 - **D-03:** On phones the dashboard is a **single column**: system image first, then events, graph,
   consumption, silo level. The **events list is collapsed by default** on phones (a short preview
