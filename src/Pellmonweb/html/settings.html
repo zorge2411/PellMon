@@ -20,7 +20,7 @@ Settings
 					<legend>System image</legend>
 					<div class="row">
 						% for img in images:
-						<div class="col-xs-12 col-sm-6 col-md-4">
+						<div class="col-xs-6 col-sm-6 col-md-4">
 							<label class="sysimg-tile${' sysimg-tile-selected' if img['file'] == current else ''}">
 								<input type="radio" class="sysimg-radio" name="image" value="${img['file'] | h}"${' checked' if img['file'] == current else ''}>
 								<img class="sysimg-thumb" src="${webroot | h}/media/img/${img['file'] | h}" alt="${img['name'] | h}">
@@ -34,7 +34,7 @@ Settings
 						% endfor
 					</div>
 				</fieldset>
-				<button type="submit" class="btn btn-primary"${'' if auth_configured else ' disabled'}>Save image</button>
+				<button type="submit" class="btn btn-primary sysimg-save"${'' if auth_configured else ' disabled'}>Save image</button>
 				<p class="help-block">Shown on the main page. Your choice here overrides the <code>system_image</code> setting in webinterface.conf.</p>
 				% if not auth_configured:
 				<p class="help-block">Saving is disabled until web login credentials are configured.</p>

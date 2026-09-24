@@ -143,3 +143,11 @@ $(function() {
     getParams();
 });
 
+$(document).on('show.bs.collapse hide.bs.collapse', '.param-section', function(e) {
+	if(e.target !== this) {
+		return;
+	}
+	var expanded = (e.type === 'show') ? 'true' : 'false';
+	$('a.param-section-toggle[href="#' + this.id + '"]').attr('aria-expanded', expanded);
+});
+
