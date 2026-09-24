@@ -250,6 +250,10 @@ img, object, svg {
         margin-top: 8px;
         min-height: 44px;
     }
+    .btn-group.command-group {
+        display: block;
+        white-space: normal;
+    }
     .btn-group > .command.btn {
         float: none;
         display: block;
@@ -257,6 +261,7 @@ img, object, svg {
         margin: 0 0 8px;
         border-radius: 4px;
         min-height: 44px;
+        white-space: normal;
     }
 
     /* settings */

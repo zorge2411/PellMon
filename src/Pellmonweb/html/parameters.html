@@ -58,7 +58,7 @@
         <div class="col-xs-12 col-md-12">
             <h3 class="param-section-heading"><a class="param-section-toggle btn btn-default btn-block" data-toggle="collapse" href="#param-control" aria-expanded="true" aria-controls="param-control">Control <span class="glyphicon glyphicon-chevron-up"></span></a></h3>
             <div id="param-control" class="collapse in param-section">
-		<div class="btn-group">
+		<div class="btn-group command-group">
             	%for key in commands:
 			<button type="button" data-name="${key['name']}" class="command btn btn-primary">${key['longname'].title()}</button>
             	%endfor
