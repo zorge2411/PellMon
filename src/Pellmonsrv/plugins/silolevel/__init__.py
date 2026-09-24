@@ -106,7 +106,7 @@ class silolevelplugin(protocols):
 
         self._insert_template('silolevel', """
 <h4>Silo level</h4>
-<div class="image-responsive" id="silolevel" style="height:400px">
+<div class="image-responsive pellmon-chart" id="silolevel">
 </div>
 
 <script type="text/javascript">
