@@ -1,0 +1,3 @@
+# Test/CI-only dependencies -- NOT installed in production Docker image
+# Headless-browser layout tests (tests/browser). Pin human-verified in phase 10 plan 01.
+playwright==1.63.0
