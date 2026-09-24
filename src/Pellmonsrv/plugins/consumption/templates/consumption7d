@@ -1,5 +1,5 @@
 <h4>Last week</h1>
-<div id="consumption7d" style="height:400px">
+<div id="consumption7d" class="pellmon-chart">
 </div>
 
 <script type="text/javascript">

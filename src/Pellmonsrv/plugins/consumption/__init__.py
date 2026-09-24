@@ -84,7 +84,7 @@ class Consumption_plugin(protocols):
         self._insert_template('consumption', """
 <h4>Consumption</h4>
 
-<div class="image-responsive" id="consumption" style="height:400px">
+<div class="image-responsive pellmon-chart" id="consumption">
 </div>
 
 <script type="text/javascript">
