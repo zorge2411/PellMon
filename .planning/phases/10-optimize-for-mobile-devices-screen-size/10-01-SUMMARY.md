@@ -38,7 +38,17 @@ Env-gated Playwright harness plus a stub web server (real PellMonWeb handlers ov
 The user approved the playwright PyPI package before any install: "Approved, use 1.63.0" (PyPI shows 1.63.0, author Microsoft Corporation, Python >=3.10, homepage github.com/Microsoft/playwright-python). Nothing was pip-installed by this executor; the pin is only written to `requirements-browser.txt`.
 
 ## Spike result
-`BROWSER_PYTEST_FLAGS = NOT DETERMINED (spike not run)`
+`BROWSER_PYTEST_FLAGS = --allow-unix-socket` (DETERMINED by the orchestrator after the executor
+was sandbox-blocked from wsl.exe; see the "Orchestrator spike result" paragraph below).
+
+**Orchestrator spike result (2026-09-24, WSL Debian, Python 3.13.5, system gi+dbus,
+`--system-site-packages` scratch venv at `$HOME/pellmon-browser-venv`, playwright 1.63.0):**
+`PELLMON_BROWSER_TESTS=1 PYTHONPATH=src python -m pytest tests/browser/test_browser_harness.py -v -rs --allow-unix-socket`
+gave 8 passed in 3.45s: `test_playwright_starts_under_socket_guard`, `test_chromium_launches_and_renders_about_blank`
+and `test_stub_serves_key_pages` for all 6 paths. So `--allow-unix-socket` is sufficient under
+`--disable-socket` (no `-o addopts=""` fallback needed), and Chromium's headless shell
+(`python -m playwright install chromium`, Chrome Headless Shell 153) launches in WSL without sudo.
+CI still needs `playwright install --with-deps --only-shell chromium` on ubuntu-latest.
 
 The plan requires running the harness tests in a WSL scratch venv. In this worktree-isolated executor every `wsl.exe` invocation was refused by the sandbox ("runs wsl in a plain command ... cannot be shown not to run git"), including `wsl.exe --status`. I did not try to bypass this. Consequences:
 - Not verified: whether `test_playwright_starts_under_socket_guard` passes with `--allow-unix-socket` under `--disable-socket`, and whether Chromium can launch in WSL (missing shared libraries is unknown).
