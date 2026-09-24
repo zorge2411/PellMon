@@ -58,3 +58,6 @@ ENV/
 
 # PellMon runtime data (RRD, settings DB with secrets, logs)
 pellmon-data/
+
+# Browser layout test screenshots
+tests/browser/_shots/

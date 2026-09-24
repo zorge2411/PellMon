@@ -188,6 +188,16 @@ $('.lineselection').click(function(e) {
 });
 
 
+$(document).on('click', '.events-toggle', function(e) {
+    e.preventDefault();
+    var me = $(this);
+    var wrap = $('#events-wrap');
+    wrap.toggleClass('events-collapsed');
+    var collapsed = wrap.hasClass('events-collapsed');
+    me.attr('aria-expanded', collapsed ? 'false' : 'true');
+    me.text(me.attr(collapsed ? 'data-label-collapsed' : 'data-label-expanded'));
+});
+
 $('.left').click(function(e) {
     e.preventDefault();
     var graph = getGraph();

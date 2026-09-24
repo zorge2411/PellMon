@@ -1,3 +1,6 @@
         <h4>Events</h4>
+        <div id="events-wrap" class="events-collapsed">
         <div id="lines" data-url="${webroot}/logview/getlines?linenum=7">
         </div>
+        </div>
+        <button type="button" class="btn btn-default btn-block events-toggle visible-xs" aria-expanded="false" aria-controls="events-wrap" data-label-collapsed="Show all events" data-label-expanded="Show fewer events">Show all events</button>

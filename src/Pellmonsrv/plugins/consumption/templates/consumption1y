@@ -1,5 +1,5 @@
 <h4>Last year</h1>
-<div id="consumption1y" style="height:400px">
+<div id="consumption1y" class="pellmon-chart">
 </div>
 
 <script type="text/javascript">

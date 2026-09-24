@@ -26,9 +26,9 @@
 <div class="container">
     <h1>${heading}</h1>
     <div class="row">
-        <div class="col-md-2">
+        <div class="col-xs-12 col-md-2">
             <div class="navbar navbar-default">
-                <ul class="nav nav-pills nav-stacked">
+                <ul class="nav nav-pills nav-stacked param-tags">
                 %for tag in tags:
                     <li class="">
                         <a href="${webroot}/parameters/${tag}">${tag}</a>
@@ -52,24 +52,27 @@
                 </ul>
             </div>
         </div>
-        <div class="col-md-10">
+        <div class="col-xs-12 col-md-10">
 	<div class="row">
         %if len(commands)>0:
-        <div class="col-md-12">
-            <h3>Control</h3>
-		<div class="btn-group">
+        <div class="col-xs-12 col-md-12">
+            <h3 class="param-section-heading"><a class="param-section-toggle btn btn-default btn-block" data-toggle="collapse" href="#param-control" aria-expanded="true" aria-controls="param-control">Control <span class="glyphicon glyphicon-chevron-up"></span></a></h3>
+            <div id="param-control" class="collapse in param-section">
+		<div class="btn-group command-group">
             	%for key in commands:
 			<button type="button" data-name="${key['name']}" class="command btn btn-primary">${key['longname'].title()}</button>
             	%endfor
             	</div>
+            </div>
         </div>
         %endif
 	</div>	
 
 	<div class="row">
         %if len(data)>0:
-            <div class="col-md-5">
-                <h3>Data</h3>
+            <div class="col-xs-12 col-md-5">
+                <h3 class="param-section-heading"><a class="param-section-toggle btn btn-default btn-block" data-toggle="collapse" href="#param-data" aria-expanded="true" aria-controls="param-data">Data <span class="glyphicon glyphicon-chevron-up"></span></a></h3>
+                <div id="param-data" class="collapse in param-section">
 		<dl class="dl dl-horizontal">
                 %for key in data:
                         <dt class="editable">${key['longname']}</dt>
@@ -83,12 +86,14 @@
 				</div>
                 %endfor
 		</dl>
+                </div>
             </div>
         %endif
 
         %if len(params)>0:
-            <div class="col-md-5">
-                <h3>Settings</h3>
+            <div class="col-xs-12 col-md-5">
+                <h3 class="param-section-heading"><a class="param-section-toggle btn btn-default btn-block collapsed" data-toggle="collapse" href="#param-settings" aria-expanded="false" aria-controls="param-settings">Settings <span class="glyphicon glyphicon-chevron-up"></span></a></h3>
+                <div id="param-settings" class="collapse param-section">
 		<dl class="dl dl-horizontal">
                 %for key in params:
                     <dt class="editable">${key['longname']}</dt>
@@ -123,6 +128,7 @@
 	
                 %endfor
 		</dl>
+                </div>
             </div>
         %endif
 	</div>
