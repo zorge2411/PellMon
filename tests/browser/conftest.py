@@ -1,5 +1,8 @@
 """Fixtures for headless-browser layout tests (gated by PELLMON_BROWSER_TESTS=1)."""
 import os
+import subprocess
+import sys
+import time
 from pathlib import Path
 
 import pytest
@@ -42,9 +45,40 @@ def browser(playwright_rt):
     br.close()
 
 
+@pytest.fixture(scope="session")
+def stub_url(playwright_rt):
+    """Start tests/browser/stub_server.py in a subprocess and yield its base URL.
+
+    The port is read from the child's stdout, so the test process opens no TCP socket."""
+    env = dict(os.environ)
+    env["PYTHONPATH"] = str(SRC) + os.pathsep + env.get("PYTHONPATH", "")
+    proc = subprocess.Popen([sys.executable, str(Path(__file__).with_name("stub_server.py"))],
+                            env=env, stdout=subprocess.PIPE, stderr=subprocess.STDOUT, text=True)
+    collected = []
+    port = None
+    deadline = time.time() + 30
+    while time.time() < deadline:
+        line = proc.stdout.readline()
+        if not line:
+            break
+        collected.append(line)
+        if line.startswith("READY port="):
+            port = int(line.split("=", 1)[1])
+            break
+    if port is None:
+        proc.kill()
+        _unavailable("stub server did not start:\n%s" % "".join(collected))
+    yield "http://127.0.0.1:%d" % port
+    proc.terminate()
+    try:
+        proc.wait(timeout=10)
+    except subprocess.TimeoutExpired:
+        proc.kill()
+
+
 @pytest.fixture
-def page_at(browser):
-    """Return open_page(path, width); path is relative to the stub server or absolute."""
+def page_at(browser, request):
+    """Return open_page(path, width); path is relative to the stub server, or absolute."""
     contexts = []
 
     def open_page(path, width):
@@ -62,18 +96,13 @@ def page_at(browser):
         if path.startswith("http") or path == "about:blank":
             url = path
         else:
-            url = request_stub_url() + path
+            url = request.getfixturevalue("stub_url") + path
         page.goto(url, wait_until="load")
         return page
 
-    # stub_url is resolved lazily so that harness tests not using the stub never start it
-    request_stub_url = lambda: _stub_url_holder["url"]
     yield open_page
     for ctx in contexts:
         ctx.close()
-
-
-_stub_url_holder = {"url": None}
 
 
 def shot(page, name):
