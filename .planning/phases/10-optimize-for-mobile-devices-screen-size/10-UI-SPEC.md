@@ -62,7 +62,7 @@ Declared values (multiples of 4), used by all new rules:
 | 2xl | 48px | Not used |
 | 3xl | 64px | Not used |
 
-Exceptions: (1) Bootstrap 3 native 15px column gutters and container padding are kept as-is. (2) Touch target minimum is 44px (see Tap Targets); it overrides the scale for heights. (3) Graph and chart heights (260 / 320 / 400px) are layout dimensions, not spacing.
+Exceptions: (1) Bootstrap 3 native 15px column gutters and container padding are kept as-is. (2) Touch target minimum is 44px (see Tap Targets); it is a size, not spacing, and overrides the scale for heights. (3) Graph and chart heights (260 / 320 / 400px), the 96px events preview and the 96px gallery thumbnail cap are layout dimensions, not spacing. (4) The 3px transparent `border-top` on `a.lineselection:not(.selected)` mirrors Bootstrap's existing 3px selected border so links do not jump; it is a border width, not a spacing token. Every padding and margin value newly declared by this phase is on the 4/8/16/24 scale.
 
 Page must never overflow horizontally: container padding stays 15px at 390px, giving 360px of content width.
 
@@ -70,16 +70,16 @@ Page must never overflow horizontally: container padding stays 15px at 390px, gi
 
 ## Typography
 
-Bootstrap 3 base retained; no size or weight is changed on desktop. New rules use only these roles.
+Bootstrap 3 base retained; no size or weight is changed on desktop. New rules use only these four sizes (14, 16, 18, 24). Any pre-existing 12px text elsewhere in the desktop UI is unchanged and is not a declared role of this phase.
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
-| Body / control text | 14px | 400 | 1.43 (Bootstrap default, accepted) |
-| Label (helper text, gallery caption, toggle sub-text) | 12px | 400 | 1.5 |
+| Body / control text (also helper text, gallery captions, toggle sub-text) | 14px | 400 | 1.43 (Bootstrap default, accepted) |
+| Input (phone `.form-control` only) | 16px | 400 | 1.43 |
 | Heading (widget `h4`, Parameters section `h3`) | 18px | 600 | 1.2 |
 | Display (page `h1`) | 24px on phones (Bootstrap is 36px), unchanged from 768px up | 600 | 1.2 |
 
-Weights: exactly 400 and 600. Phone rule: `h1 { font-size: 24px; }` inside the `max-width: 767px` query only. Text inputs on phones use `font-size: 16px` (prevents iOS focus-zoom); this is the one place 16px is used, applied via `.form-control` at `max-width: 767px`.
+Weights: exactly 400 and 600. Phone rule: `h1 { font-size: 24px; }` inside the `max-width: 767px` query only. Text inputs on phones use `font-size: 16px` (prevents iOS focus-zoom); this is the one place 16px is used, applied via `.form-control` at `max-width: 767px`. Helper text, gallery captions and toggle sub-text use the 14px body size.
 
 ---
 
@@ -104,14 +104,14 @@ Rule: every interactive element added or restyled by this phase has a rendered h
 
 | Element | Selector | Required size at 390px |
 |---------|----------|------------------------|
-| Navbar hamburger | `.navbar-toggle` | 44 x 44px (`padding: 12px; margin: 5px 15px 5px 0`; keep the three `icon-bar`s) |
-| Navbar links (collapsed menu) | `.navbar-nav > li > a` | `padding-top: 12px; padding-bottom: 12px` (= 44px with 20px line height) |
-| Graph line-selection links | `a.lineselection` | `display:inline-block; min-height:44px; line-height:40px; padding:0 12px` |
+| Navbar hamburger | `.navbar-toggle` | 44 x 44px (`width:44px; height:44px; padding:8px 0; margin:4px 16px 4px 0; display:flex; flex-direction:column; justify-content:center; align-items:center`; keep the three `icon-bar`s) |
+| Navbar links (collapsed menu) | `.navbar-nav > li > a` | `padding: 8px 15px; line-height: 28px` (= 44px tall) |
+| Graph line-selection links | `a.lineselection` | `display:inline-block; min-height:44px; line-height:40px; padding:0 16px` |
 | Graph time-range links | `a.timeChoice`, `a.autorefresh` | same as line-selection |
 | Graph Back / Forward | `.graph-nav .btn` | `min-height:44px`, each half width (`col-xs-6`) |
 | Events toggle | `.events-toggle` | full width, `min-height:44px` |
 | Parameters section headers | `.param-section-toggle` | full width, `min-height:44px` |
-| Parameters tag pills | `.param-tags a` | `min-height:44px; line-height:24px` (padding 10px) |
+| Parameters tag pills | `.param-tags a` | `min-height:44px; padding:8px; line-height:28px` (= 44px tall) |
 | Parameters commands | `.command.btn` | `min-height:44px` |
 | Text / select inputs | `.form-control` | `height:44px` |
 | "Set" and "Save image" buttons | `.btn` in forms | `min-height:44px` |
@@ -125,7 +125,7 @@ Spacing between adjacent tap targets: >= 8px (sm).
 
 ### Shared shell (`layout.html`)
 - Keep `<meta name="viewport" content="width=device-width, initial-scale=1.0">` exactly (structural test asserts it). Do not add `maximum-scale` or `user-scalable=no` (defaulted: keep pinch-zoom available for accessibility).
-- Navbar keeps `navbar-toggle` / `navbar-collapse collapse`. Only the tap-target CSS above is added. The hamburger already exists.
+- Navbar keeps `navbar-toggle` / `navbar-collapse collapse`. Only the tap-target CSS above is added. The hamburger already exists but has no accessible name today (icon-bars only): add `aria-label="Toggle navigation"` and `aria-expanded="false"` to the `<button class="navbar-toggle">` in `layout.html` (Bootstrap 3 updates `aria-expanded` on toggle), plus `<span class="sr-only">Toggle navigation</span>` as the first child.
 - `body { overflow-x: hidden; }` is NOT allowed as a fix; overflow must be fixed at source (see Acceptance).
 - Add to `pellmon.css` (all viewports): `img, object, svg { max-width: 100%; }`, `.container { overflow-wrap: break-word; }`.
 
@@ -134,6 +134,7 @@ Spacing between adjacent tap targets: >= 8px (sm).
 - Each widget column gets bottom spacing on phones: `#pellmon-widgets [class*="col-"] { margin-bottom: 16px; }` inside `max-width: 767px`.
 
 ### System image (`systemimage`)
+- The system image is the visual anchor and first focal point of the phone dashboard: it is the first widget, the largest visual element above the fold, and nothing above it except the navbar and `h1`.
 - Keep `<object id="systemimage" class="image-responsive">`. Every diagram SVG is `width="100%" height="100%"` with a viewBox (330x280, 440x280, 440x310), and an `<object>` with `width:100%` and no height renders at the 150px default, which makes the diagram tiny. Contract (`max-width: 991px`): `object#systemimage { width: 100%; height: auto; aspect-ratio: 11 / 7; min-height: 230px; }` (11/7 = 440x280). Desktop (>= 992px) untouched.
 - Acceptance: at 390px the object is 360px wide, height >= 230px, right edge <= viewport width.
 
@@ -160,7 +161,7 @@ Markup (defaulted; `#lines` MUST keep its id and `data-url`, because `logview.js
 - Controls markup (defaulted; keeps every existing class and `data-*` attribute that `index.js` binds: `.lineselection`, `.timeChoice`, `.autorefresh`, `.selected`, `data-linename`, `data-selected`, `data-time-choice`, `data-title-text`, and the `Back`/`Forward` `.btn.left` / `.btn.right`):
   - Line-selection links wrapped in `<div class="graph-lines">`, time links + Autorefresh in `<div class="graph-times">`, Back/Forward in `<div class="btn-grp graph-nav">`. Fix the existing typo `</div   >`.
   - The `&nbsp;&nbsp;` separators are removed on phones' behalf by spacing rules; keep them in markup if easier (they collapse harmlessly), but link spacing on phones comes from `margin: 0 8px 8px 0`.
-  - `@media (max-width: 767px)`: `.graph-lines a, .graph-times a { display:inline-block; min-height:44px; line-height:40px; padding:0 12px; margin:0 8px 8px 0; }`; `.graph-times.pull-left, .graph-nav.pull-right { float:none !important; }`; `.graph-nav { display:flex; gap:8px; }` `.graph-nav .btn { flex:1 1 50%; min-height:44px; line-height:32px; }`.
+  - `@media (max-width: 767px)`: `.graph-lines a, .graph-times a { display:inline-block; min-height:44px; line-height:40px; padding:0 16px; margin:0 8px 8px 0; }`; `.graph-times.pull-left, .graph-nav.pull-right { float:none !important; }`; `.graph-nav { display:flex; gap:8px; }` `.graph-nav .btn { flex:1 1 50%; min-height:44px; padding:8px 16px; line-height:28px; }`.
   - Unselected line links must not jump when selected (selected adds a 3px top border): `@media (max-width:767px) { a.lineselection:not(.selected) { border-top: 3px solid transparent !important; } }` (inline `border-top-color` from the template loses to `!important`, and `border-top: 3px solid` is set by `.selected`).
   - Controls wrap onto multiple lines; nothing may extend past 360px.
 - Header `h4.graphtitle` unchanged. No flot navigate/pan/zoom changes; no touch handlers added (deferred).
@@ -173,7 +174,7 @@ The plugin templates hard-code `style="height:400px"` (`src/Pellmonsrv/plugins/c
 ### Parameters page (`parameters.html`, D-05)
 Structure on phones, top to bottom: `h1`, tag navigation, "Less../More.." link, Control section, Data section, Settings section.
 - Grid: sidebar `col-xs-12 col-md-2`; content `col-xs-12 col-md-10`; Data and Settings columns `col-xs-12 col-md-5`; Control `col-xs-12`.
-- Tag navigation on phones: two pills per row. `.param-tags` class added to the `nav nav-pills nav-stacked` list; `@media (max-width:767px) { .param-tags > li { float:left; width:50%; } .param-tags > li > a { min-height:44px; } }`. From 768px up it stays stacked as today.
+- Tag navigation on phones: two pills per row. `.param-tags` class added to the `nav nav-pills nav-stacked` list; `@media (max-width:767px) { .param-tags > li { float:left; width:50%; } .param-tags > li > a { min-height:44px; padding:8px; line-height:28px; } }`. From 768px up it stays stacked as today.
 - Collapsible sections (Bootstrap 3 `collapse`): each of Control, Data, Settings gets a header toggle and a body:
   ```
   <h3 class="param-section-heading">
@@ -190,8 +191,8 @@ Structure on phones, top to bottom: `h1`, tag navigation, "Less../More.." link, 
 
 ### Settings page (`settings.html`, D-05, consistent with Phase 8)
 - Gallery tiles: change `col-xs-12 col-sm-6 col-md-4` to `col-xs-6 col-sm-6 col-md-4` (2 per row on phones, 2 on tablet, 3 on desktop). Rows keep the Bootstrap gutter (15px), so tiles are 165px wide at 390px.
-- Tile tuning at `max-width: 767px` only: `.sysimg-tile { padding: 8px; margin-bottom: 16px; }` and `.sysimg-tile-selected { padding: 7px; }` (keeps the 2px border without changing tile size); `.sysimg-thumb { max-height: 96px; }`; `.sysimg-caption { display:block; }` so the "Current" label wraps under the name instead of overflowing. The Phase 8 states (default, hover, focus, selected, Current label, check glyph) are unchanged.
-- `Save image` button becomes full width on phones (`btn-block` behavior via CSS at `max-width: 767px`), height >= 44px; helper text stays 12px.
+- Tile tuning at `max-width: 767px` only: `.sysimg-tile { padding: 8px; margin-bottom: 16px; }` and `.sysimg-tile-selected { box-shadow: inset 0 0 0 2px #337ab7; }` (selected state is drawn with an inset shadow, so no padding compensation and the tile size never changes; the rule replaces any padding tweak for the selected tile); `.sysimg-thumb { max-height: 96px; }`; `.sysimg-caption { display:block; }` so the "Current" label wraps under the name instead of overflowing. The Phase 8 states (default, hover, focus, selected, Current label, check glyph) are unchanged.
+- `Save image` button becomes full width on phones (`btn-block` behavior via CSS at `max-width: 767px`), height >= 44px; helper text uses the 14px body size.
 - Panel and alert markup unchanged. If Phase 6 later adds more panels they stack naturally.
 
 ### Other pages
@@ -207,6 +208,7 @@ Only the new controls need copy. All existing labels are unchanged.
 |---------|------|
 | Events toggle (collapsed) | Show all events |
 | Events toggle (expanded) | Show fewer events |
+| Navbar hamburger accessible name | Toggle navigation (`aria-label` and `sr-only` text) |
 | Events toggle accessible name | Same as visible text; `aria-expanded` reflects state |
 | Parameters section headers | Control, Data, Settings (unchanged wording); chevron glyph carries the state, with `aria-expanded` |
 | Primary CTA (this phase) | none new; existing "Set" and "Save image" are kept |
@@ -230,7 +232,8 @@ Only the new controls need copy. All existing labels are unchanged.
 ### Structural (pytest, text/AST style, D-06a)
 1. `layout.html` contains `<meta name="viewport" content="width=device-width, initial-scale=1.0">` and no `user-scalable=no` / `maximum-scale`.
 2. `index.html` widget column class matches `col-xs-12 col-md-` and no line uses bare `col-md-${width}`.
-3. `graph` template has no `style="height:` and contains `pellmon-graph`; plugin templates `consumption` and `silolevel` contain no `height:400px` and contain `pellmon-chart`.
+3. `layout.html` navbar toggle button has `aria-label="Toggle navigation"`.
+3b. `graph` template has no `style="height:` and contains `pellmon-graph`; plugin templates `consumption` and `silolevel` contain no `height:400px` and contain `pellmon-chart`.
 4. `events` template contains `id="events-wrap"`, `id="lines"`, `data-url=`, `events-toggle`, `aria-expanded`, and both strings "Show all events" and "Show fewer events" (the second may live in the script).
 5. `parameters.html` contains `data-toggle="collapse"` at least 3 times, `param-section`, `col-xs-12`, and no `col-md-` class without a `col-xs-` sibling.
 6. `settings.html` tile column is `col-xs-6`.
