@@ -239,3 +239,13 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [x] 09-03-PLAN.md - RELEASING.md manual-setup docs, README/DEPLOY-PI cross-references, live end-to-end publish verification (D-01, D-04, D-05, D-07, D-09)
+
+### Phase 10: Optimize for mobile devices screen size
+
+**Goal:** [To be planned]
+**Requirements**: TBD
+**Depends on:** Phase 9
+**Plans:** 0 plans
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 10 to break down)
