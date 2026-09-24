@@ -68,6 +68,26 @@ for a confirmed platform-unavailable dependency:
   `test_mocked_transport_smoke.py` until Phase 4 adds the injectable
   transport seam (PROTO-04).
 
+## Headless-browser layout tests (Phase 10)
+
+- Tests live in `tests/browser/` and skip unless `PELLMON_BROWSER_TESTS=1`.
+  With it set, a missing Playwright or browser is a failure, not a skip.
+- They run in CI as a mandatory step of the `test` job (so `publish`, which
+  `needs: test`, is blocked by a layout failure).
+- The run passes `--allow-unix-socket` on that one `pytest` invocation.
+  Playwright's asyncio self-pipe needs a Unix socket, while TCP stays blocked
+  in the test process. The stub web server runs as a subprocess and reports
+  its port on stdout. This is a CLI flag, not an `enable_socket` marker, and
+  `--disable-socket` stays in `pytest.ini`.
+- Local run (WSL): create a scratch venv with `--system-site-packages`, then
+  ```
+  pip install -r requirements-browser.txt
+  python -m playwright install chromium
+  PYTHONPATH=src PELLMON_BROWSER_TESTS=1 python -m pytest tests/browser -v -rs --allow-unix-socket
+  ```
+- Screenshots go to `PELLMON_SHOTS_DIR` (default `tests/browser/_shots/`,
+  git-ignored); CI uploads them as the `mobile-layout-screenshots` artifact.
+
 ## Phase 4 hook
 
 `tests/conftest.py`'s `loop_serial` and `mocked_udp_socket` fixtures are the
