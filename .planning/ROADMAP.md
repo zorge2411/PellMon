@@ -242,8 +242,8 @@ Plans:
 
 ### Phase 10: Optimize for mobile devices screen size
 
-**Goal:** [To be planned]
-**Requirements**: TBD
+**Goal:** The web UI (dashboard, graph, Parameters, Settings) is comfortable to read and operate on a phone at about 390px and still correct at 768px, with no horizontal scroll and desktop rendering unchanged, verified by structural tests, automated screenshot/overflow checks in CI, and a real-phone check.
+**Requirements**: D-01..D-06 (see 10-CONTEXT.md)
 **Depends on:** Phase 9
 **Plans:** 0 plans
 
