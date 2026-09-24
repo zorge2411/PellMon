@@ -57,6 +57,30 @@ jobs:
         run: |
           pytest tests/ -v
 
+      - name: Install browser test dependencies
+        run: |
+          pip install -r requirements-browser.txt
+          playwright install --with-deps --only-shell chromium
+
+      # Mandatory run (D-06b): PELLMON_BROWSER_TESTS=1 turns a missing browser into a failure.
+      # --allow-unix-socket lets Playwright's asyncio self-pipe work while TCP stays blocked.
+      - name: Run mobile layout browser tests
+        env:
+          PYTHONPATH: src
+          PELLMON_BROWSER_TESTS: "1"
+          PELLMON_SHOTS_DIR: ${{ runner.temp }}/pellmon-shots
+        run: |
+          pytest tests/browser -v -rs --allow-unix-socket
+
+      - name: Upload layout screenshots
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-layout-screenshots
+          path: ${{ runner.temp }}/pellmon-shots
+          retention-days: 7
+          if-no-files-found: ignore
+
   publish:
     name: Bump version and publish Docker image
     needs: test

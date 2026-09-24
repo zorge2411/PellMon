@@ -402,3 +402,35 @@ def test_conf_example_does_not_conflict_with_conf_d():
     )
     assert any(re.match(r"^\s*config_dir\s*=", l) for l in lines)
     assert any(re.match(r"^\s*logfile\s*=", l) for l in lines)
+
+
+def test_ci_runs_mandatory_browser_layout_tests():
+    """D-06(b): the headless-browser layout run is a mandatory step of the gated test job."""
+    content = (REPO_ROOT / ".github" / "workflows" / "ci.yml").read_text(encoding="utf-8")
+
+    for needle in (
+        "requirements-browser.txt",
+        "playwright install --with-deps",
+        "tests/browser",
+        'PELLMON_BROWSER_TESTS: "1"',
+        "--allow-unix-socket",
+        "-rs",
+        "actions/upload-artifact@",
+        "if: always()",
+    ):
+        assert needle in content, "ci.yml must contain %r for the browser layout step (D-06b)" % needle
+
+    suite_pos = content.index("Run test suite")
+    browser_pos = content.index("tests/browser")
+    publish_pos = content.index("  publish:")
+    assert suite_pos < browser_pos < publish_pos, (
+        "the browser step must sit inside the test job (after 'Run test suite', before publish) "
+        "so that needs: test blocks a release on browser failures"
+    )
+    assert "needs: test" in content, "publish must stay gated on the test job"
+
+    reqs = (REPO_ROOT / "requirements-browser.txt").read_text(encoding="utf-8")
+    assert re.search(r"^playwright==\d", reqs, flags=re.M), "playwright must be pinned with =="
+    for name in ("requirements.txt", "Dockerfile"):
+        text = (REPO_ROOT / name).read_text(encoding="utf-8")
+        assert "playwright" not in text.lower(), "playwright must not leak into %s" % name
