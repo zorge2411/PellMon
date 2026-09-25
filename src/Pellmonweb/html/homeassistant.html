@@ -1,0 +1,229 @@
+<%! scripts = ['js/homeassistant.js'] %>
+<%inherit file="layout.html"/>
+<%def name="title()">
+Home Assistant / MQTT
+</%def>
+<%
+    s = settings
+    verify_disabled = '' if s['tls'] else ' disabled'
+    st = status
+
+    def fgroup(field, extra=''):
+        return 'form-group has-error' if field in errors else 'form-group'
+
+    def invalid(field):
+        return ' aria-invalid="true"' if field in errors else ''
+
+    def describedby(field):
+        ids = field + '-help'
+        if field in errors:
+            ids += ' ' + field + '-error'
+        return ids
+%>
+<%def name="err(field)">\
+% if field in errors:
+<span class="help-block" id="${field}-error">${errors[field] | h}</span>
+% endif
+</%def>
+<div class="container mqtt-page">
+	<h1>Home Assistant / MQTT</h1>
+	<p class="mqtt-intro">Publish the burner to Home Assistant as an MQTT device. Changes are applied to the running server without a restart.</p>
+	% if msg:
+	<div class="alert alert-${msg_level | h}" role="${'status' if msg_level == 'success' else 'alert'}"${'' if msg_level == 'success' else ' tabindex="-1"'}>${msg | h}</div>
+	% endif
+	<div id="mqtt-status" class="${'well' if st['level'] == 'well' else 'alert alert-' + st['level']}" role="status" aria-live="polite" title="${st['title'] | h}">
+		% if st['glyph']:
+		<span class="glyphicon glyphicon-${st['glyph'] | h}" aria-hidden="true"></span>
+		% endif
+		% if st['word']:
+		<strong>${st['word'] | h}</strong>
+		% endif
+		${st['text'] | h}
+	</div>
+	<form class="mqtt-form" method="post" action="${webroot | h}/homeassistant/save">
+		<section class="panel panel-default">
+			<div class="panel-heading">Connection</div>
+			<div class="panel-body">
+				<fieldset>
+					<legend class="sr-only">Connection</legend>
+					<div class="${fgroup('enabled')}">
+						<div class="checkbox">
+							<label for="enabled"><input type="checkbox" id="enabled" name="enabled" value="1" aria-describedby="enabled-help"${' checked' if s['enabled'] else ''}> Enable Home Assistant MQTT</label>
+						</div>
+						<p class="help-block" id="enabled-help">When off, PellMon does not connect to the broker or publish anything.</p>
+					</div>
+				</fieldset>
+				<div class="row">
+					<div class="col-xs-12 col-sm-8">
+						<div class="${fgroup('host')}">
+							<label for="host">Broker host</label>
+							<input type="text" class="form-control" id="host" name="host" value="${s['host'] | h}" placeholder="mqtt.example.com or 192.168.1.10" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('host')}"${invalid('host')}>
+							<p class="help-block" id="host-help">Host name or IP address of your MQTT broker.</p>
+							${err('host')}
+						</div>
+					</div>
+					<div class="col-xs-12 col-sm-4">
+						<div class="${fgroup('port')}">
+							<label for="port">Port</label>
+							<input type="number" class="form-control" id="port" name="port" value="${s['port'] | h}" inputmode="numeric" min="1" max="65535" aria-describedby="${describedby('port')}"${invalid('port')}>
+							<p class="help-block" id="port-help">Usually 1883, or 8883 with TLS.</p>
+							${err('port')}
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('username')}">
+							<label for="username">Username</label>
+							<input type="text" class="form-control" id="username" name="username" value="${s['username'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('username')}"${invalid('username')}>
+							<p class="help-block" id="username-help">Leave empty if the broker allows anonymous access.</p>
+							${err('username')}
+						</div>
+					</div>
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('password')}">
+							<label for="password">Password</label>
+							<input type="password" class="form-control" id="password" name="password" placeholder="${'set' if has_password else ''}" autocomplete="new-password" aria-describedby="${describedby('password')}"${invalid('password')}>
+							% if password_reentered:
+							<p class="help-block" id="password-help">Re-enter the password. It is not kept when the form is redisplayed.</p>
+							% elif has_password:
+							<p class="help-block" id="password-help">A password is stored. Leave this field blank to keep it.</p>
+							% else:
+							<p class="help-block" id="password-help">No password stored.</p>
+							% endif
+							${err('password')}
+							% if has_password:
+							<div class="checkbox">
+								<label for="clear_password"><input type="checkbox" id="clear_password" name="clear_password" value="1"> Remove the stored password</label>
+							</div>
+							% endif
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+		<section class="panel panel-default">
+			<div class="panel-heading">Security</div>
+			<div class="panel-body">
+				<fieldset>
+					<legend class="sr-only">Security</legend>
+					<div class="form-group">
+						<div class="checkbox">
+							<label for="tls"><input type="checkbox" id="tls" name="tls" value="1" aria-describedby="tls-help"${' checked' if s['tls'] else ''}> Use TLS (encrypted connection)</label>
+						</div>
+						<p class="help-block" id="tls-help">Encrypts the connection to the broker. Enter the TLS port, usually 8883.</p>
+					</div>
+					<div class="form-group mqtt-indent">
+						<div class="checkbox">
+							<label for="tls_verify"><input type="checkbox" id="tls_verify" name="tls_verify" value="1" aria-describedby="tls_verify-help"${' checked' if s['tls_verify'] else ''}${verify_disabled}> Verify the broker certificate</label>
+							<input type="hidden" id="tls_verify_field" name="tls_verify_field" value="1"${verify_disabled}>
+						</div>
+						<p class="help-block" id="tls_verify-help">Checks that the broker's certificate is valid and matches the host name. Client certificates and custom CAs are not supported yet.<span id="tls_verify-reason">${'' if s['tls'] else ' Turn on TLS to change this.'}</span></p>
+					</div>
+				</fieldset>
+				<div id="mqtt-verify-warning" class="alert alert-warning" role="status"${'' if (s['tls'] and not s['tls_verify']) else ' hidden'}>
+					<span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span> Certificate verification is off. The connection is encrypted, but PellMon does not check who the broker is.
+				</div>
+			</div>
+		</section>
+		<section class="panel panel-default">
+			<div class="panel-heading">Topics and discovery</div>
+			<div class="panel-body">
+				<div class="row">
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('prefix')}">
+							<label for="prefix">Topic prefix</label>
+							<input type="text" class="form-control" id="prefix" name="prefix" value="${s['prefix'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('prefix')}"${invalid('prefix')}>
+							<p class="help-block" id="prefix-help">Values are published to <code class="mqtt-prefix-code">${s['prefix'] | h}</code>/&lt;item&gt;/state. Keep the default to match your existing dashboards.</p>
+							${err('prefix')}
+						</div>
+					</div>
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('discovery_prefix')}">
+							<label for="discovery_prefix">Discovery prefix</label>
+							<input type="text" class="form-control" id="discovery_prefix" name="discovery_prefix" value="${s['discovery_prefix'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('discovery_prefix')}"${invalid('discovery_prefix')}>
+							<p class="help-block" id="discovery_prefix-help">Must match the MQTT discovery prefix configured in Home Assistant. The default is <code>homeassistant</code>.</p>
+							${err('discovery_prefix')}
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+		<section class="panel panel-default">
+			<div class="panel-heading">Device</div>
+			<div class="panel-body">
+				<div class="row">
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('device_id')}">
+							<label for="device_id">Device identifier</label>
+							<input type="text" class="form-control" id="device_id" name="device_id" value="${s['device_id'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('device_id')}"${invalid('device_id')}>
+							<p class="help-block" id="device_id-help">Enter the identifier of your existing Home Assistant device so its entities and history carry over. A different identifier creates a new device. Switch off the old publisher first.</p>
+							${err('device_id')}
+						</div>
+					</div>
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('device_name')}">
+							<label for="device_name">Device name</label>
+							<input type="text" class="form-control" id="device_name" name="device_name" value="${s['device_name'] | h}" placeholder="Pellet burner" autocomplete="off" aria-describedby="${describedby('device_name')}"${invalid('device_name')}>
+							<p class="help-block" id="device_name-help">The name shown for the device in Home Assistant.</p>
+							${err('device_name')}
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('node_id')}">
+							<label for="node_id">Discovery node ID</label>
+							<input type="text" class="form-control" id="node_id" name="node_id" value="${s['node_id'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('node_id')}"${invalid('node_id')}>
+							<p class="help-block" id="node_id-help">Only needed to take over an existing device: the node ID used in its discovery topics. Leave empty to use the device identifier.</p>
+							${err('node_id')}
+						</div>
+					</div>
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('uid_prefix')}">
+							<label for="uid_prefix">Unique ID prefix</label>
+							<input type="text" class="form-control" id="uid_prefix" name="uid_prefix" value="${s['uid_prefix'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('uid_prefix')}"${invalid('uid_prefix')}>
+							<p class="help-block" id="uid_prefix-help">Only needed to take over an existing device: the part of each entity's unique ID before the item name. Leave empty to use the device identifier.</p>
+							${err('uid_prefix')}
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+		<section class="panel panel-default">
+			<div class="panel-heading">Behaviour</div>
+			<div class="panel-body">
+				<fieldset>
+					<legend class="sr-only">Behaviour</legend>
+					<div class="form-group">
+						<div class="checkbox">
+							<label for="allow_commands"><input type="checkbox" id="allow_commands" name="allow_commands" value="1" aria-describedby="allow_commands-help"${' checked' if s['allow_commands'] else ''}> Allow commands from Home Assistant</label>
+						</div>
+						<p class="help-block" id="allow_commands-help">Lets Home Assistant change burner settings (temperature setpoints, power limits, cleaning and feeder values) and press Reset alarm and Reset ignition. Burner ON and OFF are never available from Home Assistant. Every command is checked against the burner's limits and logged.</p>
+						<div id="mqtt-commands-warning" class="alert alert-warning" role="status"${'' if s['allow_commands'] else ' hidden'}>
+							<span class="glyphicon glyphicon-warning-sign" aria-hidden="true"></span> Anyone who can reach your Home Assistant or MQTT broker can change burner settings while this is on. Use a broker password and TLS.
+						</div>
+					</div>
+				</fieldset>
+				<div class="row">
+					<div class="col-xs-12 col-sm-4">
+						<div class="${fgroup('refresh')}">
+							<label for="refresh">Refresh interval (seconds)</label>
+							<input type="number" class="form-control" id="refresh" name="refresh" value="${s['refresh'] | h}" inputmode="numeric" min="10" max="3600" aria-describedby="${describedby('refresh')}"${invalid('refresh')}>
+							<p class="help-block" id="refresh-help">All values are re-published this often, even when unchanged. Changes are always published immediately.</p>
+							${err('refresh')}
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+		<div class="mqtt-actions">
+			<button type="submit" class="btn btn-primary mqtt-save"${'' if auth_configured else ' disabled'}>Save settings</button>
+			<button type="submit" class="btn btn-default mqtt-test" formaction="${webroot | h}/homeassistant/test"${'' if auth_configured else ' disabled'}>Test connection</button>
+			<p id="mqtt-test-result" role="status" aria-live="polite" class="mqtt-test-result${' text-success' if test_level == 'success' else (' text-danger' if test_level == 'danger' else '')}">${test_msg | h}</p>
+		</div>
+		% if not auth_configured:
+		<p class="help-block">Saving is disabled until web login credentials are configured.</p>
+		% endif
+	</form>
+</div>
