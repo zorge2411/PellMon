@@ -40,9 +40,9 @@ Add to the left `nav navbar-nav` list of `layout.html`, immediately after "Setti
 `<li class="${'active' if context.get('active_page', '') == 'homeassistant' else ''}"><a href="${webroot}/homeassistant/">Home Assistant</a></li>`
 
 - Label in the menu: **Home Assistant** (short, so the navbar does not wrap). Page `h1` and `<title>`: **Home Assistant / MQTT**.
-- Tablet risk: at 768px the navbar now holds seven links plus the brand. Add inside `@media (min-width: 768px) and (max-width: 991px)` only: `.navbar-nav > li > a { padding-left: 10px; padding-right: 10px; }` (Bootstrap default 15px; saves about 70px). Desktop (>= 992px) unchanged. This is an allowed tablet-only rule under the Phase 10 media query list.
+- Tablet risk: at 768px the navbar now holds seven links plus the brand. Add inside `@media (min-width: 768px) and (max-width: 991px)` only: `.navbar-nav > li > a { padding-left: 8px; padding-right: 8px; }` (Bootstrap default 15px; saves 98px = 7 links x 14px, so the seven links stay on one row at 768px with margin to spare). 8px is on the 4px grid (sm token). Desktop (>= 992px) unchanged. This is an allowed tablet-only rule under the Phase 10 media query list.
 - Phone: link uses the existing Phase 10 collapsed-menu rule (`padding: 8px 16px; line-height: 28px` = 44px tall). Nothing new.
-- Active item uses the accent (existing Bootstrap `navbar-default` active style).
+- Active item uses the existing Bootstrap 3.0.0 `navbar-default` active style (`#555555` text on `#e7e7e7`), unchanged. It is neutral, not accent-colored; no new rule.
 
 ---
 
@@ -60,19 +60,19 @@ Multiples of 4, same tokens as Phase 8/10:
 |-------|-------|-------|
 | xs | 4px | Gap between checkbox and label text, glyph and text |
 | sm | 8px | Gap between stacked buttons, gap between help text and next control |
-| md | 16px | Vertical gap between form groups, between panels, alert padding |
-| lg | 24px | Panel body padding around the sections, gap between status line and first panel |
-| xl | 32px | Gap between h1 and status line |
+| md | 16px | Gap between h1 and intro paragraph, between intro paragraph and status line, between form groups, between panels; panel body padding and alert padding at every breakpoint |
+| lg | 24px | Gap between status line and first panel, gap between last panel and action row, indent of the Verify checkbox under TLS |
+| xl | 32px | Bottom padding of the page (`.mqtt-page`) below the action row |
 | 2xl | 48px | Not used |
 | 3xl | 64px | Not used |
 
-Exceptions: (1) Bootstrap native 15px column gutters, 15px panel padding and 15px `.form-group` margin are left as-is inside Bootstrap components; only `.mqtt-*` rules use the scale. (2) 44px minimum tap height and 24px checkbox box are sizes, not spacing. (3) Page must never overflow horizontally: container padding stays 15px, content width 360px at 390px.
+Exceptions: (1) Only Bootstrap's native 15px column gutters and 15px `.container` side padding are left as-is (needed for grid alignment and shared with all pages). Everything else is set explicitly by `.mqtt-*` rules on all breakpoints, so no other 15px value renders on this page: `.mqtt-page .panel-body { padding: 16px; }`, `.mqtt-page .alert { padding: 16px; }`, `.mqtt-form .form-group { margin-bottom: 16px; }`, `.mqtt-page h1 { margin: 0 0 16px; }`, intro paragraph `.mqtt-intro { margin: 0 0 16px; }`, `#mqtt-status { margin-bottom: 24px; }`, `.mqtt-form .panel { margin-bottom: 16px; }`, `.mqtt-actions { margin-top: 24px; }`, `.mqtt-page { padding-bottom: 32px; }`, `.mqtt-indent { margin-left: 24px; }` (Verify checkbox row, all widths). The only rule outside `.mqtt-*` is the tablet-only navbar link padding of 8px, which is on the scale. (2) 44px minimum tap height and 24px checkbox box are sizes, not spacing. (3) Page must never overflow horizontally: container padding stays 15px, content width 360px at 390px.
 
 ---
 
 ## Typography
 
-Only the four Phase 10 sizes are used; exactly two weights (400 and 600). Bootstrap's default `label` weight (bold 700) and `h1` weight (500) are overridden explicitly on this page.
+Only the four Phase 10 sizes (14, 16, 18, 24) are used; exactly two weights (400 and 600). Bootstrap's default `label` weight (bold 700) and `h1` weight (500) are overridden explicitly on this page.
 
 | Role | Size | Weight | Line Height |
 |------|------|--------|-------------|
@@ -81,7 +81,7 @@ Only the four Phase 10 sizes are used; exactly two weights (400 and 600). Bootst
 | Heading (panel heading, field labels) | 18px panel heading; 14px field labels | 600 | 1.2 for panel headings; 1.43 for labels |
 | Display (page `h1`) | 24px on phones (Bootstrap 36px from 768px up, unchanged) | 600 | 1.2 |
 
-Rules: `.mqtt-form label { font-weight: 600; }`; `.mqtt-form .checkbox label { font-weight: 400; }` (the checkbox text is body, the group is introduced by the panel heading); `.mqtt-form .panel-heading { font-size: 18px; font-weight: 600; line-height: 1.2; }`; `h1` inherits Phase 10 phone rule (24px/600/1.2). Helper text (`.help-block`) is 14px, not 12px (Phase 10 supersedes Phase 8's 12px).
+Rules: `.mqtt-form code { font-size: 14px; }` (Bootstrap 3.0.0 `code` is 90% of its parent, about 12.6px, which would be a fifth size; 14px matches the surrounding help text); `.mqtt-form label { font-weight: 600; }`; `.mqtt-form .checkbox label { font-weight: 400; }` (the checkbox text is body, the group is introduced by the panel heading); `.mqtt-form .panel-heading { font-size: 18px; font-weight: 600; line-height: 1.2; }`; `h1` inherits Phase 10 phone rule (24px/600/1.2). Helper text (`.help-block`) is 14px, not 12px (Phase 10 supersedes Phase 8's 12px).
 
 ---
 
@@ -93,23 +93,25 @@ No new colors. Bootstrap 3 defaults and the existing PellMon palette.
 |------|-------|-------|
 | Dominant (60%) | `#f3f3f3` | Page background (existing `body`) |
 | Secondary (30%) | `#ffffff` / `#f8f8f8` | Panels, navbar, form surfaces; neutral `well` (`#f5f5f5`) for the "disabled / connecting" status |
-| Accent (10%) | `#337ab7` (Bootstrap primary) | See reserved list |
+| Accent (10%) | `#428bca` (what the vendored Bootstrap 3.0.0 `.btn-primary` actually renders; border `#357ebd`, hover/active `#3276b1`, all Bootstrap defaults) | See reserved list |
 | Destructive / error | `#a94442` text, `#f2dede` bg (`alert-danger`, `has-error`) | Save failed, field validation errors, Disconnected, Test failed. No destructive actions exist on this page |
 
-Accent reserved for: (1) the "Save settings" primary button, (2) the active "Home Assistant" navbar item, (3) the keyboard focus outline on inputs and checkboxes (Bootstrap default focus color, never removed). "Test connection" is `btn btn-default` (neutral). Status colors: Connected = `alert-success` (`#3c763d` on `#dff0d8`), Disconnected and errors = `alert-danger`, warnings (commands on, verification off, plugin/daemon down) = `alert-warning` (`#8a6d3b` on `#fcf8e3`), disabled/connecting = neutral `well`. State is never conveyed by color alone: each status carries a glyph plus the words Connected / Disconnected / Off.
+Accent reserved for the "Save settings" primary button only (`btn btn-primary`, rendering `#428bca`). No new accent value is introduced by this page: the active navbar item stays Bootstrap's neutral grey (see Navigation), and keyboard focus outlines keep whatever Bootstrap 3.0.0 and the existing Phase 8/10 rules render (never removed). Note: existing Phase 8/10 rules in `pellmon.css` (focus outline, `.sysimg-tile-selected`) use `#337ab7`; they are left untouched, and this page's `.mqtt-*` rules do not use `#337ab7` or any hex accent at all. "Test connection" is `btn btn-default` (neutral). Status colors: Connected = `alert-success` (`#3c763d` on `#dff0d8`), Disconnected and errors = `alert-danger`, warnings (commands on, verification off, plugin/daemon down) = `alert-warning` (`#8a6d3b` on `#fcf8e3`), disabled/connecting = neutral `well`. State is never conveyed by color alone: each status carries a glyph plus the words Connected / Disconnected / Off.
 
 ---
 
 ## Page Layout (D-10, D-11)
 
-`container` > `h1` "Home Assistant / MQTT" > intro paragraph > status line > one `<form>` containing five panels > action row.
+`div.container.mqtt-page` > `h1` "Home Assistant / MQTT" > intro paragraph (`p.mqtt-intro`) > status line > one `<form>` containing five panels > action row (`div.mqtt-actions`). Vertical rhythm, top to bottom: h1, 16px, intro, 16px, status line, 24px, first panel, 16px between panels, 24px, action row, 32px page bottom.
+
+Focal point: the status line is the visual anchor of the page (first colored element, above the fold, checked by H-B1); "Save settings" is the single primary action, the only accent-colored element, at the end of the form. Test connection is deliberately neutral so it never competes with Save.
 
 One single form (deviation from Phase 8's one-form-per-section, on purpose: Save applies all fields together and reconnects once, D-13). Panels are `section.panel.panel-default` with a `.panel-heading` and `.panel-body`. Fields are stacked (label above control), not `form-horizontal`.
 
 Intro paragraph (below h1): "Publish the burner to Home Assistant as an MQTT device. Changes are applied to the running server without a restart."
 
 ### Status line (D-13)
-`<div id="mqtt-status" class="alert ..." role="status" aria-live="polite">`, placed between the intro and the form, above the fold at 390px. Server-rendered on load; if JS is available, refreshed every 5 seconds from `GET .../status` (text is replaced only when it changes, so screen readers are not spammed). Without JS the page shows the state at load time. Contents: glyph, bold-free state word in 600 weight, then the sentence. Times are the server's local time in `HH:MM:SS` (`title` attribute holds the full date and time).
+`<div id="mqtt-status" class="alert ..." role="status" aria-live="polite">`, placed between the intro and the form, above the fold at 390px. Server-rendered on load; if JS is available, refreshed every 5 seconds from `GET .../status` (text is replaced only when it changes, so screen readers are not spammed). Without JS the page shows the state at load time. Contents: glyph, the state word (Connected / Disconnected / Off) at weight 600, then the sentence at weight 400. Times are the server's local time in `HH:MM:SS` (`title` attribute holds the full date and time).
 
 | State | Style | Copy |
 |-------|-------|------|
@@ -120,7 +122,7 @@ Intro paragraph (below h1): "Publish the burner to Home Assistant as an MQTT dev
 | Connected, burner offline (D-14) | `alert-warning` | Connected to {host}:{port}, but the burner is not connected. Home Assistant shows the entities as unavailable until it answers again. |
 | Disconnected | `alert-danger` + `glyphicon-remove` | Disconnected from {host}:{port}: {reason}. PellMon keeps retrying automatically. |
 | Plugin not active | `alert-warning` | The Home Assistant MQTT plugin is not active on the server. Check the PellMon installation and restart the server. |
-| Daemon down | `alert-warning` | Cannot read the status because the PellMon server is not running. |
+| Daemon down | `alert-warning` | Cannot read the status because the PellMon server is not running. Start the server to see the status. |
 
 Reason strings are a fixed mapped set, never raw exception text and never containing credentials: "connection refused", "host not found", "timed out", "wrong username or password", "not authorised", "certificate could not be verified", "TLS handshake failed", "connection lost". Anything else: "unknown error (see the server log)".
 
@@ -140,7 +142,7 @@ Heading "Connection".
 ### Panel 2: Security (TLS)
 Heading "Security".
 1. **TLS** (`name="tls"`): checkbox "Use TLS (encrypted connection)". Help: "Encrypts the connection to the broker. Enter the TLS port, usually 8883."
-2. **Verify certificate** (`name="tls_verify"`, default checked): checkbox "Verify the broker certificate", indented under TLS. Disabled (native `disabled` plus muted text) while TLS is unchecked. Help: "Checks that the broker's certificate is valid and matches the host name. Client certificates and custom CAs are not supported yet."
+2. **Verify certificate** (`name="tls_verify"`, default checked): checkbox "Verify the broker certificate", indented under TLS with `.mqtt-indent` (24px left margin at every width; on phones the checkbox row's own 32px label offset applies inside it). Disabled (native `disabled` plus muted text) while TLS is unchecked. Help: "Checks that the broker's certificate is valid and matches the host name. Client certificates and custom CAs are not supported yet."
 3. When TLS is on and Verify is unchecked, an inline `alert alert-warning` (`role="status"`) is shown: "Certificate verification is off. The connection is encrypted, but PellMon does not check who the broker is." Shown live by JS and rendered server-side on load.
 
 ### Panel 3: Topics and discovery
@@ -223,7 +225,7 @@ When the enable switch is off, host, device identifier and device name are not r
 At 390px (content width 360px), everything stacks in one column; at 768px fields use the `col-sm-*` widths above (two per row where specified); nothing depends on hover.
 
 - All field wrappers are `col-xs-12` plus the `col-sm-*` widths above; no bare `col-md-*`/`col-sm-*` without a `col-xs-*` sibling.
-- Phone rules inside `@media (max-width: 767px)` only: `.mqtt-form .form-control { height: 44px; font-size: 16px; }` (16px prevents iOS focus zoom); `.mqtt-form .checkbox label { min-height: 44px; padding: 8px 0 8px 32px; line-height: 28px; display: block; }` with the checkbox input positioned at `margin-left: -32px` and enlarged to 24x24px so the whole row is the target; `.mqtt-form .btn { display: block; width: 100%; min-height: 44px; margin: 0 0 8px; }`; `.mqtt-form .panel-body { padding: 16px; }`; panel headings 18px/600.
+- Phone rules inside `@media (max-width: 767px)` only: `.mqtt-form .form-control { height: 44px; font-size: 16px; }` (16px prevents iOS focus zoom); `.mqtt-form .checkbox label { min-height: 44px; padding: 8px 0 8px 32px; line-height: 28px; display: block; }` with the checkbox input positioned at `margin-left: -32px` and enlarged to 24x24px so the whole row is the target; `.mqtt-form .btn { display: block; width: 100%; min-height: 44px; margin: 0 0 8px; }`; panel headings 18px/600. (Panel body and alert padding are 16px on all breakpoints and are set globally, see Spacing exceptions, not only on phones.)
 - Button order on phones: Save settings first (full width), Test connection below it (full width), test result under both. From 768px they sit inline (`display: inline-block; width: auto`), Save then Test, 8px apart.
 - The status line and messages wrap; `.container { overflow-wrap: break-word; }` (Phase 10 shared rule) and `.mqtt-form code { word-break: break-all; }` prevent long prefixes or hosts pushing the page wider than 360px.
 - Long host, username or device identifier values must not overflow: `.form-control` is `width: 100%` and inputs are never given fixed pixel widths.
@@ -270,7 +272,7 @@ Phrasing rules (matching Phase 8): sentences end with a period, no exclamation m
 
 ## Defaulted Decisions (summary for planner)
 
-1. Route `/homeassistant/` with `save`, `test`, `status` endpoints; navbar label "Home Assistant" after Settings; tablet-only navbar padding of 10px to keep seven links on one row at 768px.
+1. Route `/homeassistant/` with `save`, `test`, `status` endpoints; navbar label "Home Assistant" after Settings; tablet-only navbar link padding of 8px (on the 4px grid, saves 98px) to keep seven links on one row at 768px.
 2. One form and one Save for all five panels (single reconnect), not one form per panel.
 3. No modal for enabling commands; inline warning plus save message instead.
 4. Extra "Remove the stored password" checkbox (only shown when a password is stored), because a blank field must keep the current value.
@@ -295,7 +297,7 @@ Phrasing rules (matching Phase 8): sentences end with a period, no exclamation m
 7. Every column class in `homeassistant.html` that has `col-sm-` or `col-md-` also has a `col-xs-` sibling; no fixed pixel `width:` >= 361px and no inline `height:` in the template.
 8. Both buttons exist with exact labels "Save settings" and "Test connection"; the Test button has `formaction=` ending `/homeassistant/test`; a status element has `id="mqtt-status"` and `role="status"`.
 9. Copy strings from the tables above (each validation error, each status sentence, each Save/Test message) exist verbatim in the template or the module that renders them (one assertion per string).
-10. `pellmon.css` contains the header `Phase 6`, a `.mqtt-` rule, `max-width: 767px`, `min-height: 44px`, and still contains all Phase 8/10 markers (`.sysimg-tile`, `Phase 10`).
+10. `pellmon.css` contains the header `Phase 6`, a `.mqtt-` rule, `max-width: 767px`, `min-height: 44px`, `.mqtt-form code` with `font-size: 14px`, `.mqtt-page .panel-body` and `.mqtt-page .alert` with `padding: 16px`, `.mqtt-indent` with `margin-left: 24px`, the tablet navbar rule with `padding-left: 8px`, no `10px` or `15px` padding in any `.mqtt-*` rule, no `#337ab7` inside the Phase 6 block, and still contains all Phase 8/10 markers (`.sysimg-tile`, `Phase 10`).
 11. Save and Test handlers reject cross-origin POSTs and unauthenticated requests (reuses the config editor check); invalid input never reaches the D-Bus call.
 
 ### Rendered (Playwright, `tests/browser`, 390x844 mobile emulation and 768x1024; data stubbed)
@@ -304,7 +306,7 @@ Page `/homeassistant/` for both widths:
 - H-A2. Repeat A1 to A3 with the status line in each of its states (stubbed): Off, Connected, Disconnected with the longest reason, burner-offline warning.
 
 At 390px:
-- H-B1. `#mqtt-status` is above the first panel and its `top` is < 844 (above the fold without scrolling).
+- H-B1. (Focal point.) `#mqtt-status` is above the first panel and its `top` is < 844 (above the fold without scrolling).
 - H-B2. Every `.form-control` has height >= 44 and width >= 300 (full width, within 360px) with computed `font-size` 16px; every checkbox `label` row has height >= 44; `.mqtt-save` and `.mqtt-test` have height >= 44 and width >= 340, Save is above Test, and the vertical gap between them is >= 8px.
 - H-B3. Fields are single column: the `left` values of all `.form-control` elements are equal (within 1px).
 - H-B4. `.navbar-toggle` opens the menu and the "Home Assistant" link inside is visible, height >= 44, within 360px.
@@ -318,7 +320,7 @@ At 390px:
 At 768px:
 - H-E1. Host and Port share a row (equal `top`, host wider than port); Username and Password share a row; Prefix and Discovery prefix share a row; Device identifier and name share a row.
 - H-E2. Save and Test sit on one row (equal `top`), each auto width, gap >= 8px.
-- H-E3. The navbar does not wrap: all `.navbar-nav > li` (both lists) share the same `top` (within 1px) and the navbar height is <= 60px, with the Home Assistant item present.
+- H-E3. With the 8px link padding, the navbar does not wrap: all `.navbar-nav > li` (both lists) share the same `top` (within 1px) and the navbar height is <= 60px, with the Home Assistant item present; computed `padding-left` of `.navbar-nav > li > a` is 8px.
 
 At 1280px (regression smoke, optional): navbar unchanged in height, form renders, no overflow.
 
