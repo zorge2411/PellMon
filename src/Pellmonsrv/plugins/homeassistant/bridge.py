@@ -20,6 +20,7 @@
 import json
 import logging
 import queue
+import re
 import socket
 import ssl
 import threading
@@ -40,6 +41,8 @@ CMD_QUEUE_MAX = 20
 CMD_OFF_LOG_INTERVAL = 60
 
 RETRY_MAX = 60
+
+_INT_RE = re.compile(r'[+-]?[0-9]{1,6}(\.0+)?')
 
 
 def paho_available():
@@ -107,6 +110,9 @@ class Bridge(object):
         self._last_payloads = {}
         self._config_topics = set()
         self._present_ids = None
+        self._off_logged = {}
+        self._last_write = {}
+        self._write_times = []
 
         self._status = {
             'state': 'off', 'host': '', 'port': 0, 'reason': '',
@@ -512,5 +518,121 @@ class Bridge(object):
                 break
             self._handle_command(*item)
 
+    def _log_command(self, level, topic, item, raw, result):
+        text = repr(raw)[:CMD_PAYLOAD_MAX] if raw is not None else "''"
+        logger.log(level, 'Home Assistant command %s item=%s value=%s result=%s',
+                   topic, item, text, result)
+
     def _handle_command(self, topic, payload, retain):
-        pass
+        cfg = self._cfg
+        now = self._clock()
+        if cfg is None:
+            return
+        # commands off: dropped here (explicit /set topics are always subscribed, D-06)
+        if not cfg.get('allow_commands'):
+            last = self._off_logged.get(topic)
+            if last is None or now - last >= CMD_OFF_LOG_INTERVAL:
+                self._off_logged[topic] = now
+                logger.warning('Home Assistant command %s ignored: commands are disabled', topic)
+            else:
+                logger.debug('Home Assistant command %s ignored: commands are disabled', topic)
+            return
+        warn = logging.WARNING
+        if retain:
+            self._log_command(warn, topic, None, None, 'ignored (retained)')
+            return
+        if len(payload) > CMD_PAYLOAD_MAX:
+            self._log_command(warn, topic, None, payload[:CMD_PAYLOAD_MAX], 'ignored (payload too long)')
+            return
+        try:
+            raw = payload.decode('utf-8')
+        except UnicodeDecodeError:
+            self._log_command(warn, topic, None, payload, 'ignored (not UTF-8)')
+            return
+        head = cfg['prefix'] + '/'
+        if not (topic.startswith(head) and topic.endswith('/set')):
+            self._log_command(warn, topic, None, raw, 'ignored (unknown topic)')
+            return
+        entity = entities.entity_by_object_id(topic[len(head):-len('/set')])
+        if entity is None or not entities.needs_commands(entity):
+            self._log_command(warn, topic, None, raw, 'ignored (unknown entity)')
+            return
+        item = entity.item
+        if item not in self._keys():
+            self._log_command(warn, topic, item, raw, 'ignored (item not available)')
+            return
+
+        if entity.component == 'button':
+            if raw != 'PRESS':
+                self._log_command(warn, topic, item, raw, 'rejected')
+                return
+            value = '0'
+        else:
+            value = self._number(entity, raw)
+            if value is None:
+                self._log_command(warn, topic, item, raw, 'rejected')
+                self._readback(entity)
+                return
+
+        limited = self._rate_limited(item, value, now)
+        if limited:
+            self._log_command(warn, topic, item, raw, limited)
+            if entity.component == 'number':
+                self._readback(entity)
+            return
+
+        try:
+            self._db.set_value(item, value)
+        except ValueError:
+            self._log_command(warn, topic, item, raw, 'rejected')
+        except Exception:
+            self._log_command(warn, topic, item, raw, 'failed')
+        else:
+            self._log_command(logging.INFO, topic, item, raw, 'accepted')
+        if entity.component == 'number':
+            self._readback(entity)
+
+    def _number(self, entity, raw):
+        """Validated value as a string, or None"""
+        text = raw.strip()
+        if not _INT_RE.fullmatch(text):
+            return None
+        val = int(float(text))
+        lo, hi = entities.effective_range(entity, self._db.get(entity.item))
+        if val < lo or val > hi:
+            return None
+        if entity.item in ('min_power', 'max_power'):
+            snap = self._read_all()
+            other = snap.get('max_power' if entity.item == 'min_power' else 'min_power')
+            try:
+                other = float(other)
+            except (TypeError, ValueError):
+                other = None
+            if other is not None:
+                if entity.item == 'min_power' and val > other:
+                    return None
+                if entity.item == 'max_power' and val < other:
+                    return None
+        return str(val)
+
+    def _rate_limited(self, item, value, now):
+        last = self._last_write.get(item)
+        if last is not None:
+            if last[1] == value and now - last[0] < CMD_DEDUPE_SECONDS:
+                return 'ignored (duplicate)'
+            if now - last[0] < CMD_ITEM_INTERVAL:
+                return 'ignored (rate limited)'
+        self._write_times = [t for t in self._write_times if now - t < 60]
+        if len(self._write_times) >= CMD_GLOBAL_PER_MINUTE:
+            return 'ignored (rate limited)'
+        self._last_write[item] = (now, value)
+        self._write_times.append(now)
+        return None
+
+    def _readback(self, entity):
+        try:
+            text = self._db.get_text(entity.item)
+        except Exception:
+            return
+        if self._connected:
+            self._publish_state(entity, str(text), force=True)

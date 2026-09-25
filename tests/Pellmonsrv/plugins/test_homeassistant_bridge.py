@@ -365,3 +365,221 @@ def test_status_dict(env):
     assert st['entities'] == 9
     assert st['availability'] == 'online' and st['burner'] == 'connected'
     assert PASSWORD_SENTINEL not in json.dumps(st)
+
+
+# ---- commands from Home Assistant (D-06..D-09) --------------------------
+
+import logging  # noqa: E402
+
+
+def _cmd(env, obj, payload, retain=False):
+    env.client.fire_message('scotte/%s/set' % obj, payload, retain=retain)
+    env.bridge.handle_all()
+
+
+def _cmd_env(**over):
+    e = make_env()
+    e.connect(allow_commands=True, **over)
+    e.settle()
+    return e
+
+
+def _cmd_records(caplog):
+    return [r for r in caplog.records if 'Home Assistant command' in r.getMessage()]
+
+
+def _disabled_warnings(caplog):
+    return [r for r in caplog.records if r.levelno == logging.WARNING
+            and 'commands are disabled' in r.getMessage()]
+
+
+@pytest.mark.parametrize('commands', [True, False])
+def test_subscriptions_explicit_topics_regardless_of_commands(commands):
+    e = make_env()
+    e.connect(allow_commands=commands)
+    topics = [t for t, q in e.client.subscriptions]
+    sets = sorted(t for t in topics if t.endswith('/set'))
+    present = entities.present_entities(e.db.keys())
+    want = sorted('scotte/%s/set' % x.object_id for x in present if entities.needs_commands(x))
+    assert sets == want and len(sets) == 12
+    assert all(q == 1 for t, q in e.client.subscriptions)
+    assert not [t for t in topics if '#' in t or '+' in t]
+    assert not [t for t in topics if 'burner_on' in t or 'burner_off' in t]
+
+
+def test_commands_off_drops_with_one_warning(caplog):
+    e = make_env()
+    e.connect()
+    e.settle()
+    caplog.set_level(logging.DEBUG, logger='pellMon')
+    n = len(e.client.published)
+    _cmd(e, 'boiler_temp_set', '60')
+    assert e.db.writes == []
+    assert len(e.client.published) == n
+    warns = _disabled_warnings(caplog)
+    assert len(warns) == 1 and 'scotte/boiler_temp_set/set' in warns[0].getMessage()
+    _cmd(e, 'boiler_temp_set', '61')
+    assert len(_disabled_warnings(caplog)) == 1
+    e.clock.advance(61)
+    _cmd(e, 'boiler_temp_set', '62')
+    assert len(_disabled_warnings(caplog)) == 2
+    assert e.db.writes == []
+
+
+def test_toggle_commands_via_reconfigure():
+    e = make_env()
+    e.connect()
+    _cmd(e, 'boiler_temp_set', '60')
+    assert e.db.writes == []
+    e.connect(allow_commands=True)
+    _cmd(e, 'boiler_temp_set', '60')
+    assert e.db.writes == [('boiler_temp_set', '60')]
+    e.connect(allow_commands=False)
+    _cmd(e, 'boiler_temp_min', '20')
+    assert e.db.writes == [('boiler_temp_set', '60')]
+
+
+def test_retained_ignored(caplog):
+    e = _cmd_env()
+    _cmd(e, 'boiler_temp_set', '60', retain=True)
+    assert e.db.writes == []
+    assert 'retained' in _cmd_records(caplog)[-1].getMessage()
+
+
+def test_bad_payloads_and_entities_ignored():
+    e = _cmd_env()
+    _cmd(e, 'boiler_temp_set', '6' * 40)
+    e.client.fire_message('scotte/boiler_temp_set/set', b'\xff\xfe')
+    e.bridge.handle_all()
+    _cmd(e, 'no_such_entity', '60')
+    _cmd(e, 'burner_on', 'PRESS')
+    _cmd(e, 'burner_off', 'PRESS')
+    _cmd(e, 'power_percent', '60')
+    assert e.db.writes == []
+    e2 = make_env(FakeDb.make_scotte_db(exclude=('chimney_draught',)))
+    e2.connect(allow_commands=True)
+    _cmd(e2, 'chimney_draught', '5')
+    assert e2.db.writes == []
+
+
+def test_number_accept_and_readback():
+    e = _cmd_env()
+    _cmd(e, 'boiler_temp_set', '60')
+    assert e.db.writes == [('boiler_temp_set', '60')]
+    assert e.client.published_to('scotte/boiler_temp_set/state')[-1] == ('60', 0, False)
+    e.clock.advance(10)
+    _cmd(e, 'boiler_temp_set', '61.0')
+    assert e.db.writes[-1] == ('boiler_temp_set', '61')
+
+
+@pytest.mark.parametrize('payload', ['60.5', 'nan', 'inf', 'abc', '39', '86', '', '1e2'])
+def test_number_rejected_and_snapped_back(payload):
+    e = _cmd_env()
+    before = len(e.client.published_to('scotte/boiler_temp_set/state'))
+    _cmd(e, 'boiler_temp_set', payload)
+    assert e.db.writes == []
+    published = e.client.published_to('scotte/boiler_temp_set/state')
+    assert len(published) == before + 1 and published[-1][0] == '65'
+
+
+def test_item_range_intersection():
+    e = _cmd_env()
+    e.db['boiler_temp_set'].min = '45'
+    _cmd(e, 'boiler_temp_set', '44')
+    assert e.db.writes == []
+    _cmd(e, 'boiler_temp_set', '45')
+    assert e.db.writes == [('boiler_temp_set', '45')]
+
+
+def test_min_max_power_cross_check():
+    e = _cmd_env()
+    e.db['max_power'].value = '50'
+    _cmd(e, 'min_power', '60')
+    assert e.db.writes == []
+    _cmd(e, 'min_power', '40')
+    assert e.db.writes == [('min_power', '40')]
+    e.clock.advance(10)
+    _cmd(e, 'max_power', '30')
+    assert e.db.writes == [('min_power', '40')]
+
+
+def test_button_press():
+    e = _cmd_env()
+    _cmd(e, 'reset_alarm', 'press')
+    _cmd(e, 'reset_alarm', 'anything')
+    assert e.db.writes == []
+    _cmd(e, 'reset_alarm', 'PRESS')
+    assert e.db.writes == [('reset_alarm', '0')]
+
+
+@pytest.mark.parametrize('exc,result', [
+    (ValueError('bad'), 'rejected'),
+    (IOError('serial'), 'failed'),
+])
+def test_write_failures_logged_and_readback(caplog, exc, result):
+    e = _cmd_env()
+    e.db.fail['boiler_temp_set'] = exc
+    caplog.set_level(logging.DEBUG, logger='pellMon')
+    _cmd(e, 'boiler_temp_set', '60')
+    rec = _cmd_records(caplog)[-1]
+    assert rec.levelno == logging.WARNING and 'result=%s' % result in rec.getMessage()
+    assert e.client.published_to('scotte/boiler_temp_set/state')[-1][0] == '65'
+
+
+def test_one_log_line_per_command_and_no_password(caplog):
+    e = _cmd_env()
+    caplog.set_level(logging.DEBUG, logger='pellMon')
+    _cmd(e, 'boiler_temp_set', '60')
+    _cmd(e, 'boiler_temp_set', '999')
+    recs = _cmd_records(caplog)
+    assert len(recs) == 2
+    m = recs[0].getMessage()
+    assert 'scotte/boiler_temp_set/set' in m and 'item=boiler_temp_set' in m
+    assert "value='60'" in m and 'result=accepted' in m
+    assert 'result=rejected' in recs[1].getMessage()
+    assert PASSWORD_SENTINEL not in caplog.text
+
+
+def test_rate_limits():
+    e = _cmd_env()
+    _cmd(e, 'boiler_temp_set', '60')
+    _cmd(e, 'boiler_temp_set', '60')          # duplicate within 2 s
+    e.clock.advance(3)
+    _cmd(e, 'boiler_temp_set', '61')          # same item within 5 s
+    assert e.db.writes == [('boiler_temp_set', '60')]
+    e.clock.advance(3)
+    _cmd(e, 'boiler_temp_set', '61')
+    assert e.db.writes[-1] == ('boiler_temp_set', '61')
+    # global limit: 10 writes per minute
+    e2 = _cmd_env()
+    names = ['boiler_temp_set', 'boiler_temp_min', 'boiler_diff_down', 'boiler_diff_up',
+             'chimney_draught', 'cleaning_interval', 'cleaning_time', 'feeder_capacity',
+             'min_power', 'max_power']
+    values = ['60', '20', '5', '3', '2', '30', '10', '1000', '20', '90']
+    for n, v in zip(names, values):
+        _cmd(e2, n, v)
+    assert len(e2.db.writes) == 10
+    _cmd(e2, 'reset_alarm', 'PRESS')
+    assert len(e2.db.writes) == 10
+    e2.clock.advance(61)
+    _cmd(e2, 'reset_alarm', 'PRESS')
+    assert len(e2.db.writes) == 11
+
+
+def test_command_queue_bounded(caplog):
+    e = _cmd_env()
+    caplog.set_level(logging.DEBUG, logger='pellMon')
+    for i in range(25):
+        e.client.fire_message('scotte/boiler_temp_set/set', str(50 + i))
+    assert e.db.writes == []
+    assert [r for r in caplog.records if 'queue full' in r.getMessage()]
+    e.bridge.handle_all()
+    assert len(e.db.writes) <= bridge_module.CMD_GLOBAL_PER_MINUTE
+
+
+def test_on_message_makes_no_db_call():
+    e = _cmd_env()
+    e.client.fire_message('scotte/boiler_temp_set/set', '60')
+    assert e.db.writes == []
+    e.bridge.handle_all()
+    assert e.db.writes == [('boiler_temp_set', '60')]
