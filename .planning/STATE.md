@@ -21,14 +21,14 @@ progress:
 See: .planning/PROJECT.md (updated 2026-09-17)
 
 **Core value:** The daemon must actually talk to real burner hardware through its protocol plugins (Scotte, NBE) under Python 3 — a port where only the core modules import but the hardware plugins silently fail isn't done.
-**Current focus:** Phase 10 — optimize-for-mobile-devices-screen-size
+**Current focus:** Phases 7-10 complete. Phase 6 (Home Assistant MQTT) is the only unplanned phase remaining.
 
 ## Current Position
 
-Phase: 10 (optimize-for-mobile-devices-screen-size) — EXECUTING
-Plan: 1 of 7
-Status: Executing Phase 10
-Last activity: 2026-09-24 -- Phase 10 execution started
+Phase: 10 (optimize-for-mobile-devices-screen-size) — COMPLETE
+Plan: 7 of 7
+Status: Phase 10 complete, v2.1.0 published, real-phone and desktop check approved
+Last activity: 2026-09-25 -- Phase 10 real-device verification approved
 
 Progress: [██████████] 100%
 
