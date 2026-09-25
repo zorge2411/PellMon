@@ -2,7 +2,7 @@
 phase: 06
 slug: enable-home-assistant-mqtt-device-with-settings-on-the-web-g
 status: planned
-nyquist_compliant: false
+nyquist_compliant: true
 wave_0_complete: false
 created: 2026-09-25
 ---
@@ -83,6 +83,6 @@ Windows note: the daemon module needs Linux `dbus/gi/pwd/grp`; use the existing 
 - [ ] Sampling continuity: no 3 consecutive tasks without automated verify
 - [ ] Wave 0 covers all MISSING references
 - [ ] No watch-mode flags
-- [ ] `nyquist_compliant: true` set in frontmatter
+- [x] `nyquist_compliant: true` set in frontmatter
 
-**Approval:** pending
+**Approval:** planned (checker pass 1: 2 blockers fixed, revision 48c0b6d)
