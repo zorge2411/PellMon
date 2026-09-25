@@ -77,6 +77,47 @@ def test_pellmonsrv_reads_shipped_conf_d(tmp_path):
 
     assert conf.polling is True
     assert "ScotteCom" in conf.enabled_plugins
+    # HomeAssistant is always loaded, exactly once, even if the conf lists it too
+    assert conf.enabled_plugins.count("HomeAssistant") == 1
+    assert "HomeAssistant" in conf.plugin_conf
     assert any("DERIVE" in part for part in conf.RrdCreateCommand)
     # the raw '%' must survive so the RRD template can be formatted later
     assert conf.plugin_conf["ScotteCom"]["serialport"] == "/dev/ttyUSB0"
+
+
+def test_homeassistant_loaded_when_missing_from_enabled_plugins(tmp_path):
+    """Installs whose enabled_plugins.conf predates Phase 6 still load HomeAssistant."""
+    pytest.importorskip("dbus", reason="Pellmonsrv.pellmonsrv needs dbus (Linux only)")
+    pytest.importorskip("gi", reason="Pellmonsrv.pellmonsrv needs gi (Linux only)")
+    from Pellmonsrv import pellmonsrv
+
+    conf_d = tmp_path / "conf.d"
+    _install_conf_d(conf_d, localstatedir=(tmp_path / "var").as_posix())
+    enabled = conf_d / "enabled_plugins.conf"
+    text = enabled.read_text(encoding="utf-8").replace("p15 = HomeAssistant", "#p15 = HomeAssistant")
+    enabled.write_text(text, encoding="utf-8")
+    main = tmp_path / "pellmon.conf"
+    main.write_text(
+        "[conf]\nconfig_dir = %s\nlogfile = %s\n"
+        % (conf_d.as_posix(), (tmp_path / "pellmon.log").as_posix()),
+        encoding="utf-8",
+    )
+
+    logger = logging.getLogger("pellMon")
+    handlers_before = list(logger.handlers)
+    try:
+        conf = pellmonsrv.config(str(main))
+    finally:
+        for handler in list(logger.handlers):
+            if handler not in handlers_before:
+                logger.removeHandler(handler)
+                handler.close()
+
+    assert conf.enabled_plugins.count("HomeAssistant") == 1
+    assert conf.plugin_conf["HomeAssistant"] == {}
+    assert "ScotteCom" in conf.enabled_plugins
+
+
+def test_homeassistant_is_always_loaded_constant():
+    src = (SRC / "Pellmonsrv" / "pellmonsrv.py").read_text(encoding="utf-8")
+    assert "ALWAYS_LOADED_PLUGINS = ('HomeAssistant',)" in src

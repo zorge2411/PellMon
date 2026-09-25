@@ -740,6 +740,9 @@ class MyDaemon(Daemon):
         # glib main loop has quit, this should not happen
         logger.info("ending, what??")
         
+# plugins that are loaded even when missing from [enabled_plugins]
+ALWAYS_LOADED_PLUGINS = ('HomeAssistant',)
+
 class config:
     """Contains global configuration, parsed from the .conf file"""
     def __init__(self, filename):
@@ -831,6 +834,17 @@ class config:
                     pass
         except configparser.NoSectionError:
             pass
+        # HomeAssistant is always loaded: it stays idle until enabled on the web page,
+        # and older installs have an enabled_plugins.conf that predates it
+        for plugin_name in ALWAYS_LOADED_PLUGINS:
+            if plugin_name not in self.enabled_plugins:
+                self.enabled_plugins.append(plugin_name)
+                self.plugin_conf[plugin_name] = {}
+                try:
+                    for key, value in parser.items('plugin_%s'%plugin_name):
+                        self.plugin_conf[plugin_name][key] = value
+                except configparser.NoSectionError:
+                    pass
 
         try:
             # Data to write to the rrd
