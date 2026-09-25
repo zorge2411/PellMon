@@ -305,6 +305,15 @@ def test_daemon_down_on_save(cherrypy_request_ctx, kw):
     assert ctx['msg'] == ha.MSG_DAEMON_DOWN and ctx['msg_level'] == 'danger'
 
 
+def test_plugin_not_active_on_save_is_not_reported_as_daemon_down(cherrypy_request_ctx):
+    """The daemon answers but the plugin is not loaded: say so, not 'server not running'."""
+    _post(**ORIGIN)
+    c, d = _make(set_result=dict(ok=False, available=False, errors={}))
+    ctx = c.save(**_valid())
+    assert ctx['msg'] == ha.MSG_NOT_ACTIVE and ctx['msg_level'] == 'danger'
+    assert ctx['msg'] != ha.MSG_DAEMON_DOWN
+
+
 def test_auth_disabled_refuses_valid_but_shows_invalid(cherrypy_request_ctx):
     _post(**ORIGIN)
     c, d = _make(creds=False)

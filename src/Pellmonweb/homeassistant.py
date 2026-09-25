@@ -33,6 +33,8 @@ MSG_INVALID = 'Could not save. Fix the highlighted fields and try again.'
 MSG_REJECTED = 'Could not save the settings. Sign in again and retry.'
 MSG_DAEMON_DOWN = ('Cannot save right now because the PellMon server is not running. '
                    'Your changes were not saved. Start the server and retry.')
+MSG_NOT_ACTIVE = ('Cannot save because the Home Assistant MQTT plugin is not active on the server. '
+                  'Your changes were not saved. Update PellMon and restart the server.')
 MSG_AUTH_DISABLED = 'Saving is disabled until web login credentials are configured.'
 
 TEST_OK = 'Connection successful. The broker accepted the host, port, credentials and TLS settings. Nothing was saved.'
@@ -264,6 +266,9 @@ class HomeAssistant(object):
             if isinstance(daemon_errors, dict) and daemon_errors:
                 return self._render(msg=MSG_INVALID, msg_level='danger', errors=daemon_errors,
                                     settings=self._echo(raw, clean, daemon_errors),
+                                    password_reentered=bool(password))
+            if isinstance(result, dict) and result.get('available') is False:
+                return self._render(msg=MSG_NOT_ACTIVE, msg_level='danger', settings=clean,
                                     password_reentered=bool(password))
             return self._render(msg=MSG_DAEMON_DOWN, msg_level='danger', settings=clean,
                                 password_reentered=bool(password))
