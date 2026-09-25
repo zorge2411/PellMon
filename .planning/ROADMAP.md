@@ -245,7 +245,7 @@ Plans:
 **Goal:** The web UI (dashboard, graph, Parameters, Settings) is comfortable to read and operate on a phone at about 390px and still correct at 768px, with no horizontal scroll and desktop rendering unchanged, verified by structural tests, automated screenshot/overflow checks in CI, and a real-phone check.
 **Requirements**: D-01..D-07 (see 10-CONTEXT.md)
 **Depends on:** Phase 9
-**Plans:** 6/7 plans executed
+**Plans:** 7/7 plans complete
 
 Plans:
 - [x] 10-01-PLAN.md — Playwright legitimacy gate, --disable-socket spike, browser harness (stub server over real handlers + FakeDbus)
@@ -254,4 +254,4 @@ Plans:
 - [x] 10-04-PLAN.md — Parameters collapsible sections/pills/stacked controls, Settings 2-up gallery
 - [x] 10-05-PLAN.md — Browser acceptance tests (overflow A1-A3 at 390/768, B/C/D/E checks, 1280 smoke)
 - [x] 10-06-PLAN.md — Mandatory browser step in CI test job + guard test + README/.gitignore
-- [ ] 10-07-PLAN.md — Final gate and real-phone/desktop human verification
+- [x] 10-07-PLAN.md — Final gate and real-phone/desktop human verification
