@@ -170,11 +170,29 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 **Goal:** PellMon publishes the Scotte burner to Home Assistant as the same MQTT-discovered device it has today (same topic layout, entities and unique IDs), with the MQTT connection settings edited on a dedicated, login-protected page in the web GUI, commands from Home Assistant off unless explicitly allowed, and availability tied to the burner connection.
 **Requirements**: D-01..D-19 (see 06-CONTEXT.md)
 **Depends on:** Phase 5
-**Plans:** 0 plans
+**Plans:** 9 plans
 
 Plans:
+**Wave 1**
 
-- [ ] TBD (run /gsd-plan-phase 6 to break down)
+- [ ] 06-01-PLAN.md - paho-mqtt legitimacy checkpoint, pin, ca-certificates, in-memory MQTT/db test fakes
+- [ ] 06-02-PLAN.md - Entity table + discovery builder and settings validators/storage (pure modules)
+- [ ] 06-03-PLAN.md - Database change-listener hook and five MQTT D-Bus methods (write-only password)
+- [ ] 06-04-PLAN.md - /homeassistant/ template, menu entry, Phase 6 CSS block, structural UI tests
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 06-05-PLAN.md - MQTT bridge: connect/will/availability/discovery/state, commands with readback, reconfigure, connection test
+- [ ] 06-06-PLAN.md - HomeAssistant web controller, Dbus_handler proxies, mount
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 06-07-PLAN.md - HomeAssistant pellmonsrv plugin, descriptor, autotools, enabled_plugins.conf
+- [ ] 06-08-PLAN.md - homeassistant.js and browser tests for /homeassistant/
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 06-09-PLAN.md - DEPLOY-PI/HARDWARE-BRINGUP docs, final gate, real-system UAT checkpoint
 
 ### Phase 7: Persist RRD database and other relevant settings outside the Docker container
 
