@@ -4,7 +4,7 @@ import pytest
 from conftest import shot, wait_ready
 
 PAGES = ["/", "/parameters/Overview", "/settings/", "/consumptionview/consumption",
-         "/logview/logView", "/auth/login"]
+         "/logview/logView", "/auth/login", "/homeassistant/"]
 
 OVERFLOW_JS = """
 (W) => {

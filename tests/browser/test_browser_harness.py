@@ -2,7 +2,7 @@
 import pytest
 
 PAGES = ["/", "/parameters/Overview", "/settings/", "/consumptionview/consumption",
-         "/logview/logView", "/auth/login"]
+         "/logview/logView", "/auth/login", "/homeassistant/"]
 
 
 def test_playwright_starts_under_socket_guard(playwright_rt):
