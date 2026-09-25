@@ -172,6 +172,22 @@ ALLOWED_SETTINGS = {
     'web.system_image': _valid_system_image,
 }
 
+def _ha_plugin():
+    """Return the HomeAssistant plugin object, or None when it is not loaded"""
+    protos = getattr(getattr(conf, 'database', None), 'protocols', None) or []
+    for plugin in protos:
+        if getattr(plugin, 'name', None) == 'HomeAssistant':
+            return plugin.plugin_object
+    return None
+
+def _mqtt_parse(data):
+    """Parse a JSON object argument, None when it is not a JSON object"""
+    try:
+        parsed = json.loads(data)
+    except Exception:
+        return None
+    return parsed if isinstance(parsed, dict) else None
+
 class MyDBUSService(dbus.service.Object):
     """Publish an interface over the DBUS system bus"""
     def __init__(self, bus='SESSION'):
@@ -257,6 +273,74 @@ class MyDBUSService(dbus.service.Object):
             logger.exception('could not store setting %s'%key)
             return False
         return True
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetMqttSettings(self):
+        """Get the non-secret MQTT settings as JSON, never the password"""
+        plugin = _ha_plugin()
+        if plugin is None:
+            return json.dumps({'available': False})
+        try:
+            result = plugin.get_settings_dict()
+            result.pop('password', None)
+            return json.dumps(result)
+        except Exception as e:
+            logger.error('GetMqttSettings failed: %s'%type(e).__name__)
+            return json.dumps({'available': False})
+
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='s')
+    def SetMqttSettings(self, data):
+        """Validate and apply MQTT settings given as JSON, returns JSON {ok, errors}"""
+        plugin = _ha_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'errors': {}})
+        parsed = _mqtt_parse(data)
+        if parsed is None:
+            return json.dumps({'ok': False, 'errors': {}})
+        try:
+            return json.dumps(plugin.apply_settings(parsed))
+        except Exception as e:
+            logger.error('SetMqttSettings failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'errors': {}})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetMqttStatus(self):
+        """Get the MQTT connection status as JSON"""
+        plugin = _ha_plugin()
+        if plugin is None:
+            return json.dumps({'available': False})
+        try:
+            return json.dumps(plugin.status_dict())
+        except Exception as e:
+            logger.error('GetMqttStatus failed: %s'%type(e).__name__)
+            return json.dumps({'available': False})
+
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='b')
+    def StartMqttTest(self, data):
+        """Start a non-blocking MQTT connection test, poll GetMqttTestResult"""
+        plugin = _ha_plugin()
+        if plugin is None:
+            return False
+        parsed = _mqtt_parse(data)
+        if parsed is None:
+            return False
+        try:
+            return bool(plugin.start_test(parsed))
+        except Exception as e:
+            logger.error('StartMqttTest failed: %s'%type(e).__name__)
+            return False
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetMqttTestResult(self):
+        """Get the state of the last MQTT connection test as JSON"""
+        plugin = _ha_plugin()
+        if plugin is None:
+            return json.dumps({'state': 'error', 'message': '', 'available': False})
+        try:
+            return json.dumps(plugin.test_result_dict())
+        except Exception as e:
+            logger.error('GetMqttTestResult failed: %s'%type(e).__name__)
+            return json.dumps({'state': 'error', 'message': ''})
 
     #@dbus.service.signal(dbus_interface='org.pellmon.int', signature='aa{sv}')
     @dbus.service.signal(dbus_interface='org.pellmon.int', signature='s')
