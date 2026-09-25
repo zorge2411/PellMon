@@ -351,7 +351,7 @@ Not a rename/refactor phase. One relevant runtime-state item: **broker-side reta
 **How to avoid:** the plugin registers `atexit` (runs after the GLib loop quits on SIGTERM, before daemon threads are torn down) that publishes retained `offline` with `wait_for_publish(timeout=2)` then `disconnect()`/`loop_stop()`. Do not rely on editing the three SIGTERM handlers (`test_sigterm_handling.py` guards them). If the process is killed hard the kernel closes the socket and the broker fires the will.
 
 ### Pitfall 4: Stale command replay via retained `/set`
-**How to avoid:** ignore `message.retain` on command topics; subscribe to explicit topics only, and only when commands are enabled; unsubscribe/resubscribe on reconfigure.
+**How to avoid:** ignore `message.retain` on command topics; subscribe to explicit topics only (never wildcards); resubscribe on reconfigure. (Revised at plan review for D-06 "ignored and logged": the explicit topics are subscribed even while commands are off, and the worker logs and drops every message on them without writing.)
 
 ### Pitfall 5: Missing first states after discovery
 **What goes wrong:** HA creates the entity after processing discovery and subscribes to the state topic afterwards; non-retained state published in the same instant is lost, so numbers stay `unknown` for up to 60 s.
@@ -502,17 +502,22 @@ Reject an `enabled` save with missing host or device_id. Return per-field errors
 | A10 | EPL-2.0 OR BSD-3-Clause is acceptable next to the project's GPL | Standard Stack | Low; no linking concern raised, no legal review |
 | A11 | Node id / uid prefix are derived from the identifier by a rule | Takeover mechanics | Low; we do not rely on it (separate settings) |
 
-## Open Questions
+## Open Questions (RESOLVED)
 
 1. **D-06 default: remove number/button entities when commands are off, or keep them inert?**
    - Known: literal D-06 allows removal; removal hides the setpoints from dashboards while commands are off (the default); keeping them silently ignores HA edits.
    - Unclear: user preference and A4.
    - Recommendation: implement removal (literal D-06), ask the user in plan review whether losing the setpoint display by default is acceptable; the alternative is a one-function change.
+   - RESOLVED: locked as D-18 in 06-CONTEXT.md (remove the 10 numbers and 2 reset buttons from discovery with empty retained payloads while commands are off; publish them again when on). Implemented in 06-02 (discovery_messages) and 06-05; the explicit /set topics stay subscribed and messages are logged and dropped while off (D-06). History behaviour (A4) is checked in the 06-09 UAT.
 2. **Plugin enablement for existing installs.**
    - Recommendation: ship `p15 = HomeAssistant` enabled in `src/conf.d/enabled_plugins.conf`; plugin is inert until the GUI switch is on; the page explains how to add the line if the plugin is not loaded. (Auto-adding it in `config.__init__` was rejected as hidden magic.)
+   - RESOLVED: 06-07 ships `p15 = HomeAssistant` enabled in `src/conf.d/enabled_plugins.conf`; the plugin stays inert until enabled on the page; 06-09 documents adding the line to existing installs' `config/conf.d/enabled_plugins.conf`.
 3. **Demo mode publishing (Claude's Discretion).** Recommendation: `demo` = availability `offline`, reason "demo mode, values simulated"; no setting in this phase.
+   - RESOLVED: demo mode publishes availability `offline` (status burner field 'demo'); no setting. Implemented and tested in 06-05.
 4. **Unique-id prefix and node id for a fresh (non-takeover) install.** Recommendation: derive from the identifier (hash), user-overridable under Advanced.
+   - RESOLVED: settings.effective() (06-02) uses the device identifier itself, not a hash (it is already a valid [A-Za-z0-9_-] id); both stay user-overridable through the Discovery node ID and Unique ID prefix fields (06-04).
 5. **Real-broker verification.** No CI test uses a real broker; a manual UAT with mosquitto + `tools/burner_sim.py` + a real HA instance is required (list in HARDWARE-BRINGUP).
+   - RESOLVED: manual UAT in 06-09 Task 3 (blocking human gate), checklist documented in HARDWARE-BRINGUP.md by 06-09 Task 1.
 
 ## Environment Availability
 
@@ -548,7 +553,7 @@ Windows note: the daemon module needs Linux `dbus/gi/pwd/grp`; use the existing 
 | D-03 | Identifier/name/node/uid prefix from settings, none hard-coded (source scan for the real identifier pattern is impossible; assert no default identifier constant) | unit | `pytest tests/Pellmonsrv/plugins/test_homeassistant_settings.py -x` | Wave 0 |
 | D-04/D-17 | Discovery retained QoS1, state QoS0 not retained, status retained | unit (FakeMqttClient publish log) | `pytest tests/Pellmonsrv/plugins/test_homeassistant_bridge.py -x` | Wave 0 |
 | D-05 | Only items present in db published; demo (6.99) omits chimney_draught; 4.00 omits diff_up | unit | entities test | Wave 0 |
-| D-06 | Commands off: no number/button configs (empty payload), `/set` ignored+logged, not subscribed | unit | bridge test | Wave 0 |
+| D-06 | Commands off: no number/button configs (empty payload), explicit `/set` topics still subscribed, messages ignored+logged (no write) | unit | bridge test | Wave 0 |
 | D-07 | Only Reset Alarm/Reset Ignition; ON/OFF configs cleared | unit | entities/bridge test | Wave 0 |
 | D-08 | Readback published after success and after failure (ValueError/IOError) | unit | bridge test | Wave 0 |
 | D-09 | Every command logged (topic, item, value, result); password never in caplog | unit | bridge + settings tests | Wave 0 |

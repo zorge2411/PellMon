@@ -29,7 +29,7 @@ Scope: one new server-rendered page plus one navbar item. No new fonts, colors, 
 Files:
 - New template `src/Pellmonweb/html/homeassistant.html` (`<%inherit file="layout.html"/>`, title "Home Assistant / MQTT").
 - `layout.html`: one new navbar `<li>` (see Navigation).
-- `pellmon.css`: one appended block headed `/* Phase 6: Home Assistant / MQTT */`, all selectors prefixed `.mqtt-`. No new stylesheet, no new `<link>`.
+- `pellmon.css`: one block headed `/* Phase 6: Home Assistant / MQTT */`, all selectors prefixed `.mqtt-` (plus the one tablet navbar rule). No new stylesheet, no new `<link>`. (Amended at plan review:) the block is inserted immediately BEFORE the `/* Phase 10: mobile / responsive */` header, not appended at the end of the file, because `tests/Pellmonweb/test_mobile_css.py` treats everything from the Phase 10 header to end of file as the Phase 10 block and a second `(max-width: 767px)` block after it would shadow the Phase 10 one.
 - Routes (defaulted): page `GET ${webroot}/homeassistant/`, `POST ${webroot}/homeassistant/save`, `POST ${webroot}/homeassistant/test`, `GET ${webroot}/homeassistant/status` (JSON, no secrets). `active_page` context value is `homeassistant`.
 
 ---
@@ -144,6 +144,7 @@ Heading "Connection".
 Heading "Security".
 1. **TLS** (`name="tls"`): checkbox "Use TLS (encrypted connection)". Help: "Encrypts the connection to the broker. Enter the TLS port, usually 8883."
 2. **Verify certificate** (`name="tls_verify"`, default checked): checkbox "Verify the broker certificate", indented under TLS with `.mqtt-indent` (24px left margin at every width; on phones the checkbox row's own 32px label offset applies inside it). Disabled (native `disabled` plus muted text) while TLS is unchecked. Help: "Checks that the broker's certificate is valid and matches the host name. Client certificates and custom CAs are not supported yet."
+   - (Amended at plan review, blocker fix:) a disabled checkbox is not submitted, so a missing `tls_verify` cannot mean "unticked" on its own. The form also carries `<input type="hidden" name="tls_verify_field" value="1">`, which has the `disabled` attribute exactly when the Verify checkbox has it (server-side on render; JS toggles both together). The server takes `tls_verify` from the form only when TLS is on AND `tls_verify_field` was submitted (then a missing checkbox means the user unticked it); otherwise it keeps the stored value (default on). Saving with TLS off, or ticking TLS on a page rendered with TLS off without JS, therefore never turns verification off.
 3. When TLS is on and Verify is unchecked, an inline `alert alert-warning` (`role="status"`) is shown: "Certificate verification is off. The connection is encrypted, but PellMon does not check who the broker is." Shown live by JS and rendered server-side on load.
 
 ### Panel 3: Topics and discovery
@@ -155,6 +156,9 @@ Heading "Topics and discovery".
 Heading "Device".
 1. **Device identifier** (`name="device_id"`, `autocomplete="off"`, no default, never hard-coded): label "Device identifier". Help: "Enter the identifier of your existing Home Assistant device so its entities and history carry over. A different identifier creates a new device. Switch off the old publisher first." `col-xs-12 col-sm-6`.
 2. **Device name** (`name="device_name"`, no default, placeholder "Pellet burner"): label "Device name". Help: "The name shown for the device in Home Assistant." `col-xs-12 col-sm-6`.
+3. **Discovery node ID** (`name="node_id"`, `autocomplete="off"`, no default, optional; added at plan review for the D-19/C2 takeover): label "Discovery node ID". Help: "Only needed to take over an existing device: the node ID used in its discovery topics. Leave empty to use the device identifier." `col-xs-12 col-sm-6`.
+4. **Unique ID prefix** (`name="uid_prefix"`, `autocomplete="off"`, no default, optional; added at plan review for D-19/C2): label "Unique ID prefix". Help: "Only needed to take over an existing device: the part of each entity's unique ID before the item name. Leave empty to use the device identifier." `col-xs-12 col-sm-6`.
+   - Both accept an empty value or 1-64 of `A-Z a-z 0-9 _ -`; error copy: "Use only letters, digits, - and _ (up to 64 characters), or leave the field empty."
 
 ### Panel 5: Behaviour
 Heading "Behaviour".
@@ -191,7 +195,7 @@ Below the panels, inside the form: `<button type="submit" class="btn btn-primary
 | State | Button | Message |
 |-------|--------|---------|
 | Idle | "Test connection" enabled | (empty) |
-| Testing | "Testing..." disabled, `aria-busy="true"`; 10 second timeout | Testing the connection... |
+| Testing | "Testing..." disabled, `aria-busy="true"`; the server gives up after 10 seconds (the daemon test itself ends within 8 s); the browser aborts its request after 12 s as a safety net | Testing the connection... |
 | Success | back to "Test connection" | Connection successful. The broker accepted the host, port, credentials and TLS settings. Nothing was saved. (`text-success`, `glyphicon-ok`) |
 | Failure | back to "Test connection" | Test failed: {reason}. Nothing was saved. (`text-danger`, `glyphicon-remove`, same reason set as the status line) |
 | Invalid form | back to idle | Test failed: fix the highlighted fields first. |
@@ -242,7 +246,7 @@ At 390px (content width 360px), everything stacks in one column; at 768px fields
 - Status line `role="status"` `aria-live="polite"`; validation summary `role="alert"` and focused; test result `role="status"`. `aria-busy="true"` on Test while running.
 - Disabled Verify checkbox uses the native `disabled` attribute (not just styling) and its help text says why: shown only while TLS is off as "Turn on TLS to change this."
 - State never depends on color alone (glyph plus words in every status and message).
-- Focus outlines are never removed; keyboard order follows visual order: enable, host, port, username, password, (clear password), TLS, verify, prefix, discovery prefix, device id, device name, allow commands, refresh, Save, Test.
+- Focus outlines are never removed; keyboard order follows visual order: enable, host, port, username, password, (clear password), TLS, verify, prefix, discovery prefix, device id, device name, discovery node id, unique id prefix, allow commands, refresh, Save, Test.
 - Text contrast on `#fff` and on the Bootstrap alert backgrounds meets 4.5:1 (Bootstrap defaults are accepted).
 - The password field is `type="password"` with `autocomplete="new-password"` so browsers do not autofill the login password into it.
 
@@ -278,7 +282,7 @@ Phrasing rules (matching Phase 8): sentences end with a period, no exclamation m
 3. No modal for enabling commands; inline warning plus save message instead.
 4. Extra "Remove the stored password" checkbox (only shown when a password is stored), because a blank field must keep the current value.
 5. Device name and identifier have no default and are placeholders only; nothing device-specific is hard-coded.
-6. Status line polls every 5 s; Test has a 10 s timeout; times shown as server-local `HH:MM:SS`.
+6. Status line polls every 5 s; Test: daemon test <= 8 s in total (including the 5 s connect timeout), server poll cap 10 s, browser abort 12 s; times shown as server-local `HH:MM:SS`.
 7. Port auto-swaps between 1883 and 8883 when TLS is toggled only if it still holds the other standard port.
 8. Failure reasons come from a fixed mapped set, never raw exception text.
 9. Test connection is a `formaction` submit button, so it works without JS.
@@ -290,7 +294,7 @@ Phrasing rules (matching Phase 8): sentences end with a period, no exclamation m
 
 ### Structural (pytest, text/AST style, no browser)
 1. `src/Pellmonweb/html/homeassistant.html` exists, contains `<%inherit file="layout.html"/>`, `<h1>Home Assistant / MQTT</h1>`, one `<form` with `method="post"` and `action="${webroot | h}/homeassistant/save"` (or equivalent), and the five panel headings "Connection", "Security", "Topics and discovery", "Device", "Behaviour".
-2. Input names present exactly: `enabled`, `host`, `port`, `username`, `password`, `clear_password`, `tls`, `tls_verify`, `prefix`, `discovery_prefix`, `device_id`, `device_name`, `allow_commands`, `refresh`. Every `<input>` (except hidden CSRF/none) has a matching `<label for=` id.
+2. Input names present exactly: `enabled`, `host`, `port`, `username`, `password`, `clear_password`, `tls`, `tls_verify`, `prefix`, `discovery_prefix`, `device_id`, `device_name`, `node_id`, `uid_prefix`, `allow_commands`, `refresh`, plus the hidden marker `tls_verify_field` (amended at plan review: `node_id`/`uid_prefix` for D-19/C2, the marker for the TLS-verify fix). Every visible `<input>` has a matching `<label for=` id (hidden inputs are exempt).
 3. The `type="password"` input has no `value=` attribute and `autocomplete="new-password"`.
 4. Secret handling (render test): render the template with a stored password sentinel such as `s3cret-XYZ`; the output must not contain the sentinel, and the password input has `placeholder="set"`. With no stored password the placeholder is empty and `clear_password` is absent. The `status` JSON contains no `password` key.
 5. `allow_commands` input has no `checked` attribute when the setting is false (default off); with `allow_commands` true the warning text "Anyone who can reach your Home Assistant or MQTT broker" is present.

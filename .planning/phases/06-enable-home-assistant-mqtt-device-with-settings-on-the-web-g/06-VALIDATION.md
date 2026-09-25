@@ -40,18 +40,19 @@ Windows note: the daemon module needs Linux `dbus/gi/pwd/grp`; use the existing 
 | D-03 | Identifier, name, node id, unique-id prefix come from settings; no hard-coded identifier constant | unit | test_homeassistant_settings.py | Wave 0 |
 | D-04/D-17 | Discovery retained QoS1; state not retained; status retained | unit (FakeMqttClient publish log) | test_homeassistant_bridge.py | Wave 0 |
 | D-05 | Only items present in the db are published; demo/older chips omit missing items | unit | entities + bridge tests | Wave 0 |
-| D-06/D-18 | Commands off: number and button configs removed (empty retained payload), `/set` ignored and logged, not subscribed; back on: published again | unit | bridge test | Wave 0 |
+| D-06/D-18 | Commands off: number and button configs removed (empty retained payload); the explicit per-entity `/set` topics stay subscribed and every message on them is ignored and logged (no db write); back on: configs published again | unit | bridge test | Wave 0 |
 | D-07 | Only Reset Alarm and Reset Ignition; Burner ON/OFF configs cleared | unit | entities + bridge tests | Wave 0 |
 | D-08 | Readback republished after success and after failure (ValueError/IOError) | unit | bridge test | Wave 0 |
 | D-09 | Every command logged (topic, item, value, result); password never in caplog | unit | bridge + settings tests | Wave 0 |
 | D-10 | Page: login required, POST only, cross-origin rejected (403), headerless rejected | unit (mirror `test_settings_image.py`) | tests/Pellmonweb/test_homeassistant_page.py | Wave 0 |
-| D-11 | Validators accept/reject each field per the research table | unit | settings test | Wave 0 |
+| D-11 | Validators accept/reject each field per the research table (bracketed IPv6 hosts rejected) | unit | settings test | Wave 0 |
+| D-11/D-13 | `tls_verify` is only taken from the form when TLS is on and the `tls_verify_field` marker was submitted; TLS-off saves and TLS enabled from a TLS-off page keep the stored value (default True) | unit | settings, page and plugin tests | Wave 0 |
 | D-12 | `GetSetting('mqtt.password')` empty; `GetMqttSettings` has no password, has `has_password`; rendered HTML never contains the secret; blank keeps, clear removes; `mqtt.*` not in `ALLOWED_SETTINGS` | unit (`daemon_module` + Mako render with a secret sentinel) | tests/Pellmonsrv/test_homeassistant_dbus.py + page test | Wave 0 |
 | D-13 | Reconfigure reconnects without restart; status JSON; test start/poll; test client id differs and never publishes | unit (fake client) | bridge test | Wave 0 |
 | D-14 | `no_connection` -> offline, `connected` -> online, `demo` -> offline | unit | bridge test | Wave 0 |
 | D-15 | `will_set` args; `online` after connect; offline on clean shutdown (atexit) | unit | bridge test | Wave 0 |
 | D-16 | Change event publishes once, identical payload deduped, periodic refresh (injected clock) | unit | bridge test | Wave 0 |
-| D-19 | HA birth message triggers a republish; Test connection start-and-poll | unit | bridge test | Wave 0 |
+| D-19 | HA birth message triggers a republish; Test connection start-and-poll; daemon test ends within 8 s total (< 10 s web cap < 12 s browser abort) | unit | bridge, tester and page tests | Wave 0 |
 | UI | `/homeassistant/` follows the approved 06-UI-SPEC: structural checks, no overflow at 390/768, 44px targets | structural + browser | tests/Pellmonweb/test_homeassistant_ui.py; tests/browser (extend fake_dbus.py, overflow page list) | Wave 0 |
 | Cross | Real paho client builds via the default factory under `--disable-socket` (API drift guard) | unit | test_homeassistant_paho_factory.py | Wave 0 |
 | Cross | Plugin module imports without paho/dbus; descriptor discovered | unit | tests/test_plugin_imports.py, test_plugin_loader.py | exists |
@@ -60,7 +61,7 @@ Windows note: the daemon module needs Linux `dbus/gi/pwd/grp`; use the existing 
 ## Wave 0 Requirements
 
 - [ ] `tests/Pellmonsrv/plugins/fake_mqtt.py`: `FakeMqttClient` (records publish/subscribe/will_set/username_pw_set/tls_*, helpers to fire connect/disconnect/message) plus a `FakeDb` fixture.
-- [ ] `tests/Pellmonsrv/plugins/test_homeassistant_{entities,settings,bridge,paho_factory}.py`.
+- [ ] `tests/Pellmonsrv/plugins/test_homeassistant_{entities,settings,bridge,tester,paho_factory}.py`.
 - [ ] `tests/Pellmonsrv/test_homeassistant_dbus.py` (uses `daemon_module`).
 - [ ] `tests/Pellmonweb/test_homeassistant_page.py` and `test_homeassistant_ui.py`.
 - [ ] Extend `tests/browser/fake_dbus.py`, `test_mobile_overflow.py`, `test_browser_harness.py`.

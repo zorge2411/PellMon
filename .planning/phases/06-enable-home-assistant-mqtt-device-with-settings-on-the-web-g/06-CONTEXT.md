@@ -103,6 +103,9 @@ entity list, a general-purpose MQTT bridge for arbitrary plugins.
   enabled. Home Assistant may keep registry entries or history for removed entities; verifying that
   on the user's real instance is a manual UAT item. Not chosen: keeping them published with writes
   ignored, or adding parallel read-only sensors.
+  (Plan-review note, implementation of D-06 "ignored and logged": the explicit per-entity `/set`
+  topics stay subscribed while commands are OFF; every message on them is logged and dropped
+  without a burner write. No wildcard subscriptions; Burner ON/OFF topics are never subscribed.)
 - **D-19:** The research's corrections C1 (topic segments for `power_percent`, `power_kw`,
   `boiler_diff_down`, `boiler_diff_up` differ from PellMon item names; keep a separate object-id
   column), C2 (takeover needs device identifier, discovery `node_id` and unique-id prefix as
