@@ -88,6 +88,8 @@ class Database(threading.Thread, _Database):
         manager.raise_on_error = conf.command == 'debug'
         # only enabled plugins may abort startup; a disabled plugin with a missing library must not
         manager.raise_only_for = set(conf.enabled_plugins)
+        # disabled plugins are not imported at all (e.g. RaspberryGPIO needs RPi.GPIO, absent off-Pi)
+        manager.load_only = set(conf.enabled_plugins)
         manager.collectPlugins()
         activated_plugins = []
         failed_plugins= []

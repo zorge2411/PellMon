@@ -158,6 +158,31 @@ def test_raise_only_for_ignores_disabled_plugin_failures(tmp_path, caplog):
     assert "Unable to execute the code in plugin" in caplog.text
 
 
+def test_load_only_skips_disabled_plugin_without_importing_or_logging(tmp_path, caplog):
+    """A disabled plugin whose library is missing (RaspberryGPIO without RPi) must not log an error."""
+    manager = _broken_plugin_manager(tmp_path, {"ScotteCom"})
+    manager.load_only = {"ScotteCom"}
+    with caplog.at_level(logging.DEBUG):
+        manager.collectPlugins()
+    assert manager.getPluginsOfCategory("Protocols") == []
+    assert "Unable to execute the code in plugin" not in caplog.text
+    assert not [r for r in caplog.records if r.levelno >= logging.WARNING]
+
+
+def test_load_only_still_loads_enabled_plugin(tmp_path):
+    manager = _broken_plugin_manager(tmp_path, {"Bad"})
+    manager.load_only = {"Bad"}
+    with pytest.raises(RuntimeError):
+        manager.collectPlugins()
+
+
+def test_daemon_passes_enabled_plugins_as_load_only():
+    import os
+    src = open(os.path.join(os.path.dirname(__file__), '..', 'src', 'Pellmonsrv', 'pellmonsrv.py'), encoding='utf-8').read()
+    assert 'manager.load_only = set(conf.enabled_plugins)' in src
+    assert src.index('manager.load_only') < src.index('manager.collectPlugins()')
+
+
 def test_raise_only_for_raises_for_enabled_plugin(tmp_path):
     manager = _broken_plugin_manager(tmp_path, {"Bad"})
     with pytest.raises(RuntimeError):
