@@ -66,6 +66,9 @@ try:
     from Pellmonsrv.version import __version__
 except:
     __version__ = '@VERSION@'
+if __version__ == '@VERSION@':
+    from Pellmonweb.appversion import get_version
+    __version__ = get_version()
 
 try:
     from ws4py.server.cherrypyserver import WebSocketPlugin, WebSocketTool
