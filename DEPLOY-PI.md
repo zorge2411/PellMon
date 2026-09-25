@@ -174,14 +174,9 @@ the editor in the container.
 PellMon can publish the burner to Home Assistant over MQTT (retained discovery, last will,
 optional commands). It is the `HomeAssistant` plugin.
 
-**Enable it.** New installs get it from the shipped `conf.d`. On an existing install add
-this line to `config/conf.d/enabled_plugins.conf` and restart the containers:
-
-```
-p15 = HomeAssistant
-```
-
-Then open the **Home Assistant** page from the menu (`/homeassistant/`, login required).
+**Enable it.** From v2.3.2 the daemon always loads the plugin, so nothing needs to change
+in `config/conf.d/enabled_plugins.conf`; the line `p15 = HomeAssistant` there is optional.
+The plugin stays idle until you tick **Enable** and save. Open the **Home Assistant** page from the menu (`/homeassistant/`, login required).
 
 **Broker host.** Enter the broker as an IP address or a DNS name. mDNS names such as
 `homeassistant.local` usually do not resolve inside the container. If the broker runs on
