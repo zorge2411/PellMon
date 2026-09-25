@@ -57,6 +57,7 @@ RUN pip3 install --no-cache-dir --break-system-packages -r requirements.txt
 
 # Copy application source
 COPY src/ ./src/
+COPY VERSION ./VERSION
 COPY data/ ./data/
 
 # Set ownership

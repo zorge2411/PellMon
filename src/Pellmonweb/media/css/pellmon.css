@@ -98,6 +98,12 @@ object {
     margin-left: 6px;
 }
 
+/* App version footer */
+.app-version {
+    text-align: center;
+    padding: 16px 8px;
+}
+
 /* Phase 6: Home Assistant / MQTT */
 .mqtt-page {
     padding-bottom: 32px;
