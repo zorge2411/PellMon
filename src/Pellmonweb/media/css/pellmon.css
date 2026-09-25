@@ -106,6 +106,12 @@ object {
     margin: 0 0 16px;
     font-weight: 600;
 }
+.mqtt-prefix-code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
 .mqtt-intro {
     margin: 0 0 16px;
 }
