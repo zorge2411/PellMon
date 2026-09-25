@@ -434,3 +434,15 @@ def test_ci_runs_mandatory_browser_layout_tests():
     for name in ("requirements.txt", "Dockerfile"):
         text = (REPO_ROOT / name).read_text(encoding="utf-8")
         assert "playwright" not in text.lower(), "playwright must not leak into %s" % name
+
+
+def test_requirements_pin_paho_mqtt():
+    """paho-mqtt must be exact-pinned (2.x: the code uses CallbackAPIVersion.VERSION2)."""
+    lines = [l.strip() for l in (REPO_ROOT / "requirements.txt").read_text(encoding="utf-8").splitlines()]
+    assert "paho-mqtt==2.1.0" in lines
+    assert not [l for l in lines if l.startswith("paho-mqtt") and l != "paho-mqtt==2.1.0"]
+
+
+def test_dockerfile_installs_ca_certificates():
+    """TLS with certificate verification needs a system CA store in the slim image."""
+    assert "ca-certificates" in (REPO_ROOT / "Dockerfile").read_text(encoding="utf-8")

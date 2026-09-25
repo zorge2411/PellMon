@@ -77,9 +77,20 @@ session as a supervised test, not a deployment.
        config editor saves (same-origin check), UI is reachable only from the intended address.
 7. [ ] Leave it running and watch the log for an extended period before trusting it.
 
+### Home Assistant (supervised)
+
+1. [ ] Dry run first with `tools/burner_sim.py` and a local mosquitto broker.
+2. [ ] Stop the old publisher.
+3. [ ] Enable the plugin and save on the Home Assistant page; confirm entities appear and history continues.
+4. [ ] Unplug the burner serial link: entities go unavailable and return when reconnected.
+5. [ ] Kill the pellmonsrv container: the last will marks the device "offline".
+6. [ ] Enable commands, change one setpoint from Home Assistant while watching the burner display; confirm an out-of-range value snaps back.
+
 ## 4. Not verified
 
 - [ ] Scotte/NBE protocol behaviour against real hardware (mock-verified only).
+- [ ] Home Assistant/MQTT against a real broker, Home Assistant and burner (checklist above).
+      Setpoint writes from Home Assistant are untested on hardware.
 - [ ] Real D-Bus, rrdtool and serial/network I/O end to end.
 - [ ] Docker Compose start-up end to end.
 - [ ] Graph rendering with real rrdtool after the command-injection fix.

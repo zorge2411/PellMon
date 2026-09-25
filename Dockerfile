@@ -32,6 +32,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     pkg-config \
     # Network and utilities
     curl \
+    ca-certificates \
     procps \
     # Serial communication
     udev \

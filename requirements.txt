@@ -27,3 +27,6 @@ xtea==0.7.1
 
 # Openweathermap plugin
 pyowm==3.5.0
+
+# Home Assistant plugin
+paho-mqtt==2.1.0

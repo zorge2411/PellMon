@@ -212,6 +212,42 @@ class Dbus_handler:
             except:
                 raise DbusNotConnected("server not running")
 
+    # Home Assistant / MQTT (JSON over D-Bus). Never log the arguments: they can carry the password.
+    def mqtt_get_settings(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetMqttSettings(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def mqtt_set_settings(self, d):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.SetMqttSettings(simplejson.dumps(d), dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def mqtt_status(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetMqttStatus(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def mqtt_test_start(self, d):
+        with self.lock:
+            try:
+                return bool(self.remote_object.StartMqttTest(simplejson.dumps(d), dbus_interface ='org.pellmon.int'))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def mqtt_test_result(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetMqttTestResult(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
     def getdb(self):
         with self.lock:
             try:
@@ -253,6 +289,7 @@ class PellMonWeb:
         self.auth = AuthController(credentials, lookup)
         self.consumptionview = Consumption(polling, db, dbus, lookup)
         self.settings = Settings(lookup, dbus, system_image_dir, credentials)
+        self.homeassistant = HomeAssistant(lookup, dbus, credentials)
 
     @cherrypy.expose
     def autorefresh(self, **args):

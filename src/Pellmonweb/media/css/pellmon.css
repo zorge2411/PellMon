@@ -98,6 +98,101 @@ object {
     margin-left: 6px;
 }
 
+/* Phase 6: Home Assistant / MQTT */
+.mqtt-page {
+    padding-bottom: 32px;
+}
+.mqtt-page h1 {
+    margin: 0 0 16px;
+    font-weight: 600;
+}
+.mqtt-prefix-code {
+    white-space: normal;
+    overflow-wrap: anywhere;
+    word-break: break-all;
+}
+
+.mqtt-intro {
+    margin: 0 0 16px;
+}
+#mqtt-status {
+    margin-bottom: 24px;
+}
+.mqtt-page .panel-body {
+    padding: 16px;
+}
+.mqtt-page .alert {
+    padding: 16px;
+}
+.mqtt-form .panel {
+    margin-bottom: 16px;
+}
+.mqtt-form .form-group {
+    margin-bottom: 16px;
+}
+.mqtt-actions {
+    margin-top: 24px;
+}
+.mqtt-indent {
+    margin-left: 24px;
+}
+.mqtt-form label {
+    font-weight: 600;
+}
+.mqtt-form .checkbox label {
+    font-weight: 400;
+}
+.mqtt-form .panel-heading {
+    font-size: 18px;
+    font-weight: 600;
+    line-height: 1.2;
+}
+.mqtt-form code {
+    font-size: 14px;
+    word-break: break-all;
+}
+.mqtt-form .help-block {
+    font-size: 14px;
+}
+@media (min-width: 768px) {
+    .mqtt-actions .btn {
+        margin-right: 8px;
+    }
+}
+@media (max-width: 767px) {
+    .mqtt-form .form-control {
+        height: 44px;
+        font-size: 16px;
+    }
+    .mqtt-form .checkbox label {
+        min-height: 44px;
+        padding: 8px 0 8px 32px;
+        line-height: 28px;
+        display: block;
+    }
+    .mqtt-form .checkbox input[type="checkbox"] {
+        margin-left: -32px;
+        width: 24px;
+        height: 24px;
+    }
+    .mqtt-form .btn {
+        display: block;
+        width: 100%;
+        min-height: 44px;
+        margin: 0 0 8px;
+    }
+    .mqtt-page h1 {
+        font-size: 24px;
+        line-height: 1.2;
+    }
+}
+@media (min-width: 768px) and (max-width: 991px) {
+    .navbar-nav > li > a {
+        padding-left: 8px;
+        padding-right: 8px;
+    }
+}
+
 /* Phase 10: mobile / responsive */
 img, object, svg {
     max-width: 100%;

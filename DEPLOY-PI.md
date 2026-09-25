@@ -169,6 +169,48 @@ writable by uid 999. Files owned by your host user are not, and that is intentio
 would have to grant that yourself (for example a group/ACL on `config/conf.d`) if you ever run
 the editor in the container.
 
+### Home Assistant / MQTT
+
+PellMon can publish the burner to Home Assistant over MQTT (retained discovery, last will,
+optional commands). It is the `HomeAssistant` plugin.
+
+**Enable it.** New installs get it from the shipped `conf.d`. On an existing install add
+this line to `config/conf.d/enabled_plugins.conf` and restart the containers:
+
+```
+p15 = HomeAssistant
+```
+
+Then open the **Home Assistant** page from the menu (`/homeassistant/`, login required).
+
+**Broker host.** Enter the broker as an IP address or a DNS name. mDNS names such as
+`homeassistant.local` usually do not resolve inside the container. If the broker runs on
+the Docker host, add an `extra_hosts` entry (for example `host.docker.internal:host-gateway`)
+to the `pellmonsrv` service and use that name. TLS is supported with certificate
+verification against the image's CA store.
+
+**Taking over the existing device.** Switch off the old publisher first, otherwise two
+publishers fight over the same entities. Then read three values from Home Assistant
+(Settings > Devices > the device > MQTT INFO, or the diagnostics download) and enter them
+on the page: the `<device identifier>`, the discovery node id (the segment between the
+component and the object id in its discovery topics) and the unique-id prefix (the part
+before the object id). Save. History continues because the entity ids stay the same.
+Optionally clear the old publisher's retained topics.
+
+**Behaviour changes.**
+
+- Burner ON and Burner OFF are no longer available from Home Assistant. PellMon clears their
+  discovery entries; remove the leftover entities in Home Assistant if they remain.
+- While "Allow commands from Home Assistant" is off, the ten setpoint numbers and the two
+  reset buttons are removed from Home Assistant. They come back when it is switched on.
+- Entities show unavailable when the burner is not connected, in demo mode, or when PellMon
+  stops (the last will marks the device offline).
+
+**Security.** The MQTT password is stored in the settings database (`pellmon_settings.db`)
+on the data volume and is included in backups made with `tools/pellmon_backup.py`. Protect
+the data folder and backup archives. Use a dedicated broker user whose ACL allows only the
+topic prefix (default `scotte/#`) and the discovery prefix (`homeassistant/#`).
+
 ## 5. Build and start
 
 **Option 1: build on your PC (recommended for a 3A+).** Use `linux/arm64` for a
@@ -277,6 +319,8 @@ pellmonweb` remains the fallback.
 `conf.d` is elsewhere, pass `--host-config-dir /path/to/conf.d`. Add `--verbose` to see which
 directory and RRD path were resolved. If no `database` value can be found the tool exits 1 with
 a message naming the config file; it never guesses.
+
+The backup archive also contains the MQTT password (see Home Assistant / MQTT above); store it accordingly.
 
 ### Moving data off the old named volume (one time)
 
