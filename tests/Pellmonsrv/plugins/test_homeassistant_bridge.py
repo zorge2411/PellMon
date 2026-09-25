@@ -577,6 +577,124 @@ def test_command_queue_bounded(caplog):
     assert len(e.db.writes) <= bridge_module.CMD_GLOBAL_PER_MINUTE
 
 
+# ---- live reconfigure and connection test delegation (D-13, D-18) -------
+
+def _config_topics_published(client):
+    return [(t, p) for (t, p, q, r) in client.published if t.endswith('/config')]
+
+
+def test_reconfigure_new_host_replaces_client():
+    e = make_env()
+    e.connect()
+    old = e.client
+    e.connect(host='other.local')
+    assert old.disconnect_calls == 1 and old.loop_stopped
+    assert e.client is not old
+    assert e.client.connect_calls == [('other.local', 1883, 60)]
+    assert e.bridge.status_dict()['host'] == 'other.local'
+
+
+def test_toggle_commands_publishes_and_removes_configs():
+    e = make_env()
+    e.connect()
+    cmd_topics = ['homeassistant/%s/dev1/%s/config' % (x.component, x.object_id)
+                  for x in entities.present_entities(e.db.keys()) if entities.needs_commands(x)]
+    assert len(cmd_topics) == 12
+    assert all(e.client.last_payload(t) == '' for t in cmd_topics)
+    e.connect(allow_commands=True)
+    assert all(e.client.last_payload(t) for t in cmd_topics)
+    assert e.bridge.status_dict()['entities'] == 21
+    e.connect(allow_commands=False)
+    assert all(e.client.last_payload(t) == '' for t in cmd_topics)
+    assert len([1 for t, q in e.client.subscriptions if t.endswith('/set')]) == 12
+    _cmd(e, 'boiler_temp_set', '60')
+    assert e.db.writes == []
+
+
+def test_node_id_change_clears_old_config_topics():
+    e = make_env()
+    e.connect(allow_commands=True)
+    old = e.client
+    old_topics = set(t for t, p in _config_topics_published(old) if p)
+    assert old_topics
+    e.connect(allow_commands=True, node_id='newnode')
+    for t in old_topics:
+        assert (old.published_to(t)[-1]) == ('', 1, True)
+    new_topics = set(t for t, p in _config_topics_published(e.client) if p)
+    assert new_topics and not (new_topics & old_topics)
+
+
+def test_discovery_prefix_change_clears_old_config_topics():
+    e = make_env()
+    e.connect()
+    old = e.client
+    old_topics = set(t for t, p in _config_topics_published(old) if p)
+    e.connect(discovery_prefix='ha2')
+    for t in old_topics:
+        assert old.published_to(t)[-1] == ('', 1, True)
+
+
+def test_prefix_change_publishes_offline_on_old_status_topic():
+    e = make_env()
+    e.connect()
+    old = e.client
+    e.connect(prefix='newprefix')
+    assert old.published_to('scotte/status')[-1] == ('offline', 1, True)
+    assert e.client.last_payload('newprefix/status') == 'online'
+
+
+def test_start_test_delegates_and_leaves_live_client_alone():
+    from Pellmonsrv.plugins.homeassistant.tester import ConnectionTester
+    from test_homeassistant_tester import SyncThread
+    e = make_env()
+    e.connect()
+    live = e.client
+    n = len(live.published)
+    test_factory = FakeClientFactory(auto_connect=0)
+    b = Bridge(e.db, test_factory, snapshot=e.db.snapshot,
+               tester=ConnectionTester(test_factory, thread_factory=SyncThread))
+    assert b.start_test(CFG, 'pw') is True
+    assert b.test_result_dict() == {'state': 'ok', 'message': ''}
+    assert test_factory.calls[0]['client_id'].startswith('pellmon-test-')
+    assert test_factory.last.published == [] and test_factory.last.subscriptions == []
+    assert len(live.published) == n
+    assert env_client_count(e) == 1
+
+
+def env_client_count(e):
+    return len(e.factory.clients)
+
+
+def test_default_tester_uses_same_factory():
+    e = make_env()
+    from Pellmonsrv.plugins.homeassistant.tester import ConnectionTester
+    assert isinstance(e.bridge._get_tester(), ConnectionTester)
+    assert e.bridge.test_result_dict()['state'] == 'idle'
+
+
+def test_status_dict_thread_safe_and_no_password():
+    import threading
+    e = make_env()
+    e.connect()
+    errors = []
+
+    def reader():
+        try:
+            for _ in range(200):
+                assert PASSWORD_SENTINEL not in json.dumps(e.bridge.status_dict())
+        except Exception as ex:
+            errors.append(ex)
+
+    ts = [threading.Thread(target=reader) for _ in range(4)]
+    for t in ts:
+        t.start()
+    for _ in range(50):
+        e.settle()
+    for t in ts:
+        t.join()
+    assert errors == []
+
+
 def test_on_message_makes_no_db_call():
     e = _cmd_env()
     e.client.fire_message('scotte/boiler_temp_set/set', '60')

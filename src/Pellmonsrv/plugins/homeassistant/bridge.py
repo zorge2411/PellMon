@@ -472,9 +472,28 @@ class Bridge(object):
 
     # -- configuration
 
+    def _remove_stale_config(self, new):
+        """Empty retained payloads for config topics the new settings no longer publish"""
+        if not (new.get('enabled') and new.get('host')):
+            return
+        desired = set()
+        if 'burner_connection' in self._keys():
+            for topic, payload in entities.discovery_messages(
+                    new, self._present(), bool(new.get('allow_commands')), self._db,
+                    self._sw_version):
+                if payload:
+                    desired.add(topic)
+        for topic in sorted(self._config_topics - desired):
+            if self._publish(topic, '', 1, True):
+                self._config_topics.discard(topic)
+
     def _apply(self, cfg, password):
+        new = settings.effective(cfg)
+        if self._client is not None and self._connected:
+            self._remove_stale_config(new)
+        # retained 'offline' goes to the old availability topic (self._cfg is still the old one)
         self._teardown(offline=True)
-        self._cfg = settings.effective(cfg)
+        self._cfg = new
         self._password = password or ''
         self._retry_delay = 1
         self._retry_at = None
