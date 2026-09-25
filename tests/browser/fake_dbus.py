@@ -15,6 +15,7 @@ GRAPH_ITEMS = [
     ("flame", "Flame photo sensor light intensity"),
 ]
 
+MQTT_HOST = "mqtt-broker-with-a-fairly-long-host-name-for-layout-checks-0123456789.example.com"
 LONG = "Very long parameter name that must wrap on narrow screens"
 
 
@@ -97,6 +98,27 @@ class FakeDbus:
 
     def set_setting(self, key, value):
         return True
+
+    def mqtt_get_settings(self):
+        return {"enabled": True, "host": MQTT_HOST, "port": 1883, "username": "pellmon", "tls": False,
+                "tls_verify": True, "prefix": "scotte", "discovery_prefix": "homeassistant",
+                "device_id": "demo_device_identifier_0001", "device_name": "Pellet burner",
+                "node_id": "", "uid_prefix": "", "allow_commands": False, "refresh": 60,
+                "has_password": True, "available": True}
+
+    def mqtt_set_settings(self, data):
+        return {"ok": True, "errors": {}}
+
+    def mqtt_status(self):
+        return {"state": "connected", "host": MQTT_HOST, "port": 1883, "reason": "",
+                "last_publish": 1790000000, "last_connect": 1789999900, "availability": "online",
+                "burner": "connected", "commands_enabled": False, "entities": 9}
+
+    def mqtt_test_start(self, data):
+        return True
+
+    def mqtt_test_result(self):
+        return {"state": "ok", "message": ""}
 
 
 def write_sample_log(path):

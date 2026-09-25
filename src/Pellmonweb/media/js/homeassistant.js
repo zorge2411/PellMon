@@ -35,6 +35,12 @@
         }
     }
 
+    // validation summary: focus it on load so keyboard and screen reader users land on it
+    var summary = document.querySelector('.mqtt-page > .alert[role="alert"][tabindex="-1"]');
+    if (summary) {
+        summary.focus();
+    }
+
     // ---- (a) status refresh ----
 
     function squash(text) {
