@@ -96,6 +96,21 @@ entity list, a general-purpose MQTT bridge for arbitrary plugins.
   shows a stale value from an earlier session). The availability/status message follows the
   last-will convention (retained online/offline), which is the standard pattern.
 
+### Added after research (2026-09-25)
+- **D-18 (clarifies D-06):** While "Allow commands from Home Assistant" is OFF, the 10 number
+  entities and the 2 reset buttons are **removed from MQTT discovery** (an empty retained config
+  payload), so nothing appears controllable that is not. They are published again when commands are
+  enabled. Home Assistant may keep registry entries or history for removed entities; verifying that
+  on the user's real instance is a manual UAT item. Not chosen: keeping them published with writes
+  ignored, or adding parallel read-only sensors.
+- **D-19:** The research's corrections C1 (topic segments for `power_percent`, `power_kw`,
+  `boiler_diff_down`, `boiler_diff_up` differ from PellMon item names; keep a separate object-id
+  column), C2 (takeover needs device identifier, discovery `node_id` and unique-id prefix as
+  settings), C5 (publish `offline` on clean shutdown via `atexit`, since a clean disconnect
+  suppresses the last will), C6 (subscribe to Home Assistant's birth message and republish state)
+  and C7 (Test connection is start-and-poll) are adopted as implementation decisions. See
+  `06-RESEARCH.md` section "Corrections/Conflicts with CONTEXT".
+
 ### Claude's Discretion
 - MQTT client library (likely paho-mqtt) and the version to pin; it must run on Python 3.11 in the
   Debian container on a Raspberry Pi 3A+ (512 MB RAM), so keep memory and thread use small.

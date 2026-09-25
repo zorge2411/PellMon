@@ -168,7 +168,7 @@ Phases execute in numeric order: 1 → 2 → 3 → 4 → 5
 ### Phase 6: Enable Home Assistant MQTT device with settings on the web GUI
 
 **Goal:** PellMon publishes the Scotte burner to Home Assistant as the same MQTT-discovered device it has today (same topic layout, entities and unique IDs), with the MQTT connection settings edited on a dedicated, login-protected page in the web GUI, commands from Home Assistant off unless explicitly allowed, and availability tied to the burner connection.
-**Requirements**: D-01..D-17 (see 06-CONTEXT.md)
+**Requirements**: D-01..D-19 (see 06-CONTEXT.md)
 **Depends on:** Phase 5
 **Plans:** 0 plans
 
