@@ -501,3 +501,73 @@ def test_copy_strings_present_in_source():
               'unknown error (see the server log)'):
         assert s in src, s
     assert src.count('@require()') >= 4 and src.count('check_same_origin()') >= 2
+
+
+# ---- Task 2: Dbus_handler proxies, mount, real-template render ----
+
+import ast  # noqa: E402
+from pathlib import Path  # noqa: E402
+
+ROOT = Path(__file__).resolve().parents[2]
+WEB_SRC = (ROOT / 'src' / 'Pellmonweb' / 'pellmonweb.py').read_text(encoding='utf-8')
+INIT_SRC = (ROOT / 'src' / 'Pellmonweb' / '__init__.py').read_text(encoding='utf-8')
+TREE = ast.parse(WEB_SRC)
+PROXIES = {'mqtt_get_settings': 'GetMqttSettings', 'mqtt_set_settings': 'SetMqttSettings',
+           'mqtt_status': 'GetMqttStatus', 'mqtt_test_start': 'StartMqttTest',
+           'mqtt_test_result': 'GetMqttTestResult'}
+
+
+def _class(name):
+    return next(n for n in ast.walk(TREE) if isinstance(n, ast.ClassDef) and n.name == name)
+
+
+def _method(cls, name):
+    return next(n for n in cls.body if isinstance(n, ast.FunctionDef) and n.name == name)
+
+
+@pytest.mark.parametrize('name,call', sorted(PROXIES.items()))
+def test_dbus_handler_proxy_shape(name, call):
+    src = ast.get_source_segment(WEB_SRC, _method(_class('Dbus_handler'), name))
+    assert 'with self.lock' in src
+    assert 'remote_object.%s(' % call in src
+    assert "dbus_interface ='org.pellmon.int'" in src
+    assert 'DbusNotConnected("server not running")' in src
+    assert 'log' not in src
+
+
+def test_homeassistant_mounted_and_imported():
+    init = ast.get_source_segment(WEB_SRC, _method(_class('PellMonWeb'), '__init__'))
+    assert 'self.homeassistant = HomeAssistant(lookup, dbus, credentials)' in init
+    # pellmonweb.py gets its controllers through "from Pellmonweb import *"
+    assert 'from Pellmonweb import *' in WEB_SRC
+    assert 'from .homeassistant import HomeAssistant' in INIT_SRC
+
+
+def test_dbus_handler_proxies_raise_when_disconnected():
+    pytest.importorskip('cherrypy')
+    pytest.importorskip('dbus')
+    pytest.importorskip('gi')
+    import importlib
+    import threading
+    web = importlib.import_module('Pellmonweb.pellmonweb')
+    h = web.Dbus_handler.__new__(web.Dbus_handler)
+    h.lock = threading.Lock()
+    h.remote_object = None
+    for name in PROXIES:
+        args = ({},) if name in ('mqtt_set_settings', 'mqtt_test_start') else ()
+        with pytest.raises(web.DbusNotConnected):
+            getattr(h, name)(*args)
+
+
+def test_real_template_render_hides_password(cherrypy_request_ctx):
+    from mako.lookup import TemplateLookup
+    html_dir = ROOT / 'src' / 'Pellmonweb' / 'html'
+    dbus = FakeDbus(stored=dict(has_password=True, available=True, host='mqtt.local'))
+    c = ha.HomeAssistant(TemplateLookup(directories=[str(html_dir)]), dbus, credentials={'u': 'p'})
+    out = c.index()
+    assert 'Home Assistant / MQTT' in out
+    assert 'placeholder="set"' in out
+    assert SENTINEL not in out
+    _post(**ORIGIN)
+    bad = c.save(**_valid(port='70000', password=SENTINEL))
+    assert SENTINEL not in bad and 'has-error' in bad
