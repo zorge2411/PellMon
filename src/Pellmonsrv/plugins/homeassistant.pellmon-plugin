@@ -1,0 +1,9 @@
+[Core]
+Name = HomeAssistant
+Module = homeassistant
+
+[Documentation]
+Author = PellMon
+Version = 0.1
+Website = http://github.com/motoz/PellMon
+Description = Publishes the burner to Home Assistant as an MQTT device
