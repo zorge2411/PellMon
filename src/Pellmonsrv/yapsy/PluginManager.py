@@ -116,10 +116,14 @@ class PluginManager(object):
 		logged (used by `pellmonsrv debug`). The attribute
 		``raise_only_for`` (default None) can be set to a collection of
 		plugin names so that only failures of those plugins propagate;
-		other failures are logged and skipped.
+		other failures are logged and skipped. The attribute
+		``load_only`` (default None) can be set to a collection of plugin
+		names so that only those plugins are imported; other candidates
+		are skipped without importing their code.
 		"""
 		self.raise_on_error = False
 		self.raise_only_for = None
+		self.load_only = None
 		self.setPluginInfoClass(PluginInfo)
 		self.setCategoriesFilter(categories_filter)		
 		self.setPluginPlaces(directories_list)
@@ -307,6 +311,11 @@ class PluginManager(object):
 			# user
 			if callback is not None:
 				callback(plugin_info)
+
+			# skip plugins that are not enabled, so their dependencies are never imported
+			load_only = getattr(self, 'load_only', None)
+			if load_only is not None and plugin_info.name not in load_only:
+				continue
 
 			# import the plugin as a real module/package
 			try:
