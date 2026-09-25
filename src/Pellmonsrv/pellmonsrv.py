@@ -77,6 +77,7 @@ class Database(threading.Thread, _Database):
         _Database.__init__(self)
         self.dbus_service = None
         self.values={}
+        self.listeners = []
         self.protocols=[]
         self.daemon = True
 
@@ -139,6 +140,22 @@ class Database(threading.Thread, _Database):
                 if self.dbus_service:
                     s = json.dumps(changed_params)
                     self.dbus_service.changed_parameters(s)
+                self._notify(changed_params)
+
+    def add_change_listener(self, callback):
+        """Register callback(changed_params); it runs on the Database thread and must only enqueue"""
+        self.listeners.append(callback)
+
+    def _notify(self, changed_params):
+        for callback in list(self.listeners):
+            try:
+                callback(changed_params)
+            except Exception:
+                logger.exception('change listener failed')
+
+    def snapshot(self):
+        """Return a copy of the last known item values"""
+        return dict(self.values)
 
     def terminate(self):
         for p in self.protocols:
