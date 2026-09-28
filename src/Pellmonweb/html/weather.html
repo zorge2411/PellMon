@@ -1,0 +1,104 @@
+<%inherit file="layout.html"/>
+<%def name="title()">
+Weather
+</%def>
+<%
+    s = settings
+    st = status
+
+    def fgroup(field, extra=''):
+        return 'form-group has-error' if field in errors else 'form-group'
+
+    def invalid(field):
+        return ' aria-invalid="true"' if field in errors else ''
+
+    def describedby(field):
+        ids = field + '-help'
+        if field in errors:
+            ids += ' ' + field + '-error'
+        return ids
+%>
+<%def name="err(field)">\
+% if field in errors:
+<span class="help-block" id="${field}-error">${errors[field] | h}</span>
+% endif
+</%def>
+<div class="container mqtt-page">
+	<h1>Weather</h1>
+	<p class="mqtt-intro">Show outside weather from openweathermap.org on the dashboard. Changes are applied to the running server without a restart.</p>
+	% if msg:
+	<div class="alert alert-${msg_level | h}" role="${'status' if msg_level == 'success' else 'alert'}"${'' if msg_level == 'success' else ' tabindex="-1"'}>${msg | h}</div>
+	% endif
+	<div id="mqtt-status" class="${'well' if st['level'] == 'well' else 'alert alert-' + st['level']}" role="status" aria-live="polite" title="${st['title'] | h}">
+		% if st['glyph']:
+		<span class="glyphicon glyphicon-${st['glyph'] | h}" aria-hidden="true"></span>
+		% endif
+		% if st['word']:
+		<strong>${st['word'] | h}</strong>
+		% endif
+		${st['text'] | h}
+	</div>
+	<form class="mqtt-form" method="post" action="${webroot | h}/weather/save">
+		<section class="panel panel-default">
+			<div class="panel-heading">OpenWeatherMap</div>
+			<div class="panel-body">
+				<fieldset>
+					<legend class="sr-only">OpenWeatherMap</legend>
+					<div class="${fgroup('enabled')}">
+						<div class="checkbox">
+							<label for="enabled"><input type="checkbox" id="enabled" name="enabled" value="1" aria-describedby="enabled-help"${' checked' if s['enabled'] else ''}> Enable OpenWeatherMap</label>
+						</div>
+						<p class="help-block" id="enabled-help">When off, PellMon does not fetch the weather.</p>
+					</div>
+				</fieldset>
+				<div class="row">
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('apikey')}">
+							<label for="apikey">API key</label>
+							<input type="password" class="form-control" id="apikey" name="apikey" placeholder="${'set' if has_apikey else ''}" autocomplete="new-password" aria-describedby="${describedby('apikey')}"${invalid('apikey')}>
+							% if apikey_reentered:
+							<p class="help-block" id="apikey-help">Re-enter the API key. It is not kept when the form is redisplayed.</p>
+							% elif has_apikey:
+							<p class="help-block" id="apikey-help">An API key is stored. Leave this field blank to keep it.</p>
+							% else:
+							<p class="help-block" id="apikey-help">No API key stored. Get one at <a href="https://home.openweathermap.org/api_keys" rel="noopener noreferrer" target="_blank">home.openweathermap.org/api_keys</a>.</p>
+							% endif
+							${err('apikey')}
+							% if has_apikey:
+							<div class="checkbox">
+								<label for="clear_apikey"><input type="checkbox" id="clear_apikey" name="clear_apikey" value="1"> Remove the stored API key</label>
+							</div>
+							% endif
+						</div>
+					</div>
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('unit')}">
+							<label for="unit">Temperature unit</label>
+							<select class="form-control" id="unit" name="unit" aria-describedby="${describedby('unit')}"${invalid('unit')}>
+								<option value="celsius"${' selected' if s['unit'] == 'celsius' else ''}>Celsius</option>
+								<option value="fahrenheit"${' selected' if s['unit'] == 'fahrenheit' else ''}>Fahrenheit</option>
+							</select>
+							${err('unit')}
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-12 col-sm-6">
+						<div class="${fgroup('location')}">
+							<label for="location">Location</label>
+							<input type="text" class="form-control" id="location" name="location" value="${s['location'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('location')}"${invalid('location')}>
+							<p class="help-block" id="location-help">town,countrycode or zipcode,countrycode, for example copenhagen,dk</p>
+							${err('location')}
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+		<div class="mqtt-actions">
+			<button type="submit" class="btn btn-primary mqtt-save"${'' if auth_configured else ' disabled'}>Save settings</button>
+		</div>
+		% if not auth_configured:
+		<p class="help-block">Saving is disabled until web login credentials are configured.</p>
+		% endif
+	</form>
+</div>
