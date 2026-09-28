@@ -251,6 +251,28 @@ class Dbus_handler:
             except:
                 raise DbusNotConnected("server not running")
 
+    # OpenWeatherMap (JSON over D-Bus). Never log the arguments: they can carry the API key.
+    def owm_get_settings(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetOwmSettings(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def owm_set_settings(self, d):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.SetOwmSettings(simplejson.dumps(d), dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def owm_status(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetOwmStatus(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
     def getdb(self):
         with self.lock:
             try:
@@ -293,6 +315,7 @@ class PellMonWeb:
         self.consumptionview = Consumption(polling, db, dbus, lookup)
         self.settings = Settings(lookup, dbus, system_image_dir, credentials)
         self.homeassistant = HomeAssistant(lookup, dbus, credentials)
+        self.weather = Weather(lookup, dbus, credentials)
 
     @cherrypy.expose
     def autorefresh(self, **args):

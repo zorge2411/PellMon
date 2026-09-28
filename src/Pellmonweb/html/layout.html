@@ -58,6 +58,9 @@
 					<li class="${'active' if context.get('active_page', '') == 'homeassistant' else ''}">
 						<a href="${webroot}/homeassistant/">Home Assistant</a>
 					</li>
+					<li class="${'active' if context.get('active_page', '') == 'weather' else ''}">
+						<a href="${webroot}/weather/">Weather</a>
+					</li>
 					<li>
 						% if username == None:
 						<a href=${webroot}/auth/login>Login</a>

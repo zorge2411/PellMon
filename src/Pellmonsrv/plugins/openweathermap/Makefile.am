@@ -1,4 +1,5 @@
 openweathermap_PYTHON = \
-	__init__.py 
+	settings.py \
+	__init__.py
 
 openweathermapdir = $(pythondir)/Pellmonsrv/plugins/openweathermap
