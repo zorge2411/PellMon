@@ -28,7 +28,7 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 Phase: 10 (optimize-for-mobile-devices-screen-size) — COMPLETE
 Plan: 7 of 7
 Status: Phase 10 complete, v2.1.0 published, real-phone and desktop check approved
-Last activity: 2026-09-25 -- Phase 10 real-device verification approved
+Last activity: 2026-09-28 - Completed quick task 260928-bzn: OpenWeatherMap pyowm 3 port + Weather settings page
 
 Progress: [██████████] 100%
 
@@ -108,6 +108,7 @@ Items acknowledged and carried forward from previous milestone close:
 | 260919-gpe | Scotte burner emulator (tools/burner_sim.py, pty tests, README with 11 spec-vs-code discrepancies). Status incomplete: end-to-end run was blocked by the plugin loader bug (fixed in 260919-jiz) | 2026-09-19 | e614928, 7b236e6 | [260919-gpe-scotte-burner-emulator-for-integration-t](./quick/260919-gpe-scotte-burner-emulator-for-integration-t/) |
 | 260919-jiz | Fix yapsy PluginManager to load plugins as real modules so relative imports work; ScotteCom now loads (all 15 plugins load in WSL except raspberrygpio, which needs RPi) | 2026-09-19 | a6b2cc1, 6caa694 | [260919-jiz-fix-yapsy-plugin-loading-so-relative-imp](./quick/260919-jiz-fix-yapsy-plugin-loading-so-relative-imp/) |
 | 260919-olq | Fix Scotte CRLF retry frame duplication; `setItem` now returns 'OK' or raises ValueError/IOError instead of leaking raw bytes, so failed writes are no longer reported as OK to the web UI; failing-first tests in tests/test_scotte_protocol_bugs.py | 2026-09-19 | 03bc51e, 0d4aee0 | [260919-olq-fix-scotte-crlf-retry-duplication-and-se](./quick/260919-olq-fix-scotte-crlf-retry-duplication-and-se/) |
+| 260928-bzn | Port Openweathermap plugin to pyowm 3; add Weather settings page (API key, location, unit, enable) | 2026-09-28 | 583323e, bacbf6d, c2e0417 | [260928-bzn-port-openweathermap-plugin-to-pyowm-3-an](./quick/260928-bzn-port-openweathermap-plugin-to-pyowm-3-an/) |
 
 Full suite verified in WSL (Debian, Python 3.13): 246 passed, 5 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
 
