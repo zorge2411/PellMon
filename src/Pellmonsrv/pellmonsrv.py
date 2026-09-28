@@ -174,13 +174,21 @@ ALLOWED_SETTINGS = {
     'web.system_image': _valid_system_image,
 }
 
-def _ha_plugin():
-    """Return the HomeAssistant plugin object, or None when it is not loaded"""
+def _plugin_by_name(name):
+    """Return the named plugin object, or None when it is not loaded"""
     protos = getattr(getattr(conf, 'database', None), 'protocols', None) or []
     for plugin in protos:
-        if getattr(plugin, 'name', None) == 'HomeAssistant':
+        if getattr(plugin, 'name', None) == name:
             return plugin.plugin_object
     return None
+
+def _ha_plugin():
+    """Return the HomeAssistant plugin object, or None when it is not loaded"""
+    return _plugin_by_name('HomeAssistant')
+
+def _owm_plugin():
+    """Return the Openweathermap plugin object, or None when it is not loaded"""
+    return _plugin_by_name('Openweathermap')
 
 def _mqtt_parse(data):
     """Parse a JSON object argument, None when it is not a JSON object"""
@@ -343,6 +351,47 @@ class MyDBUSService(dbus.service.Object):
         except Exception as e:
             logger.error('GetMqttTestResult failed: %s'%type(e).__name__)
             return json.dumps({'state': 'error', 'message': ''})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetOwmSettings(self):
+        """Get the non-secret Openweathermap settings as JSON, never the API key"""
+        plugin = _owm_plugin()
+        if plugin is None:
+            return json.dumps({'available': False})
+        try:
+            result = plugin.get_settings_dict()
+            result.pop('apikey', None)
+            return json.dumps(result)
+        except Exception as e:
+            logger.error('GetOwmSettings failed: %s'%type(e).__name__)
+            return json.dumps({'available': False})
+
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='s')
+    def SetOwmSettings(self, data):
+        """Validate and apply Openweathermap settings given as JSON, returns JSON {ok, errors}"""
+        plugin = _owm_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'errors': {}})
+        parsed = _mqtt_parse(data)
+        if parsed is None:
+            return json.dumps({'ok': False, 'errors': {}})
+        try:
+            return json.dumps(plugin.apply_settings(parsed))
+        except Exception as e:
+            logger.error('SetOwmSettings failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'errors': {}})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetOwmStatus(self):
+        """Get the Openweathermap fetch status as JSON"""
+        plugin = _owm_plugin()
+        if plugin is None:
+            return json.dumps({'available': False})
+        try:
+            return json.dumps(plugin.status_dict())
+        except Exception as e:
+            logger.error('GetOwmStatus failed: %s'%type(e).__name__)
+            return json.dumps({'available': False})
 
     #@dbus.service.signal(dbus_interface='org.pellmon.int', signature='aa{sv}')
     @dbus.service.signal(dbus_interface='org.pellmon.int', signature='s')
@@ -741,7 +790,7 @@ class MyDaemon(Daemon):
         logger.info("ending, what??")
         
 # plugins that are loaded even when missing from [enabled_plugins]
-ALWAYS_LOADED_PLUGINS = ('HomeAssistant',)
+ALWAYS_LOADED_PLUGINS = ('HomeAssistant', 'Openweathermap')
 
 class config:
     """Contains global configuration, parsed from the .conf file"""
@@ -834,8 +883,9 @@ class config:
                     pass
         except configparser.NoSectionError:
             pass
-        # HomeAssistant is always loaded: it stays idle until enabled on the web page,
-        # and older installs have an enabled_plugins.conf that predates it
+        # HomeAssistant and Openweathermap are always loaded: they stay idle until
+        # enabled on the web page, and older installs have an enabled_plugins.conf
+        # that predates them
         for plugin_name in ALWAYS_LOADED_PLUGINS:
             if plugin_name not in self.enabled_plugins:
                 self.enabled_plugins.append(plugin_name)
