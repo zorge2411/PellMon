@@ -192,8 +192,11 @@ class Consumption_plugin(protocols):
                     bar=0
                 bardata.append([(from_time + utc_offset)*1000, bar])
                 total += bar
-            lastbar = float(self.rrd_total(start, now, cache=False)[1:][:-1])
-            if isnan(lastbar):
+            try:
+                lastbar = float(self.rrd_total(start, now, cache=False)[1:][:-1])
+                if isnan(lastbar):
+                    lastbar = 0
+            except Exception as e:
                 lastbar = 0
             if now-start > 100:
                 predictedbar = (float(period) / (now-start)) * lastbar
