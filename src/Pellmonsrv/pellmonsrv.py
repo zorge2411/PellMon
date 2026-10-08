@@ -480,8 +480,14 @@ class Poller(threading.Thread):
                         logger.info('gave up waiting for timesync, continuing')
                         self.timesync_wait = 99
                     RRD_command = ['/usr/bin/rrdtool', 'update', conf.db, "%u:"%(int(time.time()))+s]
-                    cmd = subprocess.Popen(RRD_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                    out, err = cmd.communicate()
+                    for attempt in range(3):
+                        cmd = subprocess.Popen(RRD_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                        out, err = cmd.communicate()
+                        # rrdtool update uses a non-blocking lock, so it fails while a graph/fetch has the file open
+                        if cmd.returncode and b'could not lock' in err:
+                            time.sleep(0.5)
+                        else:
+                            break
                     if not cmd.returncode:
                         conf.lastupdate = lastupdate
                     else:
