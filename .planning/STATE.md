@@ -78,6 +78,7 @@ Recent decisions affecting current work:
 - Phase 8 added: Expose the burner SVG depiction in settings to make the visible representation more user friendly (added 2026-09-21; not yet planned)
 - Phase 9 added: Add Docker Hub image publishing with semver versioning, based on `versioning-and-publish-reference.md` (Kombikode tool project) (added 2026-09-23; not yet planned)
 - Phase 10 added: Optimize for mobile devices screen size (added 2026-09-24; not yet planned)
+- Phase 11 added: Add silo days-left and additional numeric sensors to Home Assistant, including research on which further numbers to expose (added 2026-10-08; not yet planned)
 
 ### Pending Todos
 

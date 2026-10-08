@@ -273,3 +273,18 @@ Plans:
 - [x] 10-05-PLAN.md — Browser acceptance tests (overflow A1-A3 at 390/768, B/C/D/E checks, 1280 smoke)
 - [x] 10-06-PLAN.md — Mandatory browser step in CI test job + guard test + README/.gitignore
 - [x] 10-07-PLAN.md — Final gate and real-phone/desktop human verification
+
+### Phase 11: Add silo days-left and additional numeric sensors to Home Assistant
+
+**Goal:** The Home Assistant MQTT device (Phase 6) also publishes the pellet silo estimate (`silo_days_left`, `silo_level`) and any further numeric PellMon items that research shows are worth exposing (e.g. consumption, feeder counters, other plugin sensors), each with correct units, device/state classes and graceful absence when its plugin is not enabled.
+**Requirements**: TBD (defined in 11-CONTEXT.md after research)
+**Depends on:** Phase 10
+**Plans:** 0 plans
+
+Scope notes:
+- Research first (`/gsd-research-phase 11`): inventory every numeric DB item (scottecom, calculate, consumption, silolevel, pelletcalc, heatingcircuit, onewire/owfs, openweathermap), judge each for HA value, cost of `get_text` on the 2 s Database thread (silolevel runs rrdtool, cached 300 s), update cadence, and unit/device_class mapping.
+- Decide failure semantics for `silo_days_left` (`'0'` on prediction error reads as "empty today"; `None` before first compute is already skipped by the bridge).
+- Implementation is expected to be mostly `ENTITIES` rows in `plugins/homeassistant/entities.py` plus updates to hard-coded entity counts in `tests/Pellmonsrv/plugins/test_homeassistant_entities.py`, the HA docs page and its tests.
+
+Plans:
+- [ ] TBD (run /gsd-plan-phase 11 to break down)
