@@ -46,7 +46,18 @@ itemList=[{'name':'consumptionData24h',  'longname':'Consumption 24 hours',
            'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
           {'name':'consumptionData1y',  'longname':'Consumption 1 year',
            'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'consumption_today',  'longname':'Consumption today',
+           'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'consumption_7d',  'longname':'Consumption last 7 days',
+           'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'consumption_month',  'longname':'Consumption this month',
+           'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
          ]
+
+# single numbers (kg burned since the window start until now), cached so that the
+# 2 s database poll does not run rrdtool every time
+SCALAR_ITEMS = ('consumption_today', 'consumption_7d', 'consumption_month')
+SCALAR_CACHE_SECONDS = 300
 
 
 class Consumption_plugin(protocols):
@@ -137,30 +148,82 @@ class Consumption_plugin(protocols):
         self.updatetime7d = 0
         self.updatetime8w = 0
         self.updatetime1y = 0
+        self.scalar_cache = {}
+
+    def _now(self):
+        return time.time()
+
+    def scalar_window_start(self, itemName, now):
+        """Start (epoch seconds) of the window the scalar item sums over"""
+        if itemName == 'consumption_7d':
+            return int(now) - 7*86400
+        local = datetime.fromtimestamp(now).replace(hour=0, minute=0, second=0, microsecond=0)
+        if itemName == 'consumption_month':
+            local = local.replace(day=1)
+        return int(local.timestamp())
+
+    def total_kg(self, from_time, to_time):
+        """kg burned between two times, None when rrdtool has no answer"""
+        try:
+            value = float(self.rrd_total(int(from_time), int(to_time), cache=False)[1:][:-1])
+        except Exception as e:
+            return None
+        if isnan(value):
+            return None
+        return value
+
+    def scalar_item(self, itemName):
+        now = self._now()
+        cached = self.scalar_cache.get(itemName)
+        if cached is not None and now - cached[0] < SCALAR_CACHE_SECONDS:
+            return cached[1]
+        total = self.total_kg(self.scalar_window_start(itemName, now), now)
+        # unknown is an empty string: safe over D-Bus and not published as a number
+        value = '' if total is None else '%.1f' % total
+        self.scalar_cache[itemName] = (now, value)
+        return value
+
+    def align_for(self, itemName, now):
+        """Start time (epoch seconds, int) of the last bar's grid for a bar chart item:
+        the full hour, local midnight, week start or month start. Floor division on purpose."""
+        now = int(now)
+        # local time minus UTC hour of day, in seconds
+        local_shift = (time.localtime(now).tm_hour - now % 86400 // 3600) * 3600
+        if itemName == 'consumptionData24h':
+            return now // 3600 * 3600
+        elif itemName == 'consumptionData7d':
+            return now // 86400 * 86400 - local_shift
+        elif itemName == 'consumptionData8w':
+            return (now + 4*86400) // (86400*7) * (86400*7) - local_shift - 4*86400
+        elif itemName == 'consumptionData1y':
+            month = 31556952 // 12
+            return now // month * month - local_shift
 
     def getItem(self, itemName):
-        now=int(time.time())
+        if itemName in SCALAR_ITEMS:
+            return self.scalar_item(itemName)
+        now=int(self._now())
         if itemName == 'consumptionData24h':
             if time.time() - self.updatetime24h > 300:
-                align=now/3600*3600
+                align=self.align_for(itemName, now)
                 self.json24hdata = self.barchartdata(start=align, period=3600, bars=24)
                 self.updatetime24h = time.time()
             return self.json24hdata
         elif itemName == 'consumptionData7d':
             if time.time() - self.updatetime7d > 500:
-                align=int(now)/86400*86400-(time.localtime(now).tm_hour-int(now)%86400/3600)*3600
+                align=self.align_for(itemName, now)
                 self.json7ddata = self.barchartdata(start=align, period=3600*24, bars=7)
                 self.updatetime7d = time.time()
             return self.json7ddata
         elif itemName == 'consumptionData8w':
             if time.time() - self.updatetime8w > 700:
-                align=int(now+4*86400)/(86400*7)*(86400*7)-(time.localtime(now).tm_hour-int(now)%86400/3600)*3600 -4*86400
+                align=self.align_for(itemName, now)
                 self.json8wdata = self.barchartdata(start=align, period=3600*24*7, bars=8)
                 self.updatetime8w = time.time()
             return self.json8wdata
         elif itemName == 'consumptionData1y':
             if time.time() - self.updatetime1y > 2010:
-                align1y=now/int(31556952/12)*int(31556952/12)-(time.localtime(now).tm_hour-int(now)%86400/3600)*3600
+                align1y=self.align_for(itemName, now)
                 self.json1ydata = self.barchartdata(start=align1y, period=3600*24*30, bars=12)
                 self.updatetime1y = time.time()
             return self.json1ydata

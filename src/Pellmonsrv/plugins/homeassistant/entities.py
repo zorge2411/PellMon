@@ -18,23 +18,26 @@
 # Pure module: stdlib only, no paho, no dbus.
 
 import json
+import math
 from collections import namedtuple
 
-Entity = namedtuple('Entity', 'name component object_id item unit device_class state_class min max')
+# kind: 'numeric' (finite number), 'text' (any non-empty text), 'timestamp' (ISO 8601 text)
+# or 'none' (buttons, no state)
+Entity = namedtuple('Entity', 'name component object_id item unit device_class state_class min max kind')
 
 DEG_C = u'°C'
 
 
-def _s(name, object_id, item, unit=None, device_class=None, state_class=None):
-    return Entity(name, 'sensor', object_id, item, unit, device_class, state_class, None, None)
+def _s(name, object_id, item, unit=None, device_class=None, state_class=None, kind='numeric'):
+    return Entity(name, 'sensor', object_id, item, unit, device_class, state_class, None, None, kind)
 
 
 def _n(name, object_id, item, unit, lo, hi):
-    return Entity(name, 'number', object_id, item, unit, None, None, lo, hi)
+    return Entity(name, 'number', object_id, item, unit, None, None, lo, hi, 'numeric')
 
 
 def _b(name, object_id, item):
-    return Entity(name, 'button', object_id, item, None, None, None, None, None)
+    return Entity(name, 'button', object_id, item, None, None, None, None, None, 'none')
 
 
 # object_id is the topic segment and unique-id suffix of the existing device;
@@ -48,7 +51,7 @@ ENTITIES = (
     _s('Oxygen Level', 'oxygen', 'oxygen', '%'),
     _s('Light (LDR)', 'light', 'light'),
     _s('Feeder Time', 'feeder_time', 'feeder_time', 's', 'duration', 'measurement'),
-    _s('Burner Mode', 'mode', 'mode'),
+    _s('Burner Mode', 'mode', 'mode', kind='text'),
     _n('Boiler Temp Setpoint', 'boiler_temp_set', 'boiler_temp_set', DEG_C, 40, 85),
     _n('Boiler Temp Minimum', 'boiler_temp_min', 'boiler_temp_min', DEG_C, 10, 70),
     _n('Boiler Diff Down', 'boiler_diff_down', 'boiler_temp_diff_down', DEG_C, 0, 20),
@@ -61,6 +64,44 @@ ENTITIES = (
     _n('Max Power', 'max_power', 'max_power', '%', 10, 100),
     _b('Reset Alarm', 'reset_alarm', 'reset_alarm'),
     _b('Reset Ignition', 'reset_ignition', 'reset_ignition'),
+)
+
+# Phase 11 additions. Appended after the original 21 so their order, object ids and
+# unique ids never change. Device and state classes follow Home Assistant's
+# sensor/const.py: duration accepts d/s, weight accepts kg/g, volume_flow_rate wants
+# 'L/s', timestamp takes neither unit nor state class.
+ENTITIES += (
+    # silolevel plugin
+    _s('Silo Days Left', 'silo_days_left', 'silo_days_left', 'd', 'duration', 'measurement'),
+    _s('Silo Level', 'silo_level', 'silo_level', 'kg', 'weight', 'measurement'),
+    _s('Silo Empty Date', 'silo_empty_date', 'silo_empty_date', None, 'timestamp', None, kind='timestamp'),
+    # consumption plugin
+    _s('Consumption Today', 'consumption_today', 'consumption_today', 'kg', 'weight', 'measurement'),
+    _s('Consumption 7 Days', 'consumption_7d', 'consumption_7d', 'kg', 'weight', 'measurement'),
+    _s('Consumption This Month', 'consumption_month', 'consumption_month', 'kg', 'weight', 'measurement'),
+    # Scotte burner (chip version dependent, only published when the item exists)
+    _s('Magazine Content', 'magazine_content', 'magazine_content', 'kg', 'weight', 'measurement'),
+    _s('Boiler Return Temperature', 'boiler_return_temp', 'boiler_return_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Hot Water Temperature', 'hotwater_temp', 'hotwater_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Outside Temperature', 'outside_temp', 'outside_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Indoor Temperature', 'indoor_temp', 'indoor_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Water Flow', 'flow', 'flow', 'L/s', 'volume_flow_rate', 'measurement'),
+    _s('Desired Oxygen Level', 'oxygen_desired', 'oxygen_desired', '%', None, 'measurement'),
+    _s('Ignition Count', 'ignition_count', 'ignition_count', None, None, 'total_increasing'),
+    _s('Ignition Time', 'ignition_time', 'ignition_time', 's', 'duration', 'total_increasing'),
+    _s('Motor Time', 'motor_time', 'motor_time', 's', 'duration', 'total_increasing'),
+    _s('Electricity Time', 'el_time', 'el_time', 's', 'duration', 'total_increasing'),
+    _s('Alarm', 'alarm', 'alarm', kind='text'),
+    # pelletcalc plugin, counter mode
+    _s('Feeder Revolutions', 'feeder_rev', 'feeder_rev', None, None, 'total_increasing'),
+    _s('Feeder Speed', 'feeder_rpm', 'feeder_rpm', 'rpm', None, 'measurement'),
+    _s('Feeder Revolutions per 6 min', 'feeder_rp6m', 'feeder_rp6m', 'rev/6min', None, 'measurement'),
+    _s('Feeder Pellets per Revolution', 'feeder_rev_capacity', 'feeder_rev_capacity', 'g', 'weight', 'measurement'),
+    # writable (only with commands on, like the original numbers)
+    _n('Hot Water Temp Setpoint', 'hotwater_temp_set', 'hotwater_temp_set', DEG_C, 0, 80),
+    _n('Hot Water Diff', 'hotwater_temp_diff', 'hotwater_temp_diff', DEG_C, 0, 20),
+    _n('Set Magazine Content', 'magazine_content_set', 'magazine_content', 'kg', 0, 9999),
+    _n('Silo Fill Level', 'silo_reset_level', 'silo_reset_level', 'kg', 0, 50000),
 )
 
 # Discovery configs that are always cleared (D-07: Burner ON/OFF is not published)
@@ -81,6 +122,20 @@ def entity_by_object_id(object_id):
         if e.object_id == object_id:
             return e
     return None
+
+
+def is_publishable(entity, value):
+    """True when value is a sane state for the entity (numeric sensors never get '-', '' or nan)"""
+    if value is None:
+        return False
+    if entity.kind == 'numeric':
+        try:
+            return math.isfinite(float(value))
+        except (TypeError, ValueError):
+            return False
+    if entity.kind in ('text', 'timestamp'):
+        return str(value).strip() not in ('', 'None')
+    return False
 
 
 def _num(value):

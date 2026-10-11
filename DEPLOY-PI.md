@@ -196,10 +196,62 @@ Optionally clear the old publisher's retained topics.
 
 - Burner ON and Burner OFF are no longer available from Home Assistant. PellMon clears their
   discovery entries; remove the leftover entities in Home Assistant if they remain.
-- While "Allow commands from Home Assistant" is off, the ten setpoint numbers and the two
-  reset buttons are removed from Home Assistant. They come back when it is switched on.
+- While "Allow commands from Home Assistant" is off, every number (the ten setpoints and the
+  four added with the silo support, see below) and the two reset buttons are removed from
+  Home Assistant. They come back when it is switched on.
 - Entities show unavailable when the burner is not connected, in demo mode, or when PellMon
   stops (the last will marks the device offline).
+
+**Additional entities (silo, consumption and more).** Besides the 21 entities of the original
+device, PellMon publishes the entities below. An entity appears only when its source exists:
+the silo and consumption entities need those plugins enabled, the Scotte ones need a chip
+version that has the item (the version is shown in the last column), and the feeder counters need
+the pelletcalc plugin in counter mode. Nothing existing is renamed, so history and dashboards
+keep working; the new entities show up on their own after the upgrade.
+
+| Name | PellMon item | Kind | Unit | Needs |
+|------|--------------|------|------|-------|
+| Silo Days Left | `silo_days_left` | numeric | d | silolevel plugin |
+| Silo Level | `silo_level` | numeric | kg | silolevel plugin |
+| Silo Empty Date | `silo_empty_date` | timestamp |  | silolevel plugin |
+| Consumption Today | `consumption_today` | numeric | kg | consumption plugin |
+| Consumption 7 Days | `consumption_7d` | numeric | kg | consumption plugin |
+| Consumption This Month | `consumption_month` | numeric | kg | consumption plugin |
+| Magazine Content | `magazine_content` | numeric | kg | Scotte 6.03+ |
+| Boiler Return Temperature | `boiler_return_temp` | numeric | °C | Scotte 6.03+ |
+| Hot Water Temperature | `hotwater_temp` | numeric | °C | Scotte 6.03+ |
+| Outside Temperature | `outside_temp` | numeric | °C | Scotte 6.03+ |
+| Indoor Temperature | `indoor_temp` | numeric | °C | Scotte 6.03+ |
+| Water Flow | `flow` | numeric | L/s | Scotte 6.03+ |
+| Desired Oxygen Level | `oxygen_desired` | numeric | % | Scotte burner |
+| Ignition Count | `ignition_count` | numeric |  | Scotte 4.99+ |
+| Ignition Time | `ignition_time` | numeric | s | Scotte burner |
+| Motor Time | `motor_time` | numeric | s | Scotte burner |
+| Electricity Time | `el_time` | numeric | s | Scotte burner |
+| Alarm | `alarm` | text |  | Scotte burner |
+| Feeder Revolutions | `feeder_rev` | numeric |  | pelletcalc, counter mode |
+| Feeder Speed | `feeder_rpm` | numeric | rpm | pelletcalc, counter mode |
+| Feeder Revolutions per 6 min | `feeder_rp6m` | numeric | rev/6min | pelletcalc, counter mode |
+| Feeder Pellets per Revolution | `feeder_rev_capacity` | numeric | g | pelletcalc, counter mode |
+| Hot Water Temp Setpoint | `hotwater_temp_set` | number (writable) | °C | Scotte 6.03+ |
+| Hot Water Diff | `hotwater_temp_diff` | number (writable) | °C | Scotte 6.03+ |
+| Set Magazine Content | `magazine_content` | number (writable) | kg | Scotte 6.03+ |
+| Silo Fill Level | `silo_reset_level` | number (writable) | kg | silolevel plugin |
+
+- *Numeric* sensors only publish real numbers; an unknown value is left unpublished instead of
+  sending text such as `-`.
+- **Silo Days Left** is the plugin's estimate (last week's use when under three weeks remain,
+  otherwise last year's or last month's use, seasonally weighted). `365` means there is no
+  consumption data to estimate from. When the estimate cannot be calculated the value is
+  unknown (it used to read `0`). **Silo Empty Date** is now plus those days, as a timestamp.
+- **Consumption Today / 7 Days / This Month** are kg burned from local midnight, the last
+  7*24 hours, and the 1st of the month 00:00, until now. They are refreshed at most every 5 minutes.
+- **Silo Fill Level** is the "I filled the silo to this amount" action: writing it also stamps the
+  fill-up time, exactly like entering it in PellMon's own silo settings.
+- Writable numbers follow the same rules as the other numbers: only with "Allow commands from
+  Home Assistant" on, range limited to what PellMon accepts, and the real value is read back
+  and published (a warning is logged when a write did not take effect).
+- Blower, oxygen and regulator settings are deliberately not exposed.
 
 **Security.** The MQTT password is stored in the settings database (`pellmon_settings.db`)
 on the data volume and is included in backups made with `tools/pellmon_backup.py`. Protect

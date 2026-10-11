@@ -1,0 +1,190 @@
+{
+ "commands_False": [
+  [
+   "homeassistant/sensor/n/power_percent/config",
+   "{\"name\": \"Power\", \"unique_id\": \"u_power_percent\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/power_percent/state\", \"unit_of_measurement\": \"%\", \"device_class\": \"power_factor\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/power_kw/config",
+   "{\"name\": \"Power kW\", \"unique_id\": \"u_power_kw\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/power_kw/state\", \"unit_of_measurement\": \"kW\", \"device_class\": \"power\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/boiler_temp/config",
+   "{\"name\": \"Boiler Temperature\", \"unique_id\": \"u_boiler_temp\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/boiler_temp/state\", \"unit_of_measurement\": \"\\u00b0C\", \"device_class\": \"temperature\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/chute_temp/config",
+   "{\"name\": \"Chute Temperature\", \"unique_id\": \"u_chute_temp\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/chute_temp/state\", \"unit_of_measurement\": \"\\u00b0C\", \"device_class\": \"temperature\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/smoke_temp/config",
+   "{\"name\": \"Smoke Temperature\", \"unique_id\": \"u_smoke_temp\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/smoke_temp/state\", \"unit_of_measurement\": \"\\u00b0C\", \"device_class\": \"temperature\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/oxygen/config",
+   "{\"name\": \"Oxygen Level\", \"unique_id\": \"u_oxygen\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/oxygen/state\", \"unit_of_measurement\": \"%\"}"
+  ],
+  [
+   "homeassistant/sensor/n/light/config",
+   "{\"name\": \"Light (LDR)\", \"unique_id\": \"u_light\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/light/state\"}"
+  ],
+  [
+   "homeassistant/sensor/n/feeder_time/config",
+   "{\"name\": \"Feeder Time\", \"unique_id\": \"u_feeder_time\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/feeder_time/state\", \"unit_of_measurement\": \"s\", \"device_class\": \"duration\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/mode/config",
+   "{\"name\": \"Burner Mode\", \"unique_id\": \"u_mode\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/mode/state\"}"
+  ],
+  [
+   "homeassistant/number/n/boiler_temp_set/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/boiler_temp_min/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/boiler_diff_down/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/boiler_diff_up/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/chimney_draught/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/cleaning_interval/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/cleaning_time/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/feeder_capacity/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/min_power/config",
+   ""
+  ],
+  [
+   "homeassistant/number/n/max_power/config",
+   ""
+  ],
+  [
+   "homeassistant/button/n/reset_alarm/config",
+   ""
+  ],
+  [
+   "homeassistant/button/n/reset_ignition/config",
+   ""
+  ],
+  [
+   "homeassistant/button/n/burner_on/config",
+   ""
+  ],
+  [
+   "homeassistant/button/n/burner_off/config",
+   ""
+  ]
+ ],
+ "commands_True": [
+  [
+   "homeassistant/sensor/n/power_percent/config",
+   "{\"name\": \"Power\", \"unique_id\": \"u_power_percent\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/power_percent/state\", \"unit_of_measurement\": \"%\", \"device_class\": \"power_factor\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/power_kw/config",
+   "{\"name\": \"Power kW\", \"unique_id\": \"u_power_kw\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/power_kw/state\", \"unit_of_measurement\": \"kW\", \"device_class\": \"power\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/boiler_temp/config",
+   "{\"name\": \"Boiler Temperature\", \"unique_id\": \"u_boiler_temp\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/boiler_temp/state\", \"unit_of_measurement\": \"\\u00b0C\", \"device_class\": \"temperature\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/chute_temp/config",
+   "{\"name\": \"Chute Temperature\", \"unique_id\": \"u_chute_temp\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/chute_temp/state\", \"unit_of_measurement\": \"\\u00b0C\", \"device_class\": \"temperature\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/smoke_temp/config",
+   "{\"name\": \"Smoke Temperature\", \"unique_id\": \"u_smoke_temp\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/smoke_temp/state\", \"unit_of_measurement\": \"\\u00b0C\", \"device_class\": \"temperature\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/oxygen/config",
+   "{\"name\": \"Oxygen Level\", \"unique_id\": \"u_oxygen\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/oxygen/state\", \"unit_of_measurement\": \"%\"}"
+  ],
+  [
+   "homeassistant/sensor/n/light/config",
+   "{\"name\": \"Light (LDR)\", \"unique_id\": \"u_light\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/light/state\"}"
+  ],
+  [
+   "homeassistant/sensor/n/feeder_time/config",
+   "{\"name\": \"Feeder Time\", \"unique_id\": \"u_feeder_time\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/feeder_time/state\", \"unit_of_measurement\": \"s\", \"device_class\": \"duration\", \"state_class\": \"measurement\"}"
+  ],
+  [
+   "homeassistant/sensor/n/mode/config",
+   "{\"name\": \"Burner Mode\", \"unique_id\": \"u_mode\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/mode/state\"}"
+  ],
+  [
+   "homeassistant/number/n/boiler_temp_set/config",
+   "{\"name\": \"Boiler Temp Setpoint\", \"unique_id\": \"u_boiler_temp_set\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/boiler_temp_set/state\", \"command_topic\": \"scotte/boiler_temp_set/set\", \"min\": 40, \"max\": 85, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"\\u00b0C\"}"
+  ],
+  [
+   "homeassistant/number/n/boiler_temp_min/config",
+   "{\"name\": \"Boiler Temp Minimum\", \"unique_id\": \"u_boiler_temp_min\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/boiler_temp_min/state\", \"command_topic\": \"scotte/boiler_temp_min/set\", \"min\": 10, \"max\": 70, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"\\u00b0C\"}"
+  ],
+  [
+   "homeassistant/number/n/boiler_diff_down/config",
+   "{\"name\": \"Boiler Diff Down\", \"unique_id\": \"u_boiler_diff_down\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/boiler_diff_down/state\", \"command_topic\": \"scotte/boiler_diff_down/set\", \"min\": 0, \"max\": 20, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"\\u00b0C\"}"
+  ],
+  [
+   "homeassistant/number/n/boiler_diff_up/config",
+   "{\"name\": \"Boiler Diff Up\", \"unique_id\": \"u_boiler_diff_up\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/boiler_diff_up/state\", \"command_topic\": \"scotte/boiler_diff_up/set\", \"min\": 0, \"max\": 15, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"\\u00b0C\"}"
+  ],
+  [
+   "homeassistant/number/n/chimney_draught/config",
+   "{\"name\": \"Chimney Draught\", \"unique_id\": \"u_chimney_draught\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/chimney_draught/state\", \"command_topic\": \"scotte/chimney_draught/set\", \"min\": 0, \"max\": 10, \"step\": 1, \"mode\": \"box\"}"
+  ],
+  [
+   "homeassistant/number/n/cleaning_interval/config",
+   "{\"name\": \"Cleaning Interval\", \"unique_id\": \"u_cleaning_interval\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/cleaning_interval/state\", \"command_topic\": \"scotte/cleaning_interval/set\", \"min\": 1, \"max\": 120, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"min\"}"
+  ],
+  [
+   "homeassistant/number/n/cleaning_time/config",
+   "{\"name\": \"Cleaning Time\", \"unique_id\": \"u_cleaning_time\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/cleaning_time/state\", \"command_topic\": \"scotte/cleaning_time/set\", \"min\": 0, \"max\": 60, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"s\"}"
+  ],
+  [
+   "homeassistant/number/n/feeder_capacity/config",
+   "{\"name\": \"Feeder Capacity\", \"unique_id\": \"u_feeder_capacity\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/feeder_capacity/state\", \"command_topic\": \"scotte/feeder_capacity/set\", \"min\": 400, \"max\": 8000, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"g/h\"}"
+  ],
+  [
+   "homeassistant/number/n/min_power/config",
+   "{\"name\": \"Min Power\", \"unique_id\": \"u_min_power\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/min_power/state\", \"command_topic\": \"scotte/min_power/set\", \"min\": 10, \"max\": 100, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"%\"}"
+  ],
+  [
+   "homeassistant/number/n/max_power/config",
+   "{\"name\": \"Max Power\", \"unique_id\": \"u_max_power\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"state_topic\": \"scotte/max_power/state\", \"command_topic\": \"scotte/max_power/set\", \"min\": 10, \"max\": 100, \"step\": 1, \"mode\": \"box\", \"unit_of_measurement\": \"%\"}"
+  ],
+  [
+   "homeassistant/button/n/reset_alarm/config",
+   "{\"name\": \"Reset Alarm\", \"unique_id\": \"u_reset_alarm\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"command_topic\": \"scotte/reset_alarm/set\", \"payload_press\": \"PRESS\"}"
+  ],
+  [
+   "homeassistant/button/n/reset_ignition/config",
+   "{\"name\": \"Reset Ignition\", \"unique_id\": \"u_reset_ignition\", \"device\": {\"identifiers\": [\"dev\"], \"name\": \"Dev\", \"manufacturer\": \"Bio Comfort\", \"model\": \"Scotte\", \"sw_version\": \"v1\"}, \"availability_topic\": \"scotte/status\", \"payload_available\": \"online\", \"payload_not_available\": \"offline\", \"command_topic\": \"scotte/reset_ignition/set\", \"payload_press\": \"PRESS\"}"
+  ],
+  [
+   "homeassistant/button/n/burner_on/config",
+   ""
+  ],
+  [
+   "homeassistant/button/n/burner_off/config",
+   ""
+  ]
+ ]
+}

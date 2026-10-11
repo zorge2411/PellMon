@@ -42,18 +42,22 @@ itemList=[{'name':'silo_reset_level',  'longname':'Silo fill up level',
            'type':'R',   'unit':'kg'    ,   'value':'0', 'min':'0', 'max':'-'},
           {'name':'silo_days_left',   'longname':'Silo days left',
            'type':'R',   'unit':'days'    ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'silo_empty_date',   'longname':'Silo empty date',
+           'type':'R',   'unit':''    ,   'value':'', 'min':'', 'max':''},
          ]
 
 itemTags = {'silo_reset_level' :    ['All', 'Basic', 'SiloLevel'],
             'silo_reset_time' :     ['All', 'Basic', 'SiloLevel'],
             'silo_level' :          ['All', 'Basic', 'SiloLevel'],
             'silo_days_left' :      ['All', 'Basic', 'SiloLevel'],
+            'silo_empty_date' :     ['All', 'Basic', 'SiloLevel'],
            }
 
 itemDescriptions = {'silo_reset_level':     'Silo fill up to this amount',
                     'silo_reset_time' :     'dd/mm/yy hh:mm Automatically set when setting fill up level',
                     'silo_level' :          'Remaining amount of pellets in silo',
-                    'silo_days_left' :      'Remaining days until the silo is empty',
+                    'silo_days_left' :      'Remaining days until the silo is empty (365: no consumption data to estimate from, empty: estimate unavailable)',
+                    'silo_empty_date' :     'Estimated date and time the silo is empty (ISO 8601), empty when the estimate is unavailable',
                    }
 
 itemValues={}
@@ -67,6 +71,7 @@ class silolevelplugin(protocols):
         self.updateTime = 0
         self.siloData = None
         self.silo_days_left = None
+        self.last_prediction_error = None
         self.silo_level = 0
         try:
             self.feeder_time = self.glob['conf'].item_to_ds_name['feeder_time']
@@ -118,7 +123,8 @@ var refreshSilolevel = function() {
             var graph = $('#silolevel');
             plot = $.plot(graph, data.graphdata, siloleveloptions);
             $('<p>' + 'current level: ' + data.silo_level + ' kg' + '</p>').insertAfter(graph);
-            $('<p>' + data.silo_days_left + ' days to empty' + '</p>').insertAfter(graph).css('float', 'right');
+            var daysText = (data.silo_days_left === null || data.silo_days_left === undefined) ? 'days to empty unknown' : data.silo_days_left + ' days to empty';
+            $('<p>' + daysText + '</p>').insertAfter(graph).css('float', 'right');
         })
 }
 
@@ -159,7 +165,11 @@ document.addEventListener("DOMContentLoaded", function(event) {
             return str(self.silo_level)
         elif itemName == 'silo_days_left':
             self.getItem('siloLevelData')
-            return self.silo_days_left
+            # unknown is an empty string: safe over D-Bus, and not published as a number
+            return '' if self.silo_days_left is None else self.silo_days_left
+        elif itemName == 'silo_empty_date':
+            self.getItem('siloLevelData')
+            return self.empty_date()
         if itemName == 'siloLevelData':
             return self.graphData()
         return self.load_setting(itemName)
@@ -179,6 +189,14 @@ document.addEventListener("DOMContentLoaded", function(event) {
                 return 'OK'
         except Exception as e:
             return 'error'
+
+    def empty_date(self):
+        """ISO 8601 date and time the silo is estimated to be empty, '' when unknown"""
+        try:
+            days = int(self.silo_days_left)
+        except (TypeError, ValueError):
+            return ''
+        return (datetime.now().astimezone() + timedelta(days=days)).isoformat(timespec='seconds')
 
     def graphData(self):
 
@@ -369,8 +387,13 @@ document.addEventListener("DOMContentLoaded", function(event) {
                      self.silo_days_left='365'
 
         except Exception as e:
-            self.silo_days_left='0'
-            logger.info('silolevel prediction error: %s'%str(e))
+            # unknown, not '0': zero would read as "silo empty today"
+            self.silo_days_left = None
+            if str(e) != self.last_prediction_error:
+                self.last_prediction_error = str(e)
+                logger.warning('silolevel prediction error: %s'%str(e))
+        else:
+            self.last_prediction_error = None
 
         self.siloData = {
             'graphdata':flotdata,

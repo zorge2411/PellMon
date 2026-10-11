@@ -44,3 +44,29 @@ def test_export_parses_bytes_output(monkeypatch):
     data = json.loads(out)
     assert data[0]["label"] == "level"
     assert data[0]["data"][0][1] == 100.0
+
+
+@pytest.mark.parametrize("align,timespan,delta", [("center", "3601", 1800), ("center", "3600", 1800),
+                                                  ("left", "3601", 3601), ("right", "3601", 0)])
+def test_export_end_time_is_integer(monkeypatch, align, timespan, delta):
+    """Python 2 integer division: `timespan/2` made a float end time ('1700001800.5-0s') for rrdtool."""
+    web = pytest.importorskip("Pellmonweb.pellmonweb")
+    monkeypatch.setattr(web, "polling", True, raising=False)
+    monkeypatch.setattr(web, "colorsDict", {"x": "#ff0000"}, raising=False)
+    monkeypatch.setattr(web, "graph_lines",
+                        [{"name": "level", "color": "#ff0000", "ds_name": "ds"}], raising=False)
+    monkeypatch.setattr(web, "logtick", None, raising=False)
+    monkeypatch.setattr(web, "db", "d.rrd", raising=False)
+    calls = []
+
+    class _CapturePopen(_FakePopen):
+        def __init__(self, argv, *a, **k):
+            calls.append(argv)
+
+    monkeypatch.setattr(web.subprocess, "Popen", _CapturePopen)
+    base = 1600000000
+    root = object.__new__(web.PellMonWeb)
+    root.export(timespan=timespan, time=str(base), align=align)
+    argv = calls[0]
+    end = argv[argv.index("--end") + 1]
+    assert end == "%d-0s" % (base + delta)

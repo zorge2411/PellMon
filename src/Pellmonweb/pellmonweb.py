@@ -494,7 +494,7 @@ class PellMonWeb:
         if align == 'left':
             graphtime += timespan
         elif align == 'center':
-            graphtime += timespan/2
+            graphtime += timespan//2
         if graphtime > int(time.time()):
             graphtime=int(time.time())
         graphtime =str(graphtime)

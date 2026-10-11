@@ -414,6 +414,9 @@ class Bridge(object):
             self._publish_state(e, value, force)
 
     def _publish_state(self, entity, value, force=False):
+        if not entities.is_publishable(entity, value):
+            logger.debug('Home Assistant state for %s skipped (not publishable)', entity.object_id)
+            return
         topic = entities.state_topic(self._cfg, entity)
         if not force and self._last_payloads.get(topic) == value:
             return
@@ -608,8 +611,19 @@ class Bridge(object):
             self._log_command(warn, topic, item, raw, 'failed')
         else:
             self._log_command(logging.INFO, topic, item, raw, 'accepted')
+            if entity.component == 'number':
+                self._warn_if_not_applied(topic, item, value)
         if entity.component == 'number':
             self._readback(entity)
+
+    def _warn_if_not_applied(self, topic, item, value):
+        """set_value reports OK even when a plugin setter refused; the readback is the truth"""
+        try:
+            actual = float(self._db.get_text(item))
+        except Exception:
+            return
+        if actual != float(value):
+            self._log_command(logging.WARNING, topic, item, value, 'not applied (value read back is %s)' % actual)
 
     def _number(self, entity, raw):
         """Validated value as a string, or None"""

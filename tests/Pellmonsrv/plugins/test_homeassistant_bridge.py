@@ -245,6 +245,28 @@ def test_change_publishes_once_and_dedupes(env):
     assert len(c.published) == n + 1
 
 
+@pytest.mark.parametrize('bad', ['', '-', 'None', 'nan'])
+def test_numeric_guard_on_all_publish_paths(env, bad):
+    env.connect()
+    env.settle()
+    c = env.client
+    n = len(c.published)
+    # change callback path
+    env.bridge.on_changes([{'name': 'boiler_temp', 'value': bad}])
+    env.bridge.handle_all()
+    # periodic refresh path
+    env.db['smoke_temp'].value = bad
+    env.clock.advance(61)
+    env.bridge.tick()
+    assert 'scotte/boiler_temp/state' not in [t for t, p, q, r in c.published[n:] if p == bad]
+    assert not [1 for t, p, q, r in c.published[n:] if t.endswith('/state') and p == bad]
+    assert env.states()['scotte/smoke_temp/state'] == '148.0'
+    # text sensor is not subject to the numeric guard
+    env.bridge.on_changes([{'name': 'mode', 'value': 'Off'}])
+    env.bridge.handle_all()
+    assert c.last_payload('scotte/mode/state') == 'Off'
+
+
 def test_refresh_republishes_everything(env):
     env.connect()
     env.settle()
@@ -701,3 +723,123 @@ def test_on_message_makes_no_db_call():
     assert e.db.writes == []
     e.bridge.handle_all()
     assert e.db.writes == [('boiler_temp_set', '60')]
+
+
+# ---- Phase 11: plugin items, new sensors and numbers --------------------
+
+P11_SENSORS = [('silo_days_left', '42'), ('silo_level', '350'), ('silo_empty_date', '2026-11-22T10:00:00+02:00'),
+               ('consumption_today', '12.5'), ('consumption_7d', '80.1'), ('consumption_month', '210.0'),
+               ('magazine_content', '25'), ('boiler_return_temp', '48.2'), ('hotwater_temp', '55.0'),
+               ('outside_temp', '4.5'), ('indoor_temp', '21.5'), ('flow', '0.3'), ('oxygen_desired', '9.5'),
+               ('ignition_count', '321'), ('ignition_time', '40000'), ('motor_time', '99999'),
+               ('el_time', '88888'), ('alarm', 'No alarm')]
+P11_NUMBERS = [('hotwater_temp_set', '0', '80', '60'), ('hotwater_temp_diff', '0', '20', '5'),
+               ('silo_reset_level', '0', '50000', '1000')]
+
+
+def p11_db(sensors=P11_SENSORS, numbers=P11_NUMBERS):
+    db = FakeDb.make_scotte_db()
+    for name, value in sensors:
+        db.add(FakeItem(name, value))
+    for name, lo, hi, value in numbers:
+        db.add(FakeItem(name, value, min=lo, max=hi))
+    # the Scotte magazine_content parameter is writable too
+    db._items['magazine_content'].min = '0'
+    db._items['magazine_content'].max = '9999'
+    return db
+
+
+def test_phase11_states_published():
+    e = make_env(p11_db())
+    e.connect()
+    e.settle()
+    states = e.states()
+    for name, value in P11_SENSORS:
+        assert states['scotte/%s/state' % name] == value, name
+    assert states['scotte/hotwater_temp_set/state'] == '60'
+    assert states['scotte/silo_reset_level/state'] == '1000'
+    assert states['scotte/magazine_content_set/state'] == '25'
+    assert e.bridge.status_dict()['entities'] == len([1 for t, p, q, r in e.client.published
+                                                       if t.endswith('/config') and p])
+
+
+def test_phase11_entities_absent_without_plugins():
+    e = make_env()
+    e.connect(allow_commands=True)
+    e.settle()
+    configs = [t for t, p, q, r in e.client.published if t.endswith('/config') and p]
+    assert len(configs) == 21  # the original Phase 6 device, nothing more
+    assert not [t for t in configs if 'silo' in t or 'consumption' in t]
+
+
+def test_phase11_unknown_values_not_published():
+    sensors = [(n, '' if n.startswith(('silo', 'consumption')) else v) for n, v in P11_SENSORS]
+    e = make_env(p11_db(sensors=sensors))
+    e.connect()
+    e.settle()
+    states = e.states()
+    for name in ('silo_days_left', 'silo_empty_date', 'consumption_today'):
+        assert 'scotte/%s/state' % name not in states
+    assert states['scotte/alarm/state'] == 'No alarm'
+
+
+def test_phase11_upgrade_adds_discovery_without_touching_old():
+    e = make_env()
+    e.connect()
+    e.settle()
+    c = e.client
+    old_configs = dict((t, p) for t, p, q, r in c.published if t.endswith('/config') and p)
+    for name, value in P11_SENSORS:
+        e.db.add(FakeItem(name, value))
+    e.bridge.tick()
+    e.bridge.tick()
+    new_configs = dict((t, p) for t, p, q, r in c.published if t.endswith('/config') and p)
+    for t, p in old_configs.items():
+        assert new_configs[t] == p
+    assert 'homeassistant/sensor/dev1/silo_days_left/config' in new_configs
+
+
+def test_phase11_commands_off_removes_new_numbers():
+    e = make_env(p11_db())
+    e.connect(allow_commands=False)
+    e.settle()
+    cfg = dict((t, p) for t, p, q, r in e.client.published if t.endswith('/config'))
+    for oid in ('hotwater_temp_set', 'hotwater_temp_diff', 'magazine_content_set', 'silo_reset_level'):
+        assert cfg['homeassistant/number/dev1/%s/config' % oid] == ''
+    assert cfg['homeassistant/sensor/dev1/silo_level/config'] != ''
+
+
+def test_phase11_write_silo_reset_level_and_new_numbers():
+    e = make_env(p11_db())
+    e.connect(allow_commands=True)
+    e.settle()
+    _cmd(e, 'silo_reset_level', '1500')
+    assert e.db.writes == [('silo_reset_level', '1500')]
+    assert e.client.published_to('scotte/silo_reset_level/state')[-1] == ('1500', 0, False)
+    e.clock.advance(10)
+    _cmd(e, 'hotwater_temp_set', '65')
+    assert e.db.writes[-1] == ('hotwater_temp_set', '65')
+    e.clock.advance(10)
+    _cmd(e, 'magazine_content_set', '30')
+    assert e.db.writes[-1] == ('magazine_content', '30')
+    for obj, bad in (('silo_reset_level', '50001'), ('hotwater_temp_set', '81'),
+                     ('hotwater_temp_diff', '-1'), ('magazine_content_set', '10000')):
+        n = len(e.db.writes)
+        e.clock.advance(10)
+        _cmd(e, obj, bad)
+        assert len(e.db.writes) == n, obj
+
+
+def test_phase11_unapplied_write_is_warned_and_snapped_back(caplog):
+    e = make_env(p11_db())
+    e.connect(allow_commands=True)
+    e.settle()
+
+    def refuse(name, value):  # a plugin setter that returned 'error' (Database.set_value still says OK)
+        e.db.writes.append((name, value))
+        return 'OK'
+    e.db.set_value = refuse
+    with caplog.at_level(logging.WARNING, logger='pellMon'):
+        _cmd(e, 'silo_reset_level', '1500')
+    assert any('not applied' in r.getMessage() for r in caplog.records)
+    assert e.client.published_to('scotte/silo_reset_level/state')[-1] == ('1000', 0, False)
