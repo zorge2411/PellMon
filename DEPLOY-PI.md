@@ -280,6 +280,12 @@ entities you really have. A preview of the layout is in `.planning/research/ha-d
    `ids.txt` are listed and left off the page. Without `--ids` the entity ids are only assumed from
    the entity names (see `config/ha-dashboard.example.yaml`), so check them.
 
+   `--exclude smoke_temp,oxygen,magazine` leaves entities off the page (object ids from the entity
+   table, or the alias `magazine`), for sensors that exist but are not connected (they show values like
+   `0` or `-999`). To only compare Home Assistant with the entity table, run
+   `python tools/ha_dashboard.py --ids ids.txt --check`: it lists missing entities, entities without a
+   state, and leftover MQTT entities that PellMon did not create.
+
 3. In Home Assistant create a dashboard, open the three-dot menu > Raw configuration editor, and
    paste the file. Generate again after the entity list changes (for example after turning
    "Allow commands" on, which adds the Controls entities).

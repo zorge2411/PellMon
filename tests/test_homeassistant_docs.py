@@ -37,6 +37,7 @@ def test_deploy_guide_documents_the_dashboard_generator():
     assert "integration_entities('mqtt')" in DEPLOY
     assert "--no-apexcharts" in DEPLOY and "--ids" in DEPLOY and "--silo-capacity" in DEPLOY
     assert "Raw configuration editor" in DEPLOY
+    assert "--check" in DEPLOY and "--exclude" in DEPLOY
 
 
 def test_deploy_guide_documents_password_storage_and_acl():

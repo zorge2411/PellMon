@@ -291,3 +291,100 @@ def test_silo_chart_section_is_two_columns_wide():
     secs = hd.build(full_mapping())['views'][0]['sections']
     silo = [x for x in secs if any(c.get('heading') == 'Silo history and forecast' for c in x['cards'])][0]
     assert silo['column_span'] == 2
+
+
+# ---- real-world paste: state column, trailing text, leftovers, --check, --exclude --------
+
+PASTE = """{% for e in integration_entities('mqtt') %}{{ e }} | {{ state_attr(e, 'friendly_name') }} | {{ states(e) }}
+sensor.silo_indhold | Pellmon Silo indhold | unknown
+sensor.pille_fyr_power | Pille fyr Power | 50
+sensor.pille_fyr_min_power_x | Pille fyr Boiler Temperature | 58.6
+number.pille_fyr_min_power | Pille fyr Min Power | 10
+button.pille_fyr_reset_alarm | Pille fyr Reset Alarm | unknown
+Resultattype: string
+
+Denne skabelon lytter efter følgende ændrede tilstande:
+
+Entitet: sensor.silo_indhold
+"""
+
+
+def test_parse_rows_with_state_column_and_trailing_text():
+    rows = hd.parse_rows(PASTE)
+    assert rows[0] == ('sensor.silo_indhold', 'Pellmon Silo indhold', 'unknown')
+    assert ('sensor.pille_fyr_power', 'Pille fyr Power', '50') in rows
+    assert len(rows) == 5  # template line, "Resultattype" and "Entitet:" lines are ignored
+    kind, lines = hd.parse_ids(PASTE)
+    assert kind == 'lines' and ('number.pille_fyr_min_power', 'Pille fyr Min Power') in lines
+
+
+def test_parse_rows_single_line_with_states():
+    rows = hd.parse_rows('sensor.a | A Power | 5 number.b | B Min Power | 10')
+    assert rows == [('sensor.a', 'A Power', '5'), ('number.b', 'B Min Power', '10')]
+
+
+def test_check_report_lists_missing_quiet_and_foreign():
+    rows = [(e.component + '.' + hd.slug('Pille fyr ' + e.name), 'Pille fyr ' + e.name, '1') for e in hd.ENTITIES
+            if e.object_id not in ('silo_level', 'feeder_rpm')]
+    rows.append(('sensor.old_thing', 'Pellmon Old thing', 'unknown'))
+    rows = [(a, b, 'unknown' if a.endswith('silo_days_left') else c) for a, b, c in rows]
+    text, ok = hd.check_report(rows)
+    assert not ok
+    assert 'MISSING: silo_level' in text
+    assert 'absent, optional: feeder_rpm' in text
+    assert 'sensor.pille_fyr_silo_days_left' in text.split('no state yet')[1]
+    assert 'sensor.old_thing' in text.split('not from PellMon')[1]
+
+
+def test_check_report_ok_when_only_optional_entities_are_absent():
+    optional = set(o for g in hd.OPTIONAL_GROUPS.values() for o in g)
+    rows = [(e.component + '.' + hd.slug(e.name), e.name, '1') for e in hd.ENTITIES if e.object_id not in optional]
+    text, ok = hd.check_report(rows)
+    assert ok and 'MISSING' not in text and 'AMBIGUOUS' not in text
+
+
+def test_cli_check_exit_codes(tmp_path, capsys):
+    good = tmp_path / 'good.txt'
+    good.write_text('\n'.join('%s | %s | 1' % l for l in friendly_lines()))
+    assert hd.main(['--ids', str(good), '--check']) == 0
+    assert '47 of 47' in capsys.readouterr().out
+    bad = tmp_path / 'bad.txt'
+    bad.write_text('\n'.join('%s | %s | 1' % l for l in friendly_lines() if 'Silo Level' not in l[1]))
+    assert hd.main(['--ids', str(bad), '--check']) == 1
+    assert hd.main(['--check']) == 2
+
+
+def test_exclude_leaves_entities_off_the_page():
+    mapping = full_mapping()
+    for oid in ('smoke_temp', 'oxygen', 'oxygen_desired', 'magazine_content', 'magazine_content_set'):
+        del mapping[oid]
+    used = hd.collect_entities(hd.build(mapping))
+    assert used == set(mapping.values())
+
+
+def test_expand_exclude_aliases_and_errors():
+    assert hd.expand_exclude('smoke_temp, magazine') == {'smoke_temp', 'magazine_content', 'magazine_content_set'}
+    with pytest.raises(ValueError):
+        hd.expand_exclude('nonsense')
+
+
+def test_cli_exclude(tmp_path):
+    out = tmp_path / 'd.yaml'
+    assert hd.main(['--exclude', 'smoke_temp,magazine', '-o', str(out)]) == 0
+    text = ''.join(l for l in out.read_text().splitlines(True) if not l.startswith('#'))
+    assert 'smoke_temperature' not in text and 'magazine' not in text
+    assert hd.main(['--exclude', 'bogus', '-o', str(out)]) == 2
+
+
+def test_user_style_list_builds_a_dashboard_with_real_ids(tmp_path):
+    """Mixed id prefixes (taken-over device vs. new entities) all resolve through friendly names."""
+    ids = tmp_path / 'ids.txt'
+    lines = []
+    for e in hd.ENTITIES:
+        prefix = 'scotte_pellet_burner_' if e.object_id in ('power_percent', 'boiler_temp') else 'pille_fyr_'
+        lines.append('%s.%s%s | Pille fyr %s | 1' % (e.component, prefix, hd.slug(e.name), e.name))
+    ids.write_text('\n'.join(lines))
+    out = tmp_path / 'd.yaml'
+    assert hd.main(['--ids', str(ids), '--include', 'feeder', '-o', str(out)]) == 0
+    text = out.read_text()
+    assert 'sensor.scotte_pellet_burner_power' in text and 'sensor.pille_fyr_silo_level' in text
