@@ -82,7 +82,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-- Quick task 261011-idv (filed, not started): fix Python 2 integer division in consumption plugin bar-chart alignment, see `.planning/quick/261011-idv-fix-python-2-integer-division-in-consumpt/`
+None yet.
 
 ### Blockers/Concerns
 
@@ -110,6 +110,7 @@ Items acknowledged and carried forward from previous milestone close:
 | 260919-jiz | Fix yapsy PluginManager to load plugins as real modules so relative imports work; ScotteCom now loads (all 15 plugins load in WSL except raspberrygpio, which needs RPi) | 2026-09-19 | a6b2cc1, 6caa694 | [260919-jiz-fix-yapsy-plugin-loading-so-relative-imp](./quick/260919-jiz-fix-yapsy-plugin-loading-so-relative-imp/) |
 | 260919-olq | Fix Scotte CRLF retry frame duplication; `setItem` now returns 'OK' or raises ValueError/IOError instead of leaking raw bytes, so failed writes are no longer reported as OK to the web UI; failing-first tests in tests/test_scotte_protocol_bugs.py | 2026-09-19 | 03bc51e, 0d4aee0 | [260919-olq-fix-scotte-crlf-retry-duplication-and-se](./quick/260919-olq-fix-scotte-crlf-retry-duplication-and-se/) |
 | 260928-bzn | Port Openweathermap plugin to pyowm 3; add Weather settings page (API key, location, unit, enable) | 2026-09-28 | 583323e, bacbf6d, c2e0417 | [260928-bzn-port-openweathermap-plugin-to-pyowm-3-an](./quick/260928-bzn-port-openweathermap-plugin-to-pyowm-3-an/) |
+| 261011-idv | Fix Python 2 integer division: consumption bar chart alignment (floor division, align_for) and export() center-aligned end time | 2026-10-11 | ac0c73c | [261011-idv-fix-python-2-integer-division-in-consumpt](./quick/261011-idv-fix-python-2-integer-division-in-consumpt/) |
 
 Full suite verified in WSL (Debian, Python 3.13): 246 passed, 5 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
 

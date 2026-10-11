@@ -9,7 +9,7 @@ files_modified:
   - tests/Pellmonsrv/plugins/test_consumption_alignment.py
 autonomous: true
 requirements: [QUICK-261011-idv]
-status: filed (not started)
+status: done
 ---
 
 <objective>
