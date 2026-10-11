@@ -352,7 +352,7 @@ def build(mapping, capacity=220, apex=True, controls=True, admin_users=None, tit
         history = {'type': 'history-graph', 'title': 'Temperatures', 'hours_to_show': 24,
                    'entities': [{'entity': ids.get(oid), 'name': NAMES[oid]} for oid in temps]}
     heating = section([
-        heading('Heating & water', 'mdi:water-thermometer', ['boiler_return_temp'], ids),
+        heading('Heating & water', 'mdi:water-thermometer', ['hotwater_temp'], ids),
         grid([tile(ids, 'boiler_return_temp'), tile(ids, 'hotwater_temp'),
               tile(ids, 'outside_temp'), tile(ids, 'indoor_temp'), tile(ids, 'flow')]),
         history,

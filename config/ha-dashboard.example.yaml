@@ -169,7 +169,7 @@ views:
             icon: mdi:water-thermometer
             badges:
               - type: entity
-                entity: sensor.boiler_return_temperature
+                entity: sensor.hot_water_temperature
                 show_state: true
                 show_icon: true
           - type: grid
