@@ -414,6 +414,9 @@ class Bridge(object):
             self._publish_state(e, value, force)
 
     def _publish_state(self, entity, value, force=False):
+        if not entities.is_publishable(entity, value):
+            logger.debug('Home Assistant state for %s skipped (not publishable)', entity.object_id)
+            return
         topic = entities.state_topic(self._cfg, entity)
         if not force and self._last_payloads.get(topic) == value:
             return

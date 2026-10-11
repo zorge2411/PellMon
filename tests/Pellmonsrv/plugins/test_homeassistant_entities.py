@@ -2,6 +2,7 @@
 """Entity table and discovery payload tests (D-01, D-02, D-05, D-07, D-18, D-19)."""
 
 import json
+import os
 
 import pytest
 
@@ -31,12 +32,56 @@ class FakeItem(object):
             self.max = max
 
 
+# The 21 entities of the original Phase 6 device. They stay first, unchanged (Phase 11 D-09).
+PHASE6_IDS = (
+    'power_percent', 'power_kw', 'boiler_temp', 'chute_temp', 'smoke_temp', 'oxygen', 'light',
+    'feeder_time', 'mode', 'boiler_temp_set', 'boiler_temp_min', 'boiler_diff_down',
+    'boiler_diff_up', 'chimney_draught', 'cleaning_interval', 'cleaning_time',
+    'feeder_capacity', 'min_power', 'max_power', 'reset_alarm', 'reset_ignition')
+
+
 def test_counts():
-    assert len(ENTITIES) == 21
+    assert tuple(e.object_id for e in ENTITIES[:len(PHASE6_IDS)]) == PHASE6_IDS
     comps = [e.component for e in ENTITIES]
-    assert comps.count('sensor') == 9
-    assert comps.count('number') == 10
-    assert comps.count('button') == 2
+    assert comps.count('sensor') + comps.count('number') + comps.count('button') == len(ENTITIES)
+    assert comps[:9] == ['sensor'] * 9
+    assert comps[9:19] == ['number'] * 10
+    assert comps[19:21] == ['button'] * 2
+    assert len(set(e.object_id for e in ENTITIES)) == len(ENTITIES)
+
+
+def test_phase6_discovery_payloads_unchanged():
+    golden = json.load(open(os.path.join(os.path.dirname(__file__), 'data', 'ha_golden_v6.json')))
+    cfg = {'prefix': 'scotte', 'discovery_prefix': 'homeassistant', 'device_id': 'dev',
+           'device_name': 'Dev', 'node_id': 'n', 'uid_prefix': 'u'}
+    old = [e for e in ENTITIES if e.object_id in PHASE6_IDS]
+    for commands in (True, False):
+        got = dict((t, p) for t, p in discovery_messages(cfg, old, commands, {}, 'v1'))
+        want = dict((t, p) for t, p in golden['commands_%s' % commands])
+        assert got == want
+
+
+@pytest.mark.parametrize('kind,value,ok', [
+    ('numeric', '12', True), ('numeric', '-3.5', True), ('numeric', '0', True),
+    ('numeric', '', False), ('numeric', '-', False), ('numeric', 'None', False),
+    ('numeric', 'nan', False), ('numeric', 'inf', False), ('numeric', None, False),
+    ('text', 'Running', True), ('text', '', False), ('text', 'None', False),
+    ('timestamp', '2026-10-11T12:00:00+02:00', True), ('timestamp', '', False),
+    ('none', 'x', False)])
+def test_is_publishable(kind, value, ok):
+    e = ent.Entity('n', 'sensor', 'o', 'i', None, None, None, None, None, kind)
+    assert ent.is_publishable(e, value) is ok
+
+
+def test_every_entity_has_a_valid_kind():
+    for e in ENTITIES:
+        assert e.kind in ('numeric', 'text', 'timestamp', 'none'), e.object_id
+        if e.component == 'button':
+            assert e.kind == 'none'
+        if e.component == 'number':
+            assert e.kind == 'numeric'
+        if e.kind in ('text', 'timestamp'):
+            assert e.unit is None and e.state_class is None, e.object_id
 
 
 def test_no_burner_on_off_entities():
@@ -85,7 +130,9 @@ def test_table_values():
 
 
 def test_needs_commands():
-    assert sum(1 for e in ENTITIES if needs_commands(e)) == 12
+    assert sum(1 for e in ENTITIES if needs_commands(e)) == sum(
+        1 for e in ENTITIES if e.component in ('number', 'button'))
+    assert sum(1 for e in ENTITIES[:21] if needs_commands(e)) == 12
 
 
 def _windows(item):
@@ -104,11 +151,12 @@ def test_datamap_cross_check():
 
 def test_present_entities():
     keys = set(ALL_ITEMS)
-    assert len(present_entities(keys)) == 21
+    total = len(ENTITIES)
+    assert len(present_entities(keys)) == total
     keys.discard('chimney_draught')
-    assert len(present_entities(keys)) == 20
+    assert len(present_entities(keys)) == total - 1
     keys.discard('boiler_temp_diff_up')
-    assert len(present_entities(keys)) == 19
+    assert len(present_entities(keys)) == total - 2
 
 
 def test_effective_range():
@@ -202,7 +250,7 @@ def test_absent_entities_not_emitted():
     present = [e for e in ENTITIES if e.object_id != 'chimney_draught']
     d = dict(_msgs(False, present))
     assert 'homeassistant/number/node_x/chimney_draught/config' not in d
-    assert len(d) == 20 + 2  # 20 present entities + 2 cleanup topics
+    assert len(d) == len(present) + 2  # present entities + 2 cleanup topics
 
 
 def test_payloads_are_json_and_unit_roundtrips():

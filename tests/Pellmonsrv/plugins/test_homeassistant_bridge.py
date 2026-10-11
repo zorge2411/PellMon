@@ -245,6 +245,28 @@ def test_change_publishes_once_and_dedupes(env):
     assert len(c.published) == n + 1
 
 
+@pytest.mark.parametrize('bad', ['', '-', 'None', 'nan'])
+def test_numeric_guard_on_all_publish_paths(env, bad):
+    env.connect()
+    env.settle()
+    c = env.client
+    n = len(c.published)
+    # change callback path
+    env.bridge.on_changes([{'name': 'boiler_temp', 'value': bad}])
+    env.bridge.handle_all()
+    # periodic refresh path
+    env.db['smoke_temp'].value = bad
+    env.clock.advance(61)
+    env.bridge.tick()
+    assert 'scotte/boiler_temp/state' not in [t for t, p, q, r in c.published[n:] if p == bad]
+    assert not [1 for t, p, q, r in c.published[n:] if t.endswith('/state') and p == bad]
+    assert env.states()['scotte/smoke_temp/state'] == '148.0'
+    # text sensor is not subject to the numeric guard
+    env.bridge.on_changes([{'name': 'mode', 'value': 'Off'}])
+    env.bridge.handle_all()
+    assert c.last_payload('scotte/mode/state') == 'Off'
+
+
 def test_refresh_republishes_everything(env):
     env.connect()
     env.settle()

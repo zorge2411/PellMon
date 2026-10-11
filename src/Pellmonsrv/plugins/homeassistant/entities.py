@@ -18,23 +18,26 @@
 # Pure module: stdlib only, no paho, no dbus.
 
 import json
+import math
 from collections import namedtuple
 
-Entity = namedtuple('Entity', 'name component object_id item unit device_class state_class min max')
+# kind: 'numeric' (finite number), 'text' (any non-empty text), 'timestamp' (ISO 8601 text)
+# or 'none' (buttons, no state)
+Entity = namedtuple('Entity', 'name component object_id item unit device_class state_class min max kind')
 
 DEG_C = u'°C'
 
 
-def _s(name, object_id, item, unit=None, device_class=None, state_class=None):
-    return Entity(name, 'sensor', object_id, item, unit, device_class, state_class, None, None)
+def _s(name, object_id, item, unit=None, device_class=None, state_class=None, kind='numeric'):
+    return Entity(name, 'sensor', object_id, item, unit, device_class, state_class, None, None, kind)
 
 
 def _n(name, object_id, item, unit, lo, hi):
-    return Entity(name, 'number', object_id, item, unit, None, None, lo, hi)
+    return Entity(name, 'number', object_id, item, unit, None, None, lo, hi, 'numeric')
 
 
 def _b(name, object_id, item):
-    return Entity(name, 'button', object_id, item, None, None, None, None, None)
+    return Entity(name, 'button', object_id, item, None, None, None, None, None, 'none')
 
 
 # object_id is the topic segment and unique-id suffix of the existing device;
@@ -48,7 +51,7 @@ ENTITIES = (
     _s('Oxygen Level', 'oxygen', 'oxygen', '%'),
     _s('Light (LDR)', 'light', 'light'),
     _s('Feeder Time', 'feeder_time', 'feeder_time', 's', 'duration', 'measurement'),
-    _s('Burner Mode', 'mode', 'mode'),
+    _s('Burner Mode', 'mode', 'mode', kind='text'),
     _n('Boiler Temp Setpoint', 'boiler_temp_set', 'boiler_temp_set', DEG_C, 40, 85),
     _n('Boiler Temp Minimum', 'boiler_temp_min', 'boiler_temp_min', DEG_C, 10, 70),
     _n('Boiler Diff Down', 'boiler_diff_down', 'boiler_temp_diff_down', DEG_C, 0, 20),
@@ -81,6 +84,20 @@ def entity_by_object_id(object_id):
         if e.object_id == object_id:
             return e
     return None
+
+
+def is_publishable(entity, value):
+    """True when value is a sane state for the entity (numeric sensors never get '-', '' or nan)"""
+    if value is None:
+        return False
+    if entity.kind == 'numeric':
+        try:
+            return math.isfinite(float(value))
+        except (TypeError, ValueError):
+            return False
+    if entity.kind in ('text', 'timestamp'):
+        return str(value).strip() not in ('', 'None')
+    return False
 
 
 def _num(value):
