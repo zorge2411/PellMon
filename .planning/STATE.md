@@ -82,7 +82,7 @@ Recent decisions affecting current work:
 
 ### Pending Todos
 
-None yet.
+- Quick task 261011-idv (filed, not started): fix Python 2 integer division in consumption plugin bar-chart alignment, see `.planning/quick/261011-idv-fix-python-2-integer-division-in-consumpt/`
 
 ### Blockers/Concerns
 
