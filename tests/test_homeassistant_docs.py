@@ -21,6 +21,17 @@ def test_deploy_guide_documents_behaviour_changes():
     assert "Allow commands" in DEPLOY
 
 
+def test_deploy_guide_lists_every_phase11_entity():
+    import sys
+    sys.path.insert(0, str(REPO_ROOT / "src"))
+    from Pellmonsrv.plugins.homeassistant.entities import ENTITIES
+    for e in ENTITIES[21:]:
+        assert "| %s |" % e.name in DEPLOY, e.name
+        assert "`%s`" % e.item in DEPLOY, e.item
+    assert "Silo Days Left" in DEPLOY and "365" in DEPLOY
+    assert "Silo Fill Level" in DEPLOY
+
+
 def test_deploy_guide_documents_password_storage_and_acl():
     assert "ACL" in DEPLOY
     assert "settings database" in DEPLOY

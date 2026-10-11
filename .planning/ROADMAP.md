@@ -279,7 +279,7 @@ Plans:
 **Goal:** The Home Assistant MQTT device (Phase 6) also publishes the pellet silo estimate (`silo_days_left`, `silo_level`) and any further numeric PellMon items that research shows are worth exposing (e.g. consumption, feeder counters, other plugin sensors), each with correct units, device/state classes and graceful absence when its plugin is not enabled.
 **Requirements**: D-01..D-10 (see 11-CONTEXT.md)
 **Depends on:** Phase 10
-**Plans:** 0/5 plans complete
+**Plans:** 4/5 plans complete (11-05 awaits real-Pi verification)
 
 Scope notes:
 - Research first (`/gsd-research-phase 11`): inventory every numeric DB item (scottecom, calculate, consumption, silolevel, pelletcalc, heatingcircuit, onewire/owfs, openweathermap), judge each for HA value, cost of `get_text` on the 2 s Database thread (silolevel runs rrdtool, cached 300 s), update cadence, and unit/device_class mapping.
@@ -290,13 +290,13 @@ Plans:
 
 **Wave 1**
 
-- [ ] 11-01-PLAN.md - Entity value-kind, numeric publish guard in the bridge, derived entity counts in tests (D-07, D-09, D-10)
-- [ ] 11-02-PLAN.md - silolevel: unknown on prediction error, silo_empty_date item, first plugin tests (D-01, D-02, D-03)
-- [ ] 11-03-PLAN.md - consumption: today / 7-day / month kg scalar items (D-06)
+- [x] 11-01-PLAN.md - Entity value-kind, numeric publish guard in the bridge, derived entity counts in tests (D-07, D-09, D-10)
+- [x] 11-02-PLAN.md - silolevel: unknown on prediction error, silo_empty_date item, first plugin tests (D-01, D-02, D-03)
+- [x] 11-03-PLAN.md - consumption: today / 7-day / month kg scalar items (D-06)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 11-04-PLAN.md - New read-only sensors and four writable numbers in ENTITIES, presence/command tests (D-01, D-02, D-04, D-05, D-06, D-08, D-09)
+- [x] 11-04-PLAN.md - New read-only sensors and four writable numbers in ENTITIES, presence/command tests (D-01, D-02, D-04, D-05, D-06, D-08, D-09)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
