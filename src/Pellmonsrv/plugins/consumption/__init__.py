@@ -46,7 +46,18 @@ itemList=[{'name':'consumptionData24h',  'longname':'Consumption 24 hours',
            'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
           {'name':'consumptionData1y',  'longname':'Consumption 1 year',
            'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'consumption_today',  'longname':'Consumption today',
+           'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'consumption_7d',  'longname':'Consumption last 7 days',
+           'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
+          {'name':'consumption_month',  'longname':'Consumption this month',
+           'type':'R',   'unit':'kg'   ,   'value':'0', 'min':'0', 'max':'-'},
          ]
+
+# single numbers (kg burned since the window start until now), cached so that the
+# 2 s database poll does not run rrdtool every time
+SCALAR_ITEMS = ('consumption_today', 'consumption_7d', 'consumption_month')
+SCALAR_CACHE_SECONDS = 300
 
 
 class Consumption_plugin(protocols):
@@ -137,8 +148,44 @@ class Consumption_plugin(protocols):
         self.updatetime7d = 0
         self.updatetime8w = 0
         self.updatetime1y = 0
+        self.scalar_cache = {}
+
+    def _now(self):
+        return time.time()
+
+    def scalar_window_start(self, itemName, now):
+        """Start (epoch seconds) of the window the scalar item sums over"""
+        if itemName == 'consumption_7d':
+            return int(now) - 7*86400
+        local = datetime.fromtimestamp(now).replace(hour=0, minute=0, second=0, microsecond=0)
+        if itemName == 'consumption_month':
+            local = local.replace(day=1)
+        return int(local.timestamp())
+
+    def total_kg(self, from_time, to_time):
+        """kg burned between two times, None when rrdtool has no answer"""
+        try:
+            value = float(self.rrd_total(int(from_time), int(to_time), cache=False)[1:][:-1])
+        except Exception as e:
+            return None
+        if isnan(value):
+            return None
+        return value
+
+    def scalar_item(self, itemName):
+        now = self._now()
+        cached = self.scalar_cache.get(itemName)
+        if cached is not None and now - cached[0] < SCALAR_CACHE_SECONDS:
+            return cached[1]
+        total = self.total_kg(self.scalar_window_start(itemName, now), now)
+        # unknown is an empty string: safe over D-Bus and not published as a number
+        value = '' if total is None else '%.1f' % total
+        self.scalar_cache[itemName] = (now, value)
+        return value
 
     def getItem(self, itemName):
+        if itemName in SCALAR_ITEMS:
+            return self.scalar_item(itemName)
         now=int(time.time())
         if itemName == 'consumptionData24h':
             if time.time() - self.updatetime24h > 300:
