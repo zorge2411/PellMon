@@ -277,7 +277,7 @@ Plans:
 ### Phase 11: Add silo days-left and additional numeric sensors to Home Assistant
 
 **Goal:** The Home Assistant MQTT device (Phase 6) also publishes the pellet silo estimate (`silo_days_left`, `silo_level`) and any further numeric PellMon items that research shows are worth exposing (e.g. consumption, feeder counters, other plugin sensors), each with correct units, device/state classes and graceful absence when its plugin is not enabled.
-**Requirements**: TBD (defined in 11-CONTEXT.md after research)
+**Requirements**: D-01..D-10 (see 11-CONTEXT.md)
 **Depends on:** Phase 10
 **Plans:** 0 plans
 

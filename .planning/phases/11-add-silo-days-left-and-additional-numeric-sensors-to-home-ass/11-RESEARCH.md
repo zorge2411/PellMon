@@ -73,3 +73,6 @@ Writable numbers beyond the existing 10 (all Scotte params with min/max in the d
 - Code read: `plugins/silolevel/__init__.py`, `plugins/homeassistant/{entities,bridge}.py`, `plugins/scottecom/descriptions.py`, `Scotteprotocol/datamap.py`, `plugins/pelletcalc`, `consumption`, `nbecom`, `pellmonsrv.py` Database thread.
 - `.planning/phases/06-*/06-CONTEXT.md` (D-01..D-19).
 - Not verified: HA device-class/unit compatibility tables were not fetched in this session; confirm against current Home Assistant MQTT sensor docs before implementing.
+
+## Resolved (2026-10-11)
+Burner is Scotte 6.34. Answers: include flow, motor/el time and pelletcalc counters; add consumption scalar; add empty-date timestamp; add writable extras. Decisions recorded in 11-CONTEXT.md.
