@@ -39,7 +39,7 @@ jobs:
           python -c "import sys; print(sys.executable)"
           pip --version
           pip install -r requirements.txt
-          pip install pytest pytest-mock pytest-socket
+          pip install pytest pytest-mock pytest-socket pyyaml
 
       - name: Verify system bindings are visible in the venv
         run: |

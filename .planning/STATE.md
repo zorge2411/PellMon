@@ -111,6 +111,7 @@ Items acknowledged and carried forward from previous milestone close:
 | 260919-olq | Fix Scotte CRLF retry frame duplication; `setItem` now returns 'OK' or raises ValueError/IOError instead of leaking raw bytes, so failed writes are no longer reported as OK to the web UI; failing-first tests in tests/test_scotte_protocol_bugs.py | 2026-09-19 | 03bc51e, 0d4aee0 | [260919-olq-fix-scotte-crlf-retry-duplication-and-se](./quick/260919-olq-fix-scotte-crlf-retry-duplication-and-se/) |
 | 260928-bzn | Port Openweathermap plugin to pyowm 3; add Weather settings page (API key, location, unit, enable) | 2026-09-28 | 583323e, bacbf6d, c2e0417 | [260928-bzn-port-openweathermap-plugin-to-pyowm-3-an](./quick/260928-bzn-port-openweathermap-plugin-to-pyowm-3-an/) |
 | 261011-idv | Fix Python 2 integer division: consumption bar chart alignment (floor division, align_for) and export() center-aligned end time | 2026-10-11 | ac0c73c | [261011-idv-fix-python-2-integer-division-in-consumpt](./quick/261011-idv-fix-python-2-integer-division-in-consumpt/) |
+| 261011-hdb | Home Assistant dashboard generator (tools/ha_dashboard.py), example YAML, docs and tests | 2026-10-11 | see git log | [261011-hdb-home-assistant-dashboard-generator](./quick/261011-hdb-home-assistant-dashboard-generator/) |
 
 Full suite verified in WSL (Debian, Python 3.13): 246 passed, 5 skipped (platform guards). Plaintext web passwords are no longer accepted; `config/pellmon.conf` must hold a PBKDF2 hash.
 

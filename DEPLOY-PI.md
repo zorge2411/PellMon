@@ -253,6 +253,41 @@ keep working; the new entities show up on their own after the upgrade.
   and published (a warning is logged when a write did not take effect).
 - Blower, oxygen and regulator settings are deliberately not exposed.
 
+**Dashboard.** `tools/ha_dashboard.py` generates a ready-made Home Assistant dashboard (Sections
+view) for these entities: burner status, fuel with the silo forecast, heating and water, daily
+consumption, service data, and a separate **Controls** view with every setting and the two reset
+buttons. It is built from the entity table, so it follows the integration, and it only includes the
+entities you really have. A preview of the layout is in `.planning/research/ha-dashboard-design.md`.
+
+1. In Home Assistant open Developer tools > Template and paste this, then copy the output to a file
+   (for example `ids.txt`):
+
+   ```
+   {% for e in integration_entities('mqtt') %}{{ e }} | {{ state_attr(e, 'friendly_name') }}
+   {% endfor %}
+   ```
+
+2. Generate the dashboard:
+
+   ```bash
+   python tools/ha_dashboard.py --ids ids.txt --silo-capacity 220 -o dashboard.yaml
+   ```
+
+   Options: `--include outside,indoor,flow,feeder` adds optional sensors (left off by default
+   because they are often not wired), `--no-apexcharts` uses core cards only,
+   `--no-controls` leaves out the Controls view, `--admin-user <user id>` limits the Controls view to
+   that Home Assistant user, `--map object_id=entity_id` fixes one id by hand. Entities missing from
+   `ids.txt` are listed and left off the page. Without `--ids` the entity ids are only assumed from
+   the entity names (see `config/ha-dashboard.example.yaml`), so check them.
+
+3. In Home Assistant create a dashboard, open the three-dot menu > Raw configuration editor, and
+   paste the file. Generate again after the entity list changes (for example after turning
+   "Allow commands" on, which adds the Controls entities).
+
+The silo forecast and the daily consumption chart use the **ApexCharts card** from HACS
+(`custom:apexcharts-card`). Without it, generate with `--no-apexcharts` and those two cards become core
+statistics graphs. Everything else uses core cards.
+
 **Security.** The MQTT password is stored in the settings database (`pellmon_settings.db`)
 on the data volume and is included in backups made with `tools/pellmon_backup.py`. Protect
 the data folder and backup archives. Use a dedicated broker user whose ACL allows only the

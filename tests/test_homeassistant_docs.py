@@ -32,6 +32,13 @@ def test_deploy_guide_lists_every_phase11_entity():
     assert "Silo Fill Level" in DEPLOY
 
 
+def test_deploy_guide_documents_the_dashboard_generator():
+    assert "tools/ha_dashboard.py" in DEPLOY
+    assert "integration_entities('mqtt')" in DEPLOY
+    assert "--no-apexcharts" in DEPLOY and "--ids" in DEPLOY and "--silo-capacity" in DEPLOY
+    assert "Raw configuration editor" in DEPLOY
+
+
 def test_deploy_guide_documents_password_storage_and_acl():
     assert "ACL" in DEPLOY
     assert "settings database" in DEPLOY
