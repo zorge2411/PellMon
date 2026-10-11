@@ -151,3 +151,14 @@ def test_empty_date_item_registered():
     assert 'silo_empty_date' in names
     assert 'silo_empty_date' in silo.itemTags and 'silo_empty_date' in silo.itemDescriptions
     assert [i for i in silo.itemList if i['name'] == 'silo_empty_date'][0]['type'] == 'R'
+
+
+def test_setting_fill_level_stamps_reset_time_and_invalidates_cache(monkeypatch):
+    p = make_plugin(monkeypatch, FakeDb())
+    stored = {}
+    monkeypatch.setattr(p, 'store_setting', lambda item, value=None, confval=None: stored.__setitem__(item, value))
+    p.updateTime = 123456
+    assert p.setItem('silo_reset_level', '1500') == 'OK'
+    assert stored['silo_reset_level'] == '1500'
+    assert datetime.strptime(stored['silo_reset_time'], '%d/%m/%y %H:%M')
+    assert p.updateTime == 0

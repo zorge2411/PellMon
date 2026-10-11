@@ -66,6 +66,44 @@ ENTITIES = (
     _b('Reset Ignition', 'reset_ignition', 'reset_ignition'),
 )
 
+# Phase 11 additions. Appended after the original 21 so their order, object ids and
+# unique ids never change. Device and state classes follow Home Assistant's
+# sensor/const.py: duration accepts d/s, weight accepts kg/g, volume_flow_rate wants
+# 'L/s', timestamp takes neither unit nor state class.
+ENTITIES += (
+    # silolevel plugin
+    _s('Silo Days Left', 'silo_days_left', 'silo_days_left', 'd', 'duration', 'measurement'),
+    _s('Silo Level', 'silo_level', 'silo_level', 'kg', 'weight', 'measurement'),
+    _s('Silo Empty Date', 'silo_empty_date', 'silo_empty_date', None, 'timestamp', None, kind='timestamp'),
+    # consumption plugin
+    _s('Consumption Today', 'consumption_today', 'consumption_today', 'kg', 'weight', 'measurement'),
+    _s('Consumption 7 Days', 'consumption_7d', 'consumption_7d', 'kg', 'weight', 'measurement'),
+    _s('Consumption This Month', 'consumption_month', 'consumption_month', 'kg', 'weight', 'measurement'),
+    # Scotte burner (chip version dependent, only published when the item exists)
+    _s('Magazine Content', 'magazine_content', 'magazine_content', 'kg', 'weight', 'measurement'),
+    _s('Boiler Return Temperature', 'boiler_return_temp', 'boiler_return_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Hot Water Temperature', 'hotwater_temp', 'hotwater_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Outside Temperature', 'outside_temp', 'outside_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Indoor Temperature', 'indoor_temp', 'indoor_temp', DEG_C, 'temperature', 'measurement'),
+    _s('Water Flow', 'flow', 'flow', 'L/s', 'volume_flow_rate', 'measurement'),
+    _s('Desired Oxygen Level', 'oxygen_desired', 'oxygen_desired', '%', None, 'measurement'),
+    _s('Ignition Count', 'ignition_count', 'ignition_count', None, None, 'total_increasing'),
+    _s('Ignition Time', 'ignition_time', 'ignition_time', 's', 'duration', 'total_increasing'),
+    _s('Motor Time', 'motor_time', 'motor_time', 's', 'duration', 'total_increasing'),
+    _s('Electricity Time', 'el_time', 'el_time', 's', 'duration', 'total_increasing'),
+    _s('Alarm', 'alarm', 'alarm', kind='text'),
+    # pelletcalc plugin, counter mode
+    _s('Feeder Revolutions', 'feeder_rev', 'feeder_rev', None, None, 'total_increasing'),
+    _s('Feeder Speed', 'feeder_rpm', 'feeder_rpm', 'rpm', None, 'measurement'),
+    _s('Feeder Revolutions per 6 min', 'feeder_rp6m', 'feeder_rp6m', 'rev/6min', None, 'measurement'),
+    _s('Feeder Pellets per Revolution', 'feeder_rev_capacity', 'feeder_rev_capacity', 'g', 'weight', 'measurement'),
+    # writable (only with commands on, like the original numbers)
+    _n('Hot Water Temp Setpoint', 'hotwater_temp_set', 'hotwater_temp_set', DEG_C, 0, 80),
+    _n('Hot Water Diff', 'hotwater_temp_diff', 'hotwater_temp_diff', DEG_C, 0, 20),
+    _n('Set Magazine Content', 'magazine_content_set', 'magazine_content', 'kg', 0, 9999),
+    _n('Silo Fill Level', 'silo_reset_level', 'silo_reset_level', 'kg', 0, 50000),
+)
+
 # Discovery configs that are always cleared (D-07: Burner ON/OFF is not published)
 CLEANUP_BUTTONS = ('burner_on', 'burner_off')
 
