@@ -301,3 +301,29 @@ Plans:
 **Wave 3** *(blocked on Wave 2 completion)*
 
 - [ ] 11-05-PLAN.md - Web page, docs, remaining tests, full gate, real-Pi verification (D-10)
+
+### Phase 12: Add backup of the RRD database and settings to a NAS or other media
+
+**Goal:** PellMon backs up its RRD database and settings by itself on a schedule to a folder the user has mounted on the host (NAS share, USB drive), keeps a limited number of old copies, and is configured on a Backup page in the web GUI; archives stay restorable with `tools/pellmon_backup.py`.
+**Requirements**: D-01..D-09 (see 12-CONTEXT.md)
+**Depends on:** Phase 11
+**Plans:** 0/4 plans complete
+
+Plans:
+
+**Wave 1**
+
+- [ ] 12-01-PLAN.md - Core backup module: archive, folder check, retention, schedule (D-03, D-04, D-05, D-07)
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 12-02-PLAN.md - Backup plugin, settings model, scheduler, D-Bus methods (D-02, D-05, D-06, D-07)
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 12-03-PLAN.md - Backup web page (D-06, D-07, D-09)
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 12-04-PLAN.md - Compose mount, docs, config tests, real-NAS verification (D-01, D-08, D-09)
+
