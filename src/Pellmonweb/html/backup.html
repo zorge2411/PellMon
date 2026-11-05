@@ -1,0 +1,168 @@
+<%inherit file="layout.html"/>
+<%def name="title()">
+Backup
+</%def>
+<%
+    s = settings
+    st = status
+
+    def fgroup(field, extra=''):
+        return 'form-group has-error' if field in errors else 'form-group'
+
+    def invalid(field):
+        return ' aria-invalid="true"' if field in errors else ''
+
+    def describedby(field):
+        ids = field + '-help'
+        if field in errors:
+            ids += ' ' + field + '-error'
+        return ids
+%>
+<%def name="err(field)">\
+% if field in errors:
+<span class="help-block" id="${field}-error">${errors[field] | h}</span>
+% endif
+</%def>
+<div class="container mqtt-page">
+	<h1>Backup</h1>
+	<p class="mqtt-intro">Save the database, settings and configuration to a NAS or other media on a schedule. The folder is a folder mounted on the host (see the installation guide); this page chooses when and how many copies to keep. Changes are applied to the running server without a restart.</p>
+	% if msg:
+	<div class="alert alert-${msg_level | h}" role="${'status' if msg_level == 'success' else 'alert'}"${'' if msg_level == 'success' else ' tabindex="-1"'}>${msg | h}</div>
+	% endif
+	% for w in warnings:
+	<div class="alert alert-warning" role="alert">${w | h}</div>
+	% endfor
+	<div id="mqtt-status" class="${'well' if st['level'] == 'well' else 'alert alert-' + st['level']}" role="status" aria-live="polite" title="${st['title'] | h}">
+		% if st['glyph']:
+		<span class="glyphicon glyphicon-${st['glyph'] | h}" aria-hidden="true"></span>
+		% endif
+		% if st['word']:
+		<strong>${st['word'] | h}</strong>
+		% endif
+		${st['text'] | h}
+	</div>
+	<form class="mqtt-form" method="post" action="${webroot | h}/backup/save">
+		<section class="panel panel-default">
+			<div class="panel-heading">Schedule</div>
+			<div class="panel-body">
+				<fieldset>
+					<legend class="sr-only">Schedule</legend>
+					<div class="${fgroup('enabled')}">
+						<div class="checkbox">
+							<label for="enabled"><input type="checkbox" id="enabled" name="enabled" value="1" aria-describedby="enabled-help"${' checked' if s['enabled'] else ''}> Enable automatic backups</label>
+						</div>
+						<p class="help-block" id="enabled-help">When off, PellMon only backs up when you press Back up now. A missed backup (the server was off) is made when the server starts again.</p>
+					</div>
+				</fieldset>
+				<div class="row">
+					<div class="col-xs-12 col-sm-4">
+						<div class="${fgroup('frequency')}">
+							<label for="frequency">How often</label>
+							<select class="form-control" id="frequency" name="frequency" aria-describedby="${describedby('frequency')}"${invalid('frequency')}>
+								<option value="daily"${' selected' if s['frequency'] == 'daily' else ''}>Every day</option>
+								<option value="weekly"${' selected' if s['frequency'] == 'weekly' else ''}>Every week</option>
+							</select>
+							${err('frequency')}
+						</div>
+					</div>
+					<div class="col-xs-6 col-sm-4">
+						<div class="${fgroup('time')}">
+							<label for="time">At (server time)</label>
+							<input type="text" class="form-control" id="time" name="time" value="${s['time'] | h}" inputmode="numeric" maxlength="5" autocomplete="off" aria-describedby="${describedby('time')}"${invalid('time')}>
+							<p class="help-block" id="time-help">HH:MM, for example 03:00</p>
+							${err('time')}
+						</div>
+					</div>
+					<div class="col-xs-6 col-sm-4">
+						<div class="${fgroup('weekday')}">
+							<label for="weekday">Day (weekly)</label>
+							<select class="form-control" id="weekday" name="weekday" aria-describedby="${describedby('weekday')}"${invalid('weekday')}>
+								% for number, day in enumerate(weekdays):
+								<option value="${number}"${' selected' if str(s['weekday']) == str(number) else ''}>${day | h}</option>
+								% endfor
+							</select>
+							<p class="help-block" id="weekday-help">Only used when "Every week" is chosen.</p>
+							${err('weekday')}
+						</div>
+					</div>
+				</div>
+				<div class="row">
+					<div class="col-xs-6 col-sm-4">
+						<div class="${fgroup('keep_daily')}">
+							<label for="keep_daily">Keep the newest</label>
+							<input type="number" class="form-control" id="keep_daily" name="keep_daily" value="${s['keep_daily'] | h}" min="1" max="365" aria-describedby="${describedby('keep_daily')}"${invalid('keep_daily')}>
+							<p class="help-block" id="keep_daily-help">backups</p>
+							${err('keep_daily')}
+						</div>
+					</div>
+					<div class="col-xs-6 col-sm-4">
+						<div class="${fgroup('keep_weekly')}">
+							<label for="keep_weekly">and one per week for</label>
+							<input type="number" class="form-control" id="keep_weekly" name="keep_weekly" value="${s['keep_weekly'] | h}" min="0" max="104" aria-describedby="${describedby('keep_weekly')}"${invalid('keep_weekly')}>
+							<p class="help-block" id="keep_weekly-help">weeks. Older backups are deleted automatically.</p>
+							${err('keep_weekly')}
+						</div>
+					</div>
+				</div>
+			</div>
+		</section>
+		<section class="panel panel-default">
+			<div class="panel-heading">Backup folder</div>
+			<div class="panel-body">
+				<div class="${fgroup('subfolder')}">
+					<label for="subfolder">Folder</label>
+					<div class="input-group">
+						<span class="input-group-addon">${root | h}/</span>
+						<input type="text" class="form-control" id="subfolder" name="subfolder" value="${s['subfolder'] | h}" autocomplete="off" autocapitalize="none" spellcheck="false" aria-describedby="${describedby('subfolder')}"${invalid('subfolder')}>
+					</div>
+					<p class="help-block" id="subfolder-help">Optional sub-folder, for example pellmon. Backups are written to ${folder | h}. The host folder behind ${root | h} is set by PELLMON_BACKUP_DIR in the .env file.</p>
+					${err('subfolder')}
+				</div>
+				<div class="${fgroup('require_other_disk')}">
+					<div class="checkbox">
+						<label for="require_other_disk"><input type="checkbox" id="require_other_disk" name="require_other_disk" value="1" aria-describedby="require_other_disk-help"${' checked' if s['require_other_disk'] else ''}> Only back up when the folder is on another disk than the database</label>
+					</div>
+					<p class="help-block" id="require_other_disk-help">Protects against a NAS or USB drive that is not mounted: without it the backups would silently fill the SD card they are meant to protect. Turn it off only if you really want the backups on the same disk.</p>
+				</div>
+			</div>
+		</section>
+		<div class="mqtt-actions">
+			<button type="submit" class="btn btn-primary mqtt-save"${'' if auth_configured else ' disabled'}>Save settings</button>
+		</div>
+		% if not auth_configured:
+		<p class="help-block">Saving is disabled until web login credentials are configured.</p>
+		% endif
+	</form>
+
+	<section class="panel panel-default">
+		<div class="panel-heading">Backups in ${folder | h}</div>
+		<div class="panel-body">
+			<div class="mqtt-actions">
+				<form method="post" action="${webroot | h}/backup/run" style="display:inline">
+					<button type="submit" class="btn btn-default"${'' if auth_configured and available else ' disabled'}>Back up now</button>
+				</form>
+				<form method="post" action="${webroot | h}/backup/test" style="display:inline">
+					<button type="submit" class="btn btn-default"${'' if auth_configured and available else ' disabled'}>Test folder</button>
+				</form>
+			</div>
+			% if archives:
+			<div class="table-responsive">
+				<table class="table table-condensed">
+					<thead><tr><th scope="col">Backup</th><th scope="col">Made</th><th scope="col" class="text-right">Size</th></tr></thead>
+					<tbody>
+						% for a in archives:
+						<tr><td>${a['name'] | h}</td><td>${a['when'] | h}</td><td class="text-right">${a['size'] | h}</td></tr>
+						% endfor
+					</tbody>
+				</table>
+			</div>
+			% if archive_count > len(archives):
+			<p class="help-block">Showing the newest ${len(archives)} of ${archive_count}.</p>
+			% endif
+			% else:
+			<p class="help-block">No backups in this folder yet.</p>
+			% endif
+			<p class="help-block">To restore a backup, run <code>python3 tools/pellmon_backup.py restore &lt;file&gt;</code> on the host (see the installation guide). The archives contain password hashes and settings secrets: keep the folder private.</p>
+		</div>
+	</section>
+</div>

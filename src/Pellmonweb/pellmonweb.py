@@ -273,6 +273,42 @@ class Dbus_handler:
             except:
                 raise DbusNotConnected("server not running")
 
+    # Backup (JSON over D-Bus)
+    def backup_get_settings(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetBackupSettings(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def backup_set_settings(self, d):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.SetBackupSettings(simplejson.dumps(d), dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def backup_status(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.GetBackupStatus(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def backup_start(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.StartBackup(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def backup_test(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.TestBackupFolder(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
     def getdb(self):
         with self.lock:
             try:
@@ -316,6 +352,7 @@ class PellMonWeb:
         self.settings = Settings(lookup, dbus, system_image_dir, credentials)
         self.homeassistant = HomeAssistant(lookup, dbus, credentials)
         self.weather = Weather(lookup, dbus, credentials)
+        self.backup = Backup(lookup, dbus, credentials)
 
     @cherrypy.expose
     def autorefresh(self, **args):
