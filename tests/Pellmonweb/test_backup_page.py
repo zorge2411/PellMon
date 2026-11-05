@@ -357,3 +357,14 @@ def test_template_empty_state_and_warnings():
 
 def test_menu_entry_exists_in_layout():
     assert '/backup/' in (HTML_DIR / 'layout.html').read_text(encoding='utf-8')
+
+
+def test_slow_folder_warning():
+    assert bp.warnings({}, dict(STATUS_OK, folder_slow=True)) == [bp.WARN_SLOW]
+    assert bp.warnings({}, dict(STATUS_OK, folder_slow=True, same_disk=True)) == [bp.WARN_SLOW]
+
+
+def test_timeout_reason_is_shown_as_is(cherrypy_request_ctx):
+    _post(**ORIGIN)
+    c, d = _make(test_result={'ok': False, 'reason': core.REASON_TIMEOUT, 'free_bytes': None})
+    assert c.test()['msg'] == bp.MSG_TEST_FAILED % core.REASON_TIMEOUT

@@ -61,6 +61,7 @@ STATUS_DAEMON_DOWN = ('Cannot read the status because the PellMon server is not 
 WARN_SAME_DISK = ('The backup folder is on the same disk as the database. A backup there does not protect against '
                   'a failing disk. If you meant to use a NAS or USB drive, check that it is mounted on the host.')
 WARN_NO_FOLDER = 'The backup folder does not exist yet. Is the NAS or USB drive mounted on the host?'
+WARN_SLOW = 'The backup folder did not answer. Is the NAS reachable? The list below may be out of date.'
 
 CHECKBOX_FIELDS = ('enabled', 'require_other_disk')
 TEXT_FIELDS = ('subfolder', 'frequency', 'time', 'weekday', 'keep_daily', 'keep_weekly')
@@ -131,7 +132,9 @@ def archive_rows(status):
 def warnings(settings, status):
     out = []
     if isinstance(status, dict) and status.get('available') is not False:
-        if status.get('folder_exists') is False:
+        if status.get('folder_slow'):
+            out.append(WARN_SLOW)
+        elif status.get('folder_exists') is False:
             out.append(WARN_NO_FOLDER)
         elif status.get('same_disk'):
             out.append(WARN_SAME_DISK)

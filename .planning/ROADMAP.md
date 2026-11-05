@@ -307,21 +307,21 @@ Plans:
 **Goal:** PellMon backs up its RRD database and settings by itself on a schedule to a folder the user has mounted on the host (NAS share, USB drive), keeps a limited number of old copies, and is configured on a Backup page in the web GUI; archives stay restorable with `tools/pellmon_backup.py`.
 **Requirements**: D-01..D-09 (see 12-CONTEXT.md)
 **Depends on:** Phase 11
-**Plans:** 0/4 plans complete
+**Plans:** 3/4 plans complete (12-04 awaits verification with a real NAS or USB mount)
 
 Plans:
 
 **Wave 1**
 
-- [ ] 12-01-PLAN.md - Core backup module: archive, folder check, retention, schedule (D-03, D-04, D-05, D-07)
+- [x] 12-01-PLAN.md - Core backup module: archive, folder check, retention, schedule (D-03, D-04, D-05, D-07)
 
 **Wave 2** *(blocked on Wave 1 completion)*
 
-- [ ] 12-02-PLAN.md - Backup plugin, settings model, scheduler, D-Bus methods (D-02, D-05, D-06, D-07)
+- [x] 12-02-PLAN.md - Backup plugin, settings model, scheduler, D-Bus methods (D-02, D-05, D-06, D-07)
 
 **Wave 3** *(blocked on Wave 2 completion)*
 
-- [ ] 12-03-PLAN.md - Backup web page (D-06, D-07, D-09)
+- [x] 12-03-PLAN.md - Backup web page (D-06, D-07, D-09)
 
 **Wave 4** *(blocked on Wave 3 completion)*
 

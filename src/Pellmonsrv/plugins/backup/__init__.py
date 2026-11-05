@@ -44,6 +44,11 @@ class backupplugin(protocols):
     autostart = True       # tests switch the scheduler thread off
     startup_delay = 120    # seconds after start before the first schedule check
     check_interval = 30    # seconds between schedule checks
+    # Folder I/O that happens on the D-Bus thread is bounded: a hung NAS (stale NFS mount) must
+    # not freeze the daemon's D-Bus service and with it the web interface.
+    status_io_timeout = 3.0
+    test_timeout = 10.0
+    listing_max_age = 30.0
 
     def __init__(self):
         protocols.__init__(self)
@@ -60,6 +65,8 @@ class backupplugin(protocols):
         self.config_dir = None
         self.rrdtool = 'rrdtool'
         self.retry_delay = 1.0
+        self.listing = None
+        self.listing_time = 0.0
 
     def activate(self, conf, glob, db, *args, **kwargs):
         protocols.activate(self, conf, glob, db, *args, **kwargs)
@@ -149,6 +156,7 @@ class backupplugin(protocols):
                                        now=datetime.datetime.fromtimestamp(started), rrdtool=self.rrdtool,
                                        retry_delay=self.retry_delay, other_disk_than=self._other_disk())
             removed = core.prune(folder, self.cfg['keep_daily'], self.cfg['keep_weekly'])
+            self.listing = None  # re-read the folder for the next status
             self.state.update(last_ok=time.time(), last_attempt=started, reason='', last_file=made['name'],
                               last_size=made['size'])
             logger.info('Backup written: %s (%d kB), %d old archive(s) removed' %
@@ -178,8 +186,7 @@ class backupplugin(protocols):
         t.start()
         return {'ok': True, 'reason': ''}
 
-    def test_folder(self):
-        """Check the destination without writing a backup"""
+    def _test_folder_blocking(self):
         try:
             folder = self._prepare_folder()
             free = core.check_folder(folder, self._other_disk())
@@ -189,6 +196,13 @@ class backupplugin(protocols):
         except Exception:
             logger.exception('Backup folder test failed')
             return {'ok': False, 'reason': core.REASON_UNKNOWN, 'free_bytes': None}
+
+    def test_folder(self):
+        """Check the destination without writing a backup (bounded wait)"""
+        finished, result = core.call_with_timeout(self._test_folder_blocking, self.test_timeout)
+        if not finished:
+            return {'ok': False, 'reason': core.REASON_TIMEOUT, 'free_bytes': None}
+        return result
 
     # ---- D-Bus contract -------------------------------------------------------------
 
@@ -207,6 +221,7 @@ class backupplugin(protocols):
                 return {'ok': False, 'errors': errors}
             backup_settings.save(self.store, clean)
             self.cfg = clean
+            self.listing = None  # the folder may have changed
             return {'ok': True, 'errors': {}}
         except Exception:
             logger.exception('Backup apply settings failed')
@@ -235,14 +250,38 @@ class backupplugin(protocols):
                                           cfg['weekday']).timestamp()
             except Exception:
                 next_run = None
-        archives = core.list_archives(folder)
-        other = os.path.dirname(os.path.abspath(self.rrd_db)) if self.rrd_db else None
+        listing, slow = self._listing(folder)
         return {
             'available': True, 'state': name, 'enabled': bool(cfg.get('enabled')), 'running': self.running,
             'last_ok': last_ok, 'last_attempt': last_attempt, 'reason': state.get('reason', ''),
             'last_file': state.get('last_file', ''), 'last_size': state.get('last_size', 0),
             'next_run': next_run, 'root': self.root, 'folder': folder,
-            'folder_exists': os.path.isdir(folder),
-            'same_disk': bool(other and os.path.isdir(folder) and core.same_disk(folder, other)),
-            'archive_count': len(archives), 'archives': archives[:LIST_LIMIT],
+            'folder_exists': listing['folder_exists'], 'same_disk': listing['same_disk'],
+            'folder_slow': slow,
+            'archive_count': listing['count'], 'archives': listing['archives'][:LIST_LIMIT],
         }
+
+    def _read_listing(self, folder):
+        """Blocking folder reads, run through call_with_timeout"""
+        other = os.path.dirname(os.path.abspath(self.rrd_db)) if self.rrd_db else None
+        exists = os.path.isdir(folder)
+        archives = core.list_archives(folder) if exists else []
+        return {'folder_exists': exists, 'count': len(archives), 'archives': archives[:LIST_LIMIT],
+                'same_disk': bool(other and exists and core.same_disk(folder, other))}
+
+    def _listing(self, folder):
+        """(listing, slow): the folder facts for the status, read at most every listing_max_age
+        seconds and never blocking longer than status_io_timeout; a stale copy is used when the folder
+        does not answer (slow is then True)"""
+        if self.listing is not None and time.time() - self.listing_time < self.listing_max_age:
+            return self.listing, False
+        try:
+            finished, value = core.call_with_timeout(lambda: self._read_listing(folder), self.status_io_timeout)
+        except Exception:
+            logger.exception('Backup could not read the folder')
+            finished, value = True, None
+        if finished and value is not None:
+            self.listing, self.listing_time = value, time.time()
+            return value, False
+        empty = {'folder_exists': True, 'count': 0, 'archives': [], 'same_disk': False}
+        return (self.listing if self.listing is not None else empty), not finished

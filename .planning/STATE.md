@@ -79,7 +79,7 @@ Recent decisions affecting current work:
 - Phase 9 added: Add Docker Hub image publishing with semver versioning, based on `versioning-and-publish-reference.md` (Kombikode tool project) (added 2026-09-23; not yet planned)
 - Phase 10 added: Optimize for mobile devices screen size (added 2026-09-24; not yet planned)
 - Phase 11 added: Add silo days-left and additional numeric sensors to Home Assistant (added 2026-10-08; researched, context captured, planned 2026-10-11: 5 plans, 3 waves; executed 2026-10-11: plans 1-4 done, 05 awaits real-Pi verification)
-- Phase 12 added: Add backup of the RRD database and settings to a NAS or other media (added 2026-11-05; context captured, planned)
+- Phase 12 added: Add backup of the RRD database and settings to a NAS or other media (added 2026-11-05; executed 2026-11-05, pending real NAS verification)
 
 ### Pending Todos
 

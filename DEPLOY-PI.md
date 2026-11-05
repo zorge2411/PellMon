@@ -473,6 +473,7 @@ where the share allows it. Keep the NAS folder private and do not share it.
 | folder is on the same disk as the database | the NAS/drive is not mounted (see above) |
 | folder not writable | the folder must allow uid 999 to create files (`chown 999:999`, NFS export, `uid=999` for CIFS) |
 | out of space | free space on the NAS, or lower the number of backups kept |
+| folder did not answer (is the NAS reachable?) | the NAS is off or the network share is hung; check the NAS and the host mount (`ls /mnt/nas-backup`) |
 | rrdtool failed | see the server log (View log) for what rrdtool said |
 | rrdtool not found | the image is incomplete; rebuild or pull it (`docker compose build`, `docker compose pull`) |
 | settings database unreadable | the settings database `pellmon_settings.db` is damaged; restore an older backup |

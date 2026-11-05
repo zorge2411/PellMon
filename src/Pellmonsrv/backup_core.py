@@ -36,6 +36,7 @@ import sqlite3
 import subprocess
 import tarfile
 import tempfile
+import threading
 import time
 
 logger = logging.getLogger('pellMon')
@@ -48,12 +49,13 @@ REASON_FOLDER_MISSING = 'folder missing (is the NAS mounted?)'
 REASON_NOT_WRITABLE = 'folder not writable'
 REASON_NO_SPACE = 'out of space'
 REASON_SAME_DISK = 'folder is on the same disk as the database (is the NAS or USB drive mounted?)'
+REASON_TIMEOUT = 'folder did not answer (is the NAS reachable?)'
 REASON_RRD = 'rrdtool failed'
 REASON_RRD_MISSING = 'rrdtool not found'
 REASON_SETTINGS = 'settings database unreadable'
 REASON_VERIFY = 'archive could not be verified'
 REASON_UNKNOWN = 'unknown error (see the server log)'
-REASONS = frozenset([REASON_FOLDER_MISSING, REASON_NOT_WRITABLE, REASON_NO_SPACE, REASON_SAME_DISK, REASON_RRD,
+REASONS = frozenset([REASON_FOLDER_MISSING, REASON_NOT_WRITABLE, REASON_NO_SPACE, REASON_SAME_DISK, REASON_TIMEOUT, REASON_RRD,
                      REASON_RRD_MISSING, REASON_SETTINGS, REASON_VERIFY, REASON_UNKNOWN])
 
 RRD_DUMP_ATTEMPTS = 3
@@ -66,6 +68,28 @@ class BackupError(Exception):
     def __init__(self, reason):
         Exception.__init__(self, reason)
         self.reason = reason
+
+
+def call_with_timeout(fn, seconds):
+    """Run fn in a helper thread and wait at most `seconds`. Returns (finished, value); an exception
+    in fn is raised here. A hung NAS must never block the daemon's D-Bus thread: the helper thread
+    is abandoned (it is a daemon thread) when it does not finish."""
+    box = {}
+
+    def target():
+        try:
+            box['value'] = fn()
+        except BaseException as e:  # handed to the caller
+            box['error'] = e
+    t = threading.Thread(target=target, name='backup-io')
+    t.daemon = True
+    t.start()
+    t.join(seconds)
+    if t.is_alive():
+        return False, None
+    if 'error' in box:
+        raise box['error']
+    return True, box.get('value')
 
 
 def _reason_for_oserror(e):

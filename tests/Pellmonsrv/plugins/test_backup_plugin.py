@@ -278,3 +278,63 @@ def test_plugin_is_registered_in_the_build_files():
     assert 'backup.pellmon-plugin' in plugins
     assert 'backup_core.py' in open(os.path.join(root, 'src', 'Pellmonsrv', 'Makefile.am')).read()
     assert os.path.isfile(os.path.join(root, 'src', 'Pellmonsrv', 'plugins', 'backup.pellmon-plugin'))
+
+
+# ---- a hung NAS must not block the D-Bus thread ----------------------------------------------
+
+def test_status_does_not_wait_for_a_hung_folder(env, monkeypatch):
+    p = make(env)
+    p.status_io_timeout = 0.05
+    release = threading.Event()
+    monkeypatch.setattr(p, '_read_listing', lambda folder: release.wait(5))
+    t0 = time.time()
+    s = p.status_dict()
+    assert time.time() - t0 < 1.5
+    assert s['folder_slow'] is True and s['archives'] == [] and s['state'] == 'waiting'
+    release.set()
+
+
+def test_status_uses_the_stale_listing_when_the_folder_stops_answering(env, monkeypatch):
+    p = make(env)
+    open(os.path.join(env['root'], 'pellmon-backup-20261101-030000.tar.gz'), 'wb').write(b'x')
+    assert p.status_dict()['archive_count'] == 1 and p.status_dict()['folder_slow'] is False
+    p.listing_time = 0  # expired
+    p.status_io_timeout = 0.05
+    release = threading.Event()
+    monkeypatch.setattr(p, '_read_listing', lambda folder: release.wait(5))
+    s = p.status_dict()
+    assert s['folder_slow'] is True and s['archive_count'] == 1
+    release.set()
+
+
+def test_the_folder_is_read_at_most_every_listing_max_age(env, monkeypatch):
+    p = make(env)
+    calls = []
+    real = p._read_listing
+    monkeypatch.setattr(p, '_read_listing', lambda folder: (calls.append(1), real(folder))[1])
+    p.status_dict()
+    p.status_dict()
+    assert len(calls) == 1
+    p.listing_time = 0
+    p.status_dict()
+    assert len(calls) == 2
+
+
+def test_new_backup_and_new_settings_refresh_the_listing(env):
+    p = make(env)
+    assert p.status_dict()['archive_count'] == 0
+    p.run_backup()
+    assert p.status_dict()['archive_count'] == 1
+    p.apply_settings(dict(p.cfg, subfolder='other'))
+    assert p.listing is None
+
+
+def test_folder_test_gives_up_on_a_hung_folder(env, monkeypatch):
+    p = make(env)
+    p.test_timeout = 0.05
+    release = threading.Event()
+    monkeypatch.setattr(p, '_prepare_folder', lambda: release.wait(5))
+    t0 = time.time()
+    assert p.test_folder() == {'ok': False, 'reason': core.REASON_TIMEOUT, 'free_bytes': None}
+    assert time.time() - t0 < 1.5
+    release.set()

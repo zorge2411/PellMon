@@ -398,3 +398,26 @@ def test_is_due_weekly():
     sunday_slot = ts(2026, 11, 1, 3, 0)
     assert not bk.is_due(ts(2026, 11, 5, 10, 0), sunday_slot + 30, None, 'weekly', '03:00', 6)
     assert bk.is_due(ts(2026, 11, 8, 3, 1), sunday_slot + 30, None, 'weekly', '03:00', 6)
+
+
+# ---- bounded waits (a hung NAS must not block the caller) ------------------------------------
+
+def test_call_with_timeout_returns_the_value():
+    assert bk.call_with_timeout(lambda: 42, 2) == (True, 42)
+
+
+def test_call_with_timeout_reraises_exceptions():
+    def boom():
+        raise ValueError('x')
+    with pytest.raises(ValueError):
+        bk.call_with_timeout(boom, 2)
+
+
+def test_call_with_timeout_gives_up_on_a_hung_call():
+    import threading
+    release = threading.Event()
+    import time as _t
+    t0 = _t.time()
+    finished, value = bk.call_with_timeout(lambda: release.wait(5), 0.05)
+    assert finished is False and value is None and _t.time() - t0 < 1
+    release.set()

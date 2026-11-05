@@ -126,7 +126,7 @@ Backup
 				</div>
 			</div>
 		</section>
-		<div class="mqtt-actions">
+		<div class="mqtt-actions" style="margin-bottom:24px">
 			<button type="submit" class="btn btn-primary mqtt-save"${'' if auth_configured else ' disabled'}>Save settings</button>
 		</div>
 		% if not auth_configured:
@@ -134,10 +134,11 @@ Backup
 		% endif
 	</form>
 
+	<div class="mqtt-form">
 	<section class="panel panel-default">
 		<div class="panel-heading">Backups in ${folder | h}</div>
 		<div class="panel-body">
-			<div class="mqtt-actions">
+			<div class="mqtt-actions" style="margin-top:0">
 				<form method="post" action="${webroot | h}/backup/run" style="display:inline">
 					<button type="submit" class="btn btn-default"${'' if auth_configured and available else ' disabled'}>Back up now</button>
 				</form>
@@ -162,7 +163,8 @@ Backup
 			% else:
 			<p class="help-block">No backups in this folder yet.</p>
 			% endif
-			<p class="help-block">To restore a backup, run <code>python3 tools/pellmon_backup.py restore &lt;file&gt;</code> on the host (see the installation guide). The archives contain password hashes and settings secrets: keep the folder private.</p>
+			<p class="help-block">To restore a backup, run <code class="mqtt-prefix-code">python3 tools/pellmon_backup.py restore &lt;file&gt;</code> on the host (see the installation guide). The archives contain password hashes and settings secrets: keep the folder private.</p>
 		</div>
 	</section>
+	</div>
 </div>
