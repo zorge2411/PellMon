@@ -59,5 +59,8 @@ ENV/
 # PellMon runtime data (RRD, settings DB with secrets, logs)
 pellmon-data/
 
+# Scheduled backups written by the Backup page (hold password hashes and secrets)
+pellmon-backups/
+
 # Browser layout test screenshots
 tests/browser/_shots/

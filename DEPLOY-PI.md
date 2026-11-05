@@ -410,6 +410,73 @@ a message naming the config file; it never guesses.
 
 The backup archive also contains the MQTT password (see Home Assistant / MQTT above); store it accordingly.
 
+### Scheduled backups to a NAS or USB drive
+
+PellMon can back up the RRD database, the settings database and the config folder by itself, on a
+schedule, to a folder on a NAS or other media. It is the `Backup` plugin and the **Backup** page of
+the web interface (login required). The archives have the same format as `pellmon_backup.py backup`,
+so they restore with that tool (below).
+
+**1. Mount the NAS or drive on the Pi (the host, not in Docker).** PellMon writes to a folder; how
+that folder gets its files onto the NAS is up to the host. Examples for `/etc/fstab` (create the
+mount point first, for example `sudo mkdir -p /mnt/nas-backup`):
+
+```
+# NFS share
+192.168.1.10:/volume1/pellmon-backup  /mnt/nas-backup  nfs   defaults,_netdev,nofail  0  0
+# SMB/CIFS share (put username= and password= in /root/.nas-credentials, mode 0600)
+//192.168.1.10/pellmon-backup         /mnt/nas-backup  cifs  credentials=/root/.nas-credentials,uid=999,gid=999,file_mode=0600,dir_mode=0700,_netdev,nofail  0  0
+# USB drive formatted ext4 (find the UUID with `lsblk -f`)
+UUID=1234-abcd                        /mnt/nas-backup  ext4  defaults,nofail  0  2
+```
+
+The container runs as uid/gid 999 and must be allowed to create files in the folder. For a USB drive run
+`sudo chown 999:999 /mnt/nas-backup` once. For NFS allow writes for that uid on the NAS (or map all users
+to one that can write). Mount it **before** starting the containers.
+
+**2. Tell compose where it is.** In `.env` set `PELLMON_BACKUP_DIR=/mnt/nas-backup`, then
+`docker compose up -d`. Inside the containers the folder appears as `/backups`.
+
+**3. Turn it on in the web interface.** Open **Backup**, press **Test folder** (it must say the folder is
+ready), tick **Enable automatic backups**, choose how often and at what time (server time, see `TZ` in `.env`),
+how many to keep, and **Save settings**. The first backup starts within a minute; **Back up now** makes one at
+any time. The page lists the newest backups and shows the result of the last one.
+
+**What it keeps.** The newest N backups plus the newest backup of each of the last M weeks (default 14 and 8),
+so a few months of history take little space. Only files named `pellmon-backup-*.tar.gz` in the backup folder are
+ever deleted. A backup that was missed because the server was off is made when it starts again; a failed
+backup is retried every hour until the next scheduled time.
+
+**Safety net against an unmounted drive.** If the NAS or drive is not mounted when the containers start, Docker
+silently uses an empty folder on the SD card, and the backups would end up on the very disk they are meant to
+protect. By default the page therefore refuses to back up when the folder is on the same disk as the database
+(untick "Only back up when the folder is on another disk" only if that is really what you want). After mounting the
+share, run `docker compose up -d --force-recreate pellmonsrv` so the container sees it.
+
+**Restore.** Restoring replaces the database, so it stays a host command that stops the daemon:
+
+```bash
+python3 tools/pellmon_backup.py restore /mnt/nas-backup/pellmon-backup-20261105-030000.tar.gz --yes
+```
+
+Add `--with-config` to restore the config files too. Everything about the restore (the `.pre-restore` copies,
+moving between machine types) is described above.
+
+**Security.** The archives contain password hashes and the MQTT and API secrets. They are created mode 0600
+where the share allows it. Keep the NAS folder private and do not share it.
+
+**If the page reports a failure:**
+
+| Message | What to check |
+|---------|---------------|
+| folder missing (is the NAS mounted?) | `PELLMON_BACKUP_DIR` in `.env`, that the share is mounted on the host, then recreate `pellmonsrv` |
+| folder is on the same disk as the database | the NAS/drive is not mounted (see above) |
+| folder not writable | the folder must allow uid 999 to create files (`chown 999:999`, NFS export, `uid=999` for CIFS) |
+| out of space | free space on the NAS, or lower the number of backups kept |
+| rrdtool failed | see the server log (View log) for what rrdtool said |
+| rrdtool not found | the image is incomplete; rebuild or pull it (`docker compose build`, `docker compose pull`) |
+| settings database unreadable | the settings database `pellmon_settings.db` is damaged; restore an older backup |
+
 ### Moving data off the old named volume (one time)
 
 Older deployments kept data in a Docker named volume. Find its name with `docker volume ls`,
@@ -515,5 +582,5 @@ container in a restart loop. Use `.env` for settings such as `SERIAL_GID` instea
 - Protocol code is verified against a simulator only, not a real burner.
 - `chown` is a no-op on Docker Desktop Windows/macOS mounts, so the data folder must live on
   a Linux filesystem (ext4, or the Pi).
-- There is no backup button in the web GUI yet (deferred); use `tools/pellmon_backup.py`.
+- Scheduled backups to a NAS or USB drive run from the **Backup** page (see Scheduled backups above); a restore is still a host command, `tools/pellmon_backup.py restore`.
 - The config editor is not part of the compose stack (section 4).

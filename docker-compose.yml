@@ -19,13 +19,17 @@ services:
     container_name: pellmon-init
     user: root
     restart: "no"
+    # The backup folder is only handed to the pellmon user (not recursive, and a failure is ignored): a NAS
+    # share cannot always be chown'ed from here, so it must already allow writes for uid 999 (see DEPLOY-PI.md)
     command: >
       sh -c "mkdir -p /var/lib/pellmon /var/log/pellmon &&
              chown -R 999:999 /var/lib/pellmon /var/log/pellmon &&
-             chmod 755 /var/lib/pellmon /var/log/pellmon"
+             chmod 755 /var/lib/pellmon /var/log/pellmon &&
+             (chown 999:999 /backups 2>/dev/null || true)"
     volumes:
       - ${PELLMON_DATA_DIR:-./pellmon-data}/data:/var/lib/pellmon
       - ${PELLMON_DATA_DIR:-./pellmon-data}/logs:/var/log/pellmon
+      - ${PELLMON_BACKUP_DIR:-./pellmon-backups}:/backups
     networks:
       - pellmon-network
 
@@ -121,6 +125,10 @@ services:
 
       # Logs
       - ${PELLMON_DATA_DIR:-./pellmon-data}/logs:/var/log/pellmon
+
+      # Backups: a folder on the host, normally a NAS share or USB drive mounted there.
+      # The Backup page of the web interface writes archives into it.
+      - ${PELLMON_BACKUP_DIR:-./pellmon-backups}:/backups
 
       # Shared socket location (using the pellmon run directory)
       - pellmon-run:/var/run/pellmon
