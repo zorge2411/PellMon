@@ -1,0 +1,9 @@
+[Core]
+Name = Backup
+Module = backup
+
+[Documentation]
+Author = Anders Nylund
+Version = 0.1
+Website = http://github.com/motoz/PellMon
+Description = Scheduled backup of the RRD database, settings and config to a NAS or other mounted media

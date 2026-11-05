@@ -123,7 +123,7 @@ def test_homeassistant_loaded_when_missing_from_enabled_plugins(tmp_path):
 
 def test_homeassistant_is_always_loaded_constant():
     src = (SRC / "Pellmonsrv" / "pellmonsrv.py").read_text(encoding="utf-8")
-    assert "ALWAYS_LOADED_PLUGINS = ('HomeAssistant', 'Openweathermap')" in src
+    assert "ALWAYS_LOADED_PLUGINS = ('HomeAssistant', 'Openweathermap', 'Backup')" in src
 
 
 def test_openweathermap_loaded_when_missing_from_enabled_plugins(tmp_path):

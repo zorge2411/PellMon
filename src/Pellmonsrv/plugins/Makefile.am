@@ -13,7 +13,8 @@ SUBDIRS = scottecom \
 	nbecom \
 	openweathermap \
 	exec \
-	homeassistant
+	homeassistant \
+	backup
 
 nobase_dist_plugins_DATA = \
 	scottecom.pellmon-plugin \
@@ -31,6 +32,7 @@ nobase_dist_plugins_DATA = \
 	nbecom.pellmon-plugin \
 	openweathermap.pellmon-plugin \
 	exec.pellmon-plugin \
-	homeassistant.pellmon-plugin
+	homeassistant.pellmon-plugin \
+	backup.pellmon-plugin
 
 pluginsdir = $(pythondir)/Pellmonsrv/plugins

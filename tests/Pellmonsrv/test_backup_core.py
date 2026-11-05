@@ -1,5 +1,5 @@
 # -*- coding: utf-8 -*-
-"""Backup core (Phase 12): archive, folder check, retention, schedule."""
+"""Backup core (Phase 12, Pellmonsrv/backup_core.py): archive, folder check, retention, schedule."""
 
 import datetime
 import errno
@@ -13,7 +13,7 @@ import tarfile
 
 import pytest
 
-from Pellmonsrv import backup as bk
+from Pellmonsrv import backup_core as bk
 
 ROOT = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 D = datetime.datetime

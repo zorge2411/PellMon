@@ -190,6 +190,10 @@ def _owm_plugin():
     """Return the Openweathermap plugin object, or None when it is not loaded"""
     return _plugin_by_name('Openweathermap')
 
+def _backup_plugin():
+    """Return the Backup plugin object, or None when it is not loaded"""
+    return _plugin_by_name('Backup')
+
 def _mqtt_parse(data):
     """Parse a JSON object argument, None when it is not a JSON object"""
     try:
@@ -392,6 +396,69 @@ class MyDBUSService(dbus.service.Object):
         except Exception as e:
             logger.error('GetOwmStatus failed: %s'%type(e).__name__)
             return json.dumps({'available': False})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetBackupSettings(self):
+        """Get the Backup settings as JSON"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'available': False})
+        try:
+            return json.dumps(plugin.get_settings_dict())
+        except Exception as e:
+            logger.error('GetBackupSettings failed: %s'%type(e).__name__)
+            return json.dumps({'available': False})
+
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='s')
+    def SetBackupSettings(self, data):
+        """Validate and apply Backup settings given as JSON, returns JSON {ok, errors}"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'errors': {}})
+        parsed = _mqtt_parse(data)
+        if parsed is None:
+            return json.dumps({'ok': False, 'errors': {}})
+        try:
+            return json.dumps(plugin.apply_settings(parsed))
+        except Exception as e:
+            logger.error('SetBackupSettings failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'errors': {}})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def GetBackupStatus(self):
+        """Get the Backup status (last result, next run, archives) as JSON"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'available': False})
+        try:
+            return json.dumps(plugin.status_dict())
+        except Exception as e:
+            logger.error('GetBackupStatus failed: %s'%type(e).__name__)
+            return json.dumps({'available': False})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def StartBackup(self):
+        """Start a backup now, returns JSON {ok, reason}"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'reason': ''})
+        try:
+            return json.dumps(plugin.start_now())
+        except Exception as e:
+            logger.error('StartBackup failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'reason': ''})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def TestBackupFolder(self):
+        """Check that the backup folder can be written, returns JSON {ok, reason, free_bytes}"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'reason': ''})
+        try:
+            return json.dumps(plugin.test_folder())
+        except Exception as e:
+            logger.error('TestBackupFolder failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'reason': ''})
 
     #@dbus.service.signal(dbus_interface='org.pellmon.int', signature='aa{sv}')
     @dbus.service.signal(dbus_interface='org.pellmon.int', signature='s')
@@ -796,7 +863,7 @@ class MyDaemon(Daemon):
         logger.info("ending, what??")
         
 # plugins that are loaded even when missing from [enabled_plugins]
-ALWAYS_LOADED_PLUGINS = ('HomeAssistant', 'Openweathermap')
+ALWAYS_LOADED_PLUGINS = ('HomeAssistant', 'Openweathermap', 'Backup')
 
 class config:
     """Contains global configuration, parsed from the .conf file"""
@@ -812,6 +879,10 @@ class config:
         global logger
         logger = logging.getLogger('pellMon')
 
+        # remembered for the Backup plugin (it archives them)
+        self.conf_file = filename
+        self.config_dir = None
+
         # Load the configuration file
         # no interpolation: config values contain '%' (e.g. DS:%s:DERIVE:%u:0:U)
         parser = configparser.ConfigParser(interpolation=None)
@@ -823,6 +894,7 @@ class config:
 
         try:
             config_dir = parser.get('conf', 'config_dir')
+            self.config_dir = config_dir
             for root, dirs, files in os.walk(config_dir):
                 for name in files:
                     if os.path.splitext(name)[1] == '.conf':
@@ -889,7 +961,7 @@ class config:
                     pass
         except configparser.NoSectionError:
             pass
-        # HomeAssistant and Openweathermap are always loaded: they stay idle until
+        # HomeAssistant, Openweathermap and Backup are always loaded: they stay idle until
         # enabled on the web page, and older installs have an enabled_plugins.conf
         # that predates them
         for plugin_name in ALWAYS_LOADED_PLUGINS:
