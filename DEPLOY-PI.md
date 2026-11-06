@@ -453,14 +453,44 @@ protect. By default the page therefore refuses to back up when the folder is on 
 (untick "Only back up when the folder is on another disk" only if that is really what you want). After mounting the
 share, run `docker compose up -d --force-recreate pellmonsrv` so the container sees it.
 
-**Restore.** Restoring replaces the database, so it stays a host command that stops the daemon:
+**Restore from the web page.** On the **Backup** page every backup in the list has a **Restore...** button.
+It opens a confirm page that shows when and on which machine the backup was made; type `RESTORE` to confirm.
+PellMon then checks the whole archive, rebuilds the RRD with `rrdtool restore` and checks the result before anything
+is replaced. Only then are the RRD database and `pellmon_settings.db` replaced; the ones that were in use are kept in
+the data folder as `rrd.db.pre-restore` and `pellmon_settings.db.pre-restore` (mode 0600, they hold password hashes
+and secrets, keep them private). Data recorded after the backup was made is lost. The Backup page's own settings
+(schedule, folder) are kept. The page shows the steps and, when it is done, "Restored from ...".
+
+- Configuration files are not restored from the web page (the config folder is mounted read-only into the server).
+  Use `python3 tools/pellmon_backup.py restore --with-config <file> --yes` on the host for that. The host tool is also the
+  fallback whenever the web restore refuses or fails.
+- In Docker the server restarts by itself after the restore and the page reconnects. On installs without Docker,
+  restart `pellmonsrv` by hand when the page says it is restarting.
+- A restore is refused when the archive's RRD layout does not match this installation (the poll items changed since
+  the backup); use the host tool then.
+- Automatic backups are paused while a restore runs.
+
+If a restore finished but the server did not come back (Docker did not restart the container), start it by hand:
+`docker compose restart pellmonsrv` (or `docker compose up -d pellmonsrv`); on installs without Docker restart the
+`pellmonsrv` service. Residual risk: between the swap of the files and the restart (about 2 seconds) other plugins
+could still write stale settings to the settings database; if a setting looks wrong after a restore, set it again or
+restore once more.
+
+**Undo a restore.** The previous data is still in the data folder. Stop the server first so nothing writes while you
+move the files, then move the `.pre-restore` copies back and start it again:
 
 ```bash
-python3 tools/pellmon_backup.py restore /mnt/nas-backup/pellmon-backup-20261105-030000.tar.gz --yes
+docker compose stop pellmonsrv
+# in the data folder (the host volume, /var/lib/pellmon in the container):
+mv rrd.db.pre-restore rrd.db
+mv pellmon_settings.db.pre-restore pellmon_settings.db
+docker compose start pellmonsrv
 ```
 
-Add `--with-config` to restore the config files too. Everything about the restore (the `.pre-restore` copies,
-moving between machine types) is described above.
+The next restore overwrites the `.pre-restore` files, so undo before restoring again. The host tool restore
+(`python3 tools/pellmon_backup.py restore <file> --yes`) works the same way; everything about it (the `.pre-restore`
+copies, moving between machine types) is described above. Only a logged-in user can start a restore, and the confirm
+page shows the archive time and machine so a wrong or planted file can be recognised; the folder itself should be private.
 
 **Security.** The archives contain password hashes and the MQTT and API secrets. They are created mode 0600
 where the share allows it. Keep the NAS folder private and do not share it.
@@ -477,6 +507,17 @@ where the share allows it. Keep the NAS folder private and do not share it.
 | rrdtool failed | see the server log (View log) for what rrdtool said |
 | rrdtool not found | the image is incomplete; rebuild or pull it (`docker compose build`, `docker compose pull`) |
 | settings database unreadable | the settings database `pellmon_settings.db` is damaged; restore an older backup |
+| archive not found | the file was deleted or renamed, or the NAS is not mounted; reload the page |
+| archive unreadable or damaged | the copy on the NAS is broken or the NAS did not answer; try another backup |
+| archive unsafe | the file was not made by PellMon or was tampered with; do not use it |
+| archive has no RRD or settings | a very old or partial archive; use the host tool |
+| not enough free space to restore | free space on the SD card or data disk (needs the archive size plus twice the database) |
+| rrdtool restore failed | see the server log (View log) for what rrdtool said |
+| archive RRD layout does not match this installation | the poll items changed since the backup; use the host tool |
+| archive is newer than the system clock | fix the Pi's clock (NTP) first |
+| settings database in archive is damaged | pick another backup |
+| restore already running | wait for it to finish |
+| swap failed (previous data restored) | nothing was changed; see the server log |
 
 ### Checking a deployment (`tools/pi_check.sh`)
 
@@ -604,5 +645,5 @@ container in a restart loop. Use `.env` for settings such as `SERIAL_GID` instea
 - Protocol code is verified against a simulator only, not a real burner.
 - `chown` is a no-op on Docker Desktop Windows/macOS mounts, so the data folder must live on
   a Linux filesystem (ext4, or the Pi).
-- Scheduled backups to a NAS or USB drive run from the **Backup** page (see Scheduled backups above); a restore is still a host command, `tools/pellmon_backup.py restore`.
+- Scheduled backups to a NAS or USB drive run from the **Backup** page (see Scheduled backups above); a restore is available on the same page (**Restore...**); configuration files are restored with the host tool, `tools/pellmon_backup.py restore --with-config`.
 - The config editor is not part of the compose stack (section 4).
