@@ -50,12 +50,13 @@ REASON_NOT_WRITABLE = 'folder not writable'
 REASON_NO_SPACE = 'out of space'
 REASON_SAME_DISK = 'folder is on the same disk as the database (is the NAS or USB drive mounted?)'
 REASON_TIMEOUT = 'folder did not answer (is the NAS reachable?)'
+REASON_IO = 'file error while writing the backup (see the server log)'
 REASON_RRD = 'rrdtool failed'
 REASON_RRD_MISSING = 'rrdtool not found'
 REASON_SETTINGS = 'settings database unreadable'
 REASON_VERIFY = 'archive could not be verified'
 REASON_UNKNOWN = 'unknown error (see the server log)'
-REASONS = frozenset([REASON_FOLDER_MISSING, REASON_NOT_WRITABLE, REASON_NO_SPACE, REASON_SAME_DISK, REASON_TIMEOUT, REASON_RRD,
+REASONS = frozenset([REASON_FOLDER_MISSING, REASON_NOT_WRITABLE, REASON_NO_SPACE, REASON_SAME_DISK, REASON_TIMEOUT, REASON_IO, REASON_RRD,
                      REASON_RRD_MISSING, REASON_SETTINGS, REASON_VERIFY, REASON_UNKNOWN])
 
 RRD_DUMP_ATTEMPTS = 3
@@ -92,12 +93,30 @@ def call_with_timeout(fn, seconds):
     return True, box.get('value')
 
 
+# errno values that mean "the folder does not let this user write" or "the share does not answer";
+# anything else (EIO, EBUSY, ...) is reported as a file error and its details go to the log
+_NOT_WRITABLE_ERRNOS = frozenset([errno.EACCES, errno.EPERM, errno.EROFS])
+_NO_ANSWER_ERRNOS = frozenset(getattr(errno, name) for name in
+                              ('ETIMEDOUT', 'EHOSTDOWN', 'EHOSTUNREACH', 'ENETUNREACH', 'ENETDOWN',
+                               'ECONNRESET', 'ECONNABORTED', 'ESTALE') if hasattr(errno, name))
+
+
 def _reason_for_oserror(e):
     if e.errno in (errno.ENOSPC, getattr(errno, 'EDQUOT', errno.ENOSPC)):
         return REASON_NO_SPACE
     if e.errno in (errno.ENOENT, errno.ENOTDIR):
         return REASON_FOLDER_MISSING
-    return REASON_NOT_WRITABLE
+    if e.errno in _NOT_WRITABLE_ERRNOS:
+        return REASON_NOT_WRITABLE
+    if e.errno in _NO_ANSWER_ERRNOS:
+        return REASON_TIMEOUT
+    return REASON_IO
+
+
+def _log_oserror(what, e):
+    """Say which file and which error: the page only shows a short reason"""
+    logger.warning('backup: %s: %s (%s) on %s' % (what, errno.errorcode.get(e.errno, e.errno), e.strerror,
+                                                  e.filename if e.filename else 'unknown file'), exc_info=True)
 
 
 # ---- names, listing, retention ---------------------------------------------------
@@ -197,6 +216,7 @@ def check_folder(folder, other_disk_than=None):
             os.close(fd)
         os.unlink(probe)
     except OSError as e:
+        _log_oserror('cannot write a test file in the backup folder', e)
         try:
             os.unlink(probe)
         except OSError:
@@ -364,7 +384,7 @@ def create_archive(folder, rrd_db, settings_db, conf_file, config_dir, now=None,
         raise
     except OSError as e:
         _remove_quiet(part)
-        logger.warning('backup: file error: %s' % errno.errorcode.get(e.errno, e.errno))
+        _log_oserror('file error', e)
         raise BackupError(_reason_for_oserror(e))
     except Exception:
         _remove_quiet(part)
