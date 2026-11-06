@@ -460,6 +460,42 @@ class MyDBUSService(dbus.service.Object):
             logger.error('TestBackupFolder failed: %s'%type(e).__name__)
             return json.dumps({'ok': False, 'reason': ''})
 
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='s')
+    def PreviewBackup(self, name):
+        """Read the whitelisted manifest of one archive, returns JSON"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'reason': ''})
+        try:
+            return json.dumps(plugin.preview_backup(str(name)))
+        except Exception as e:
+            logger.error('PreviewBackup failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'reason': ''})
+
+    @dbus.service.method('org.pellmon.int', in_signature='s', out_signature='s')
+    def StartRestore(self, name):
+        """Start restoring one archive in the background, returns JSON {ok, reason}"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False, 'reason': ''})
+        try:
+            return json.dumps(plugin.start_restore(str(name)))
+        except Exception as e:
+            logger.error('StartRestore failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False, 'reason': ''})
+
+    @dbus.service.method('org.pellmon.int', in_signature='', out_signature='s')
+    def AckRestoreResult(self):
+        """Mark the last restore result as shown"""
+        plugin = _backup_plugin()
+        if plugin is None:
+            return json.dumps({'ok': False, 'available': False})
+        try:
+            return json.dumps(plugin.ack_restore_result())
+        except Exception as e:
+            logger.error('AckRestoreResult failed: %s'%type(e).__name__)
+            return json.dumps({'ok': False})
+
     #@dbus.service.signal(dbus_interface='org.pellmon.int', signature='aa{sv}')
     @dbus.service.signal(dbus_interface='org.pellmon.int', signature='s')
     def changed_parameters(self, message):
