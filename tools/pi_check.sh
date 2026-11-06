@@ -79,7 +79,7 @@ info() { printf '%s       %s%s\n' "$C_DIM" "$1" "$C_OFF"; }
 envval() {
     local f="$REPO/.env" v
     [ -f "$f" ] || return 0
-    v=$(grep -E "^[[:space:]]*$1=" "$f" | tail -n 1 | cut -d= -f2-)
+    v=$(grep -E "^[[:space:]]*$1=" "$f" | tail -n 1 | cut -d= -f2- | tr -d '\r')
     v=${v%\"}; v=${v#\"}; v=${v%\'}; v=${v#\'}
     printf '%s' "$v"
 }
@@ -156,11 +156,14 @@ for c in "$DBUS" "$SRV" "$WEB"; do
 done
 
 image_ver=$(cexec "$SRV" 'cat /app/VERSION' | head -n 1 | tr -d '[:space:]')
-repo_ver=$(tr -d '[:space:]' < "$REPO/VERSION" 2>/dev/null)
+repo_ver=""
+[ -f "$REPO/VERSION" ] && repo_ver=$(tr -d '[:space:]\r' < "$REPO/VERSION")
 if [ -n "$image_ver" ]; then
     ok "pellmonsrv image version: $image_ver"
     if [ -n "$repo_ver" ] && [ "$image_ver" != "$repo_ver" ]; then
         warn "image is $image_ver but this checkout says $repo_ver (docker compose pull / git pull, then up -d)"
+    elif [ -z "$repo_ver" ]; then
+        info "no VERSION file in $REPO: this does not look like a full checkout (docker-compose.yml, .env and tools/ should be there)"
     fi
 else
     warn "could not read the image version from the pellmonsrv container"
@@ -169,12 +172,18 @@ tz=$(cexec "$SRV" 'date +"%Z %z"' | head -n 1)
 [ -n "$tz" ] && info "server time zone in the container: $tz (backup times use it; set TZ in .env)"
 
 # ---------------------------------------------------------------- 2. daemon log
-section "Daemon log (last $LOG_LINES lines)"
+section "Daemon log (/var/log/pellmon/pellmon.log, last $LOG_LINES lines)"
 
-logs=$("$DOCKER" logs --tail "$LOG_LINES" "$SRV" 2>&1)
-plugins=$(printf '%s\n' "$logs" | grep -E 'Activated plugins:' | tail -n 1)
+# the daemon writes /var/log/pellmon/pellmon.log (docker logs only has what goes to stderr)
+logs=$(cexec "$SRV" "tail -n $LOG_LINES /var/log/pellmon/pellmon.log 2>/dev/null")
+if [ -z "$logs" ]; then
+    info "no /var/log/pellmon/pellmon.log in the container, using docker logs instead"
+    logs=$("$DOCKER" logs --tail "$LOG_LINES" "$SRV" 2>&1)
+fi
+plugins=$(cexec "$SRV" "grep -h 'Activated plugins:' /var/log/pellmon/pellmon.log* 2>/dev/null | tail -n 1")
+[ -z "$plugins" ] && plugins=$(printf '%s\n' "$logs" | grep -E 'Activated plugins:' | tail -n 1)
 if [ -z "$plugins" ]; then
-    warn "no 'Activated plugins:' line in the log (the log may have rotated, or the daemon failed to start)"
+    warn "no 'Activated plugins:' line in /var/log/pellmon/pellmon.log (rotated away, or the daemon failed to start: View log in the web interface)"
 else
     info "$plugins"
     for p in Backup HomeAssistant Openweathermap; do
@@ -395,6 +404,7 @@ fi
 section "Web interface"
 
 [ -z "$WEB_URL" ] && WEB_URL="http://localhost:$(envval PELLMON_WEB_PORT)"
+WEB_URL=$(printf '%s' "$WEB_URL" | tr -d '\r')
 [ "$WEB_URL" = "http://localhost:" ] && WEB_URL="http://localhost:8081"
 if ! command -v "$CURL" >/dev/null 2>&1; then
     warn "curl is not installed, web checks skipped"

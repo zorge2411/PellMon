@@ -51,13 +51,18 @@ ARCHIVE_LINE = "1800000000.0 3145728 600 /backups/pellmon-backup-20261105-030000
 MEMBERS = "config/\nconfig/pellmon.conf\nmanifest.json\npellmon_settings.db\nrrd.xml\n"
 
 
+LOG_TEXT = "x\nActivated plugins: ScotteCom, HomeAssistant, Openweathermap, Backup\nBackup written: a.tar.gz (3072 kB), 0 old archive(s) removed\n"
+
+
 def healthy_rules():
     insp = {"out": "running|healthy|0\n"}
     return {
         "info": {},
         "inspect:pellmon-dbus": insp, "inspect:pellmonsrv": insp, "inspect:pellmonweb": insp,
-        "logs": {"out": "x\nActivated plugins: ScotteCom, HomeAssistant, Openweathermap, Backup\nBackup written: a.tar.gz (3072 kB), 0 old archive(s) removed\n"},
+        "logs": {"out": ""},
         "exec": [
+            {"match": "tail -n 1000 /var/log/pellmon/pellmon.log", "out": LOG_TEXT},
+            {"match": "grep -h 'Activated plugins:'", "out": "Activated plugins: ScotteCom, HomeAssistant, Openweathermap, Backup\n"},
             {"match": "cat /app/VERSION", "out": "2.7.0\n"},
             {"match": 'date +"%Z', "out": "CET +0100\n"},
             {"match": "id -u", "out": "999\n"},
@@ -172,7 +177,7 @@ def test_everything_is_read_only(env):
 
 def test_backup_plugin_not_active_is_a_failure(env):
     rules = healthy_rules()
-    rules["logs"] = {"out": "Activated plugins: ScotteCom, HomeAssistant, Openweathermap\n"}
+    rule(rules, "grep -h 'Activated plugins:'", out="Activated plugins: ScotteCom, HomeAssistant, Openweathermap\n")
     res = run(env, rules)
     assert res.returncode == 1
     assert any("plugin Backup is not active" in l for l in lines(res, "FAIL"))
@@ -206,7 +211,7 @@ def test_stale_image_version_warns(env):
 
 def test_tracebacks_warn(env):
     rules = healthy_rules()
-    rules["logs"]["out"] += "Traceback (most recent call last):\n  File x\nValueError\n"
+    rule(rules, "tail -n 1000 /var/log/pellmon/pellmon.log", out=LOG_TEXT + "Traceback (most recent call last):\n  File x\nValueError\n")
     assert any("traceback" in l for l in lines(run(env, rules), "WARN"))
 
 
@@ -380,3 +385,40 @@ def test_repo_is_found_when_the_script_is_copied_into_the_checkout(env, tmp_path
     res = subprocess.run([str(copy), "--no-color", "--backup-dir", str(env["backups"]), "--data-dir", str(env["repo"] / "pdata")],
                          capture_output=True, text=True, timeout=60, env=e)
     assert "but this checkout says 9.9.9" in res.stdout  # VERSION came from the script's own folder
+
+
+# ---- problems seen on a real Pi ----
+
+def test_env_file_with_windows_line_endings(env):
+    """A .env edited on Windows has CRLF: the port and folders must not carry a CR into URLs and paths"""
+    env_file = ('TZ=UTC\r\nPELLMON_BACKUP_DIR=%s\r\nPELLMON_DATA_DIR=%s\r\nPELLMON_WEB_PORT=9000\r\n'
+                % (env["backups"], env["repo"] / "pdata"))
+    res = run(env, env_file=env_file)
+    assert "\r" not in res.stdout
+    assert "PELLMON_BACKUP_DIR = %s\n" % env["backups"] in res.stdout
+    assert "backup folder is on a different disk" in res.stdout
+    assert not lines(res, "FAIL"), res.stdout
+
+
+def test_missing_version_file_is_not_an_error(env):
+    """A partial copy of the repo (no VERSION) must not print a shell error"""
+    (env["repo"] / "VERSION").unlink()
+    res = run(env)
+    assert "No such file" not in res.stdout + res.stderr
+    assert "does not look like a full checkout" in res.stdout
+    assert res.returncode == 0
+
+
+def test_the_daemon_log_file_is_used_not_docker_logs(env):
+    res = run(env)
+    assert "plugin Backup is active" in res.stdout
+    assert not any(c[0] == "logs" for c in res.calls)
+
+
+def test_falls_back_to_docker_logs_without_a_log_file(env):
+    rules = healthy_rules()
+    rule(rules, "tail -n 1000 /var/log/pellmon/pellmon.log", out="")
+    rule(rules, "grep -h 'Activated plugins:'", out="")
+    rules["logs"] = {"out": "Activated plugins: ScotteCom, HomeAssistant, Openweathermap, Backup\n"}
+    res = run(env, rules)
+    assert "using docker logs instead" in res.stdout and "plugin Backup is active" in res.stdout
