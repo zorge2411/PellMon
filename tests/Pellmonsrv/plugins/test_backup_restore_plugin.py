@@ -280,3 +280,68 @@ def test_restore_preview(env, monkeypatch):
     p.preview_timeout = 0.1
     monkeypatch.setattr(core, 'preview_archive', lambda path: time.sleep(1))
     assert p.preview_backup(name) == {'ok': False, 'reason': core.REASON_TIMEOUT}
+
+
+# ---- result persistence, cleanup, status block -------------------------------------------
+
+def test_restore_activate_cleans_leftovers(env):
+    data = env['data']
+    (data / '.restore-tmp').mkdir()
+    (data / '.restore-tmp' / 'x').write_text('x')
+    (data / 'rrd.db.restore-new').write_text('x')
+    (data / 'pellmon_settings.db.restore-new').write_text('x')
+    (data / 'rrd.db.pre-restore').write_text('keep')
+    make(env)
+    assert sorted(os.listdir(str(data))) == ['pellmon_settings.db', 'rrd.db.pre-restore']
+
+
+def test_restore_result_survives_restart(env):
+    core.write_result(str(env['data']), dict(name=NAME, time=1.0, ok=True, reason='', restart='auto'))
+    p = make(env)
+    r = p.status_dict()['restore']['result']
+    assert r['name'] == NAME and r['ok'] is True and r['restart'] == 'auto' and r['reason'] == ''
+    assert p.ack_restore_result() == {'ok': True}
+    assert p.status_dict()['restore']['result'] is None
+    q = make(env)
+    assert q.status_dict()['restore']['result'] is None
+    assert q.ack_restore_result() == {'ok': True}
+
+
+def test_restore_ack_resets_failed_state(env, monkeypatch):
+    name = add_archive(env)
+    p = make(env)
+
+    def boom(progress, should_continue, on_swapped):
+        raise core.BackupError(core.REASON_LAYOUT)
+
+    fake_restore(monkeypatch, boom)
+    assert p.start_restore(name)['ok']
+    assert wait_for(lambda: p.restore['state'] == 'failed' and not p.restoring)
+    assert p.status_dict()['restore']['result']['ok'] is False
+    assert p.ack_restore_result() == {'ok': True}
+    s = p.status_dict()['restore']
+    assert s['state'] == 'idle' and s['step'] == 0 and s['name'] == '' and s['reason'] == ''
+    assert s['result'] is None
+
+
+def test_restore_ack_keeps_non_failed_state(env):
+    p = make(env)
+    p.restore = dict(state='restarting', step=5, name=NAME, reason='')
+    p.ack_restore_result()
+    assert p.restore['state'] == 'restarting'
+
+
+def test_restore_status_block(env):
+    p = make(env)
+    s = p.status_dict()
+    assert s['restore'] == {'state': 'idle', 'step': 0, 'steps': 5, 'name': '', 'reason': '',
+                            'restart': 'manual', 'result': None}
+    dumped = json.dumps(s)
+    assert str(env['data']) not in dumped.replace('\\', '/')
+
+
+def test_restore_status_lists_all_archives(env):
+    for i in range(25):
+        open(os.path.join(env['root'], 'pellmon-backup-202611%02d-030000.tar.gz' % (i + 1)), 'wb').write(b'x')
+    s = make(env).status_dict()
+    assert s['archive_count'] == 25 and len(s['archives']) == 25

@@ -37,7 +37,6 @@ from . import settings as backup_settings
 logger = getLogger('pellMon')
 
 DEFAULT_ROOT = '/backups'
-LIST_LIMIT = 20
 REASON_BUSY = 'a backup is already running'
 RESTORE_STEPS_TOTAL = 5
 STEP_NUMBERS = {'checking': 1, 'extracting': 2, 'building': 3, 'swapping': 4, 'restarting': 5}
@@ -101,6 +100,9 @@ class backupplugin(protocols):
         self.data_dir = os.path.dirname(os.path.abspath(self.nvdb)) if self.nvdb else None
         self.poll_ds_names = [d.get('ds_name') for d in (getattr(daemon_conf, 'pollData', None) or [])]
         self.in_docker = os.path.exists('/.dockerenv')
+        if self.data_dir:
+            core.clean_restore_leftovers(self.data_dir, [self.rrd_db, self.nvdb, self.settings_db])
+            self.restore_result = core.read_result(self.data_dir)
         if self.autostart:
             t = threading.Thread(target=self.scheduler, name='backup-scheduler')
             t.daemon = True
@@ -338,6 +340,17 @@ class backupplugin(protocols):
         if self.data_dir:
             core.write_result(self.data_dir, result)
 
+    def ack_restore_result(self):
+        """The web page has shown the result. A failed restore also returns the in-memory state to idle."""
+        result = self.restore_result
+        if result and not result.get('acknowledged'):
+            result['acknowledged'] = True
+            if self.data_dir:
+                core.write_result(self.data_dir, result)
+        if self.restore.get('state') == 'failed':
+            self.restore = dict(state='idle', step=0, name='', reason='')
+        return {'ok': True}
+
     def _restore_progress(self, step):
         self.restore = dict(self.restore, state=step, step=STEP_NUMBERS.get(step, 0))
 
@@ -410,7 +423,13 @@ class backupplugin(protocols):
             'next_run': next_run, 'root': self.root, 'folder': folder,
             'folder_exists': listing['folder_exists'], 'same_disk': listing['same_disk'],
             'folder_slow': slow,
-            'archive_count': listing['count'], 'archives': listing['archives'][:LIST_LIMIT],
+            'archive_count': listing['count'], 'archives': listing['archives'],
+            'restoring': self.restoring,
+            'restore': dict(self.restore, steps=RESTORE_STEPS_TOTAL,
+                            restart='auto' if self.in_docker else 'manual',
+                            result=(dict(self.restore_result)
+                                    if self.restore_result and not self.restore_result.get('acknowledged')
+                                    else None)),
         }
 
     def _read_listing(self, folder):
@@ -418,7 +437,7 @@ class backupplugin(protocols):
         other = os.path.dirname(os.path.abspath(self.rrd_db)) if self.rrd_db else None
         exists = os.path.isdir(folder)
         archives = core.list_archives(folder) if exists else []
-        return {'folder_exists': exists, 'count': len(archives), 'archives': archives[:LIST_LIMIT],
+        return {'folder_exists': exists, 'count': len(archives), 'archives': archives,
                 'same_disk': bool(other and exists and core.same_disk(folder, other))}
 
     def _listing(self, folder):
