@@ -284,4 +284,5 @@ def test_e3_navbar_stays_on_one_row(page_at):
     assert page.locator(".navbar-nav > li", has_text="Home Assistant").count() == 1
     assert page.locator(".navbar").first.bounding_box()["height"] <= 60
     pad = page.locator(".navbar-nav > li > a").first.evaluate("e => getComputedStyle(e).paddingLeft")
-    assert pad == "8px", "H-E3: navbar link padding-left is %s" % pad
+    # tightened from 8px to 5px (with a 13px font) when the Backup menu entry made nine entries
+    assert pad == "5px", "H-E3: navbar link padding-left is %s" % pad
