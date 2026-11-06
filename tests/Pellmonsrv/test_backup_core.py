@@ -329,6 +329,64 @@ def test_errors_while_writing_get_an_accurate_reason(env, monkeypatch, err, reas
     assert e.value.reason == reason
 
 
+def _flaky_replace(monkeypatch, fail_times):
+    real = os.replace
+    calls = {'n': 0}
+
+    def replace(a, b, *args, **kw):
+        calls['n'] += 1
+        if calls['n'] <= fail_times:
+            raise OSError(errno.EIO, 'Input/output error', a)
+        return real(a, b, *args, **kw)
+    monkeypatch.setattr(bk.os, 'replace', replace)
+    return calls
+
+
+def test_a_refused_rename_is_retried(env, monkeypatch):
+    calls = _flaky_replace(monkeypatch, 1)
+    made = make(env, now=D(2026, 11, 5, 3, 0, 0))
+    assert calls['n'] == 2
+    assert os.listdir(env['folder']) == [made['name']]
+
+
+def test_when_the_share_always_refuses_the_rename_the_archive_is_copied(env, monkeypatch, caplog):
+    calls = _flaky_replace(monkeypatch, 99)
+    with caplog.at_level('WARNING', logger='pellMon'):
+        made = make(env, now=D(2026, 11, 5, 3, 0, 0))
+    assert calls['n'] == bk.RENAME_ATTEMPTS
+    assert os.listdir(env['folder']) == [made['name']]  # no .part left behind
+    path = os.path.join(env['folder'], made['name'])
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    with tarfile.open(path) as tar:
+        assert set(tar.getnames()) >= {'rrd.xml', 'pellmon_settings.db', 'manifest.json'}
+    assert 'copying the archive under its final name' in caplog.text
+
+
+def test_a_failed_copy_leaves_nothing_behind(env, monkeypatch):
+    _flaky_replace(monkeypatch, 99)
+
+    def broken(*a, **k):
+        raise OSError(errno.EIO, 'Input/output error')
+    monkeypatch.setattr(bk.shutil, 'copyfileobj', broken)
+    with pytest.raises(bk.BackupError) as e:
+        make(env, now=D(2026, 11, 5, 3, 0, 0))
+    assert e.value.reason == bk.REASON_IO
+    assert os.listdir(env['folder']) == []
+
+
+def test_a_full_share_is_not_retried(env, monkeypatch):
+    calls = {'n': 0}
+
+    def full(a, b, *args, **kw):
+        calls['n'] += 1
+        raise OSError(errno.ENOSPC, 'no space', a)
+    monkeypatch.setattr(bk.os, 'replace', full)
+    with pytest.raises(bk.BackupError) as e:
+        make(env)
+    assert e.value.reason == bk.REASON_NO_SPACE and calls['n'] == 1
+    assert os.listdir(env['folder']) == []
+
+
 def test_unexpected_error_is_reported_without_details(env, monkeypatch):
     def broken(*a, **k):
         raise RuntimeError('/secret/path leaked')

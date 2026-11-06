@@ -354,6 +354,46 @@ def _verify_archive(path):
         raise BackupError(REASON_VERIFY)
 
 
+RENAME_ATTEMPTS = 3
+
+
+def _publish(part, final, retry_delay):
+    """Put the finished archive under its final name. The rename is atomic, so it comes first. Some
+    network shares (seen on a QNAP over SMB) accept new files but answer a rename with EIO, so it is
+    tried a few times and then the archive is copied under its final name instead."""
+    for attempt in range(RENAME_ATTEMPTS):
+        try:
+            os.replace(part, final)
+            return
+        except OSError as e:
+            if e.errno in (errno.ENOSPC, getattr(errno, 'EDQUOT', errno.ENOSPC)):
+                raise
+            _log_oserror('renaming the finished archive failed (attempt %d of %d)' % (attempt + 1, RENAME_ATTEMPTS), e)
+            if attempt + 1 < RENAME_ATTEMPTS:
+                time.sleep(retry_delay)
+    logger.warning('backup: copying the archive under its final name instead of renaming it')
+    created = False
+    try:
+        with open(part, 'rb') as src:
+            fd = os.open(final, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+            created = True
+            with os.fdopen(fd, 'wb') as dst:
+                shutil.copyfileobj(src, dst, 1 << 20)
+                dst.flush()
+                try:
+                    os.fsync(dst.fileno())
+                except OSError:
+                    pass
+        if os.path.getsize(final) != os.path.getsize(part):
+            raise BackupError(REASON_VERIFY)
+        _verify_archive(final)
+    except BaseException:
+        if created:  # never remove an archive this run did not create
+            _remove_quiet(final)
+        raise
+    _remove_quiet(part)
+
+
 def create_archive(folder, rrd_db, settings_db, conf_file, config_dir, now=None, rrdtool='rrdtool',
                    retry_delay=1.0, other_disk_than=None):
     """Write one backup archive into folder. Returns {'name', 'size', 'free'}; raises BackupError."""
@@ -378,7 +418,7 @@ def create_archive(folder, rrd_db, settings_db, conf_file, config_dir, now=None,
                 json.dump(build_manifest(rrd_db, settings_db, config_dir, _rrd_version(rrdtool)), f, indent=2)
             _write_archive(tmp, part)
             _verify_archive(part)
-            os.replace(part, final)
+            _publish(part, final, retry_delay)
     except BackupError:
         _remove_quiet(part)
         raise
