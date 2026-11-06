@@ -368,9 +368,13 @@ def _publish(part, final, retry_delay):
         except OSError as e:
             if e.errno in (errno.ENOSPC, getattr(errno, 'EDQUOT', errno.ENOSPC)):
                 raise
-            _log_oserror('renaming the finished archive failed (attempt %d of %d)' % (attempt + 1, RENAME_ATTEMPTS), e)
             if attempt + 1 < RENAME_ATTEMPTS:
+                # usually gone a moment later: one quiet line, no traceback
+                logger.info('backup: the folder refused to rename the finished archive (%s), trying again' %
+                            errno.errorcode.get(e.errno, e.errno))
                 time.sleep(retry_delay)
+            else:
+                _log_oserror('renaming the finished archive failed (attempt %d of %d)' % (attempt + 1, RENAME_ATTEMPTS), e)
     logger.warning('backup: copying the archive under its final name instead of renaming it')
     created = False
     try:
