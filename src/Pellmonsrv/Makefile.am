@@ -5,6 +5,7 @@ srv_PYTHON = \
 	pellmonsrv.py \
 	plugin_categories.py \
 	database.py \
+	backup_core.py \
 	__init__.py \
 	version.py \
 	directories.py

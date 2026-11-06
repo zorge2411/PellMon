@@ -193,9 +193,11 @@ object {
     }
 }
 @media (min-width: 768px) and (max-width: 991px) {
+    /* nine menu entries (Backup was added in Phase 12) must stay on one row at 768px */
     .navbar-nav > li > a {
-        padding-left: 8px;
-        padding-right: 8px;
+        padding-left: 5px;
+        padding-right: 5px;
+        font-size: 13px;
     }
 }
 

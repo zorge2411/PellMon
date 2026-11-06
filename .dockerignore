@@ -64,3 +64,6 @@ screenshot.png
 
 # Runtime data
 pellmon-data/
+
+# Scheduled backups written by the Backup page (hold password hashes and secrets)
+pellmon-backups/

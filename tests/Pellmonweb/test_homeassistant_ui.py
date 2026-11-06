@@ -280,7 +280,9 @@ def test_css_order():
 
 def test_css_phase6_block_values():
     b = p6_block()
-    for needle in (".mqtt-", "max-width: 767px", "min-height: 44px", "padding-left: 8px"):
+    # padding-left 5px: the 768-991px navbar rule was tightened from 8px when the Backup menu entry
+    # was added (nine entries must stay on one row at 768px, see the browser test H-E3)
+    for needle in (".mqtt-", "max-width: 767px", "min-height: 44px", "padding-left: 5px"):
         assert needle in b, needle
     assert re.search(r"\.mqtt-form code\s*\{[^}]*font-size: 14px", b)
     assert re.search(r"\.mqtt-page \.panel-body\s*\{[^}]*padding: 16px", b)
