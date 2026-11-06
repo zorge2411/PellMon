@@ -80,7 +80,7 @@ Recent decisions affecting current work:
 - Phase 10 added: Optimize for mobile devices screen size (added 2026-09-24; not yet planned)
 - Phase 11 added: Add silo days-left and additional numeric sensors to Home Assistant (added 2026-10-08; researched, context captured, planned 2026-10-11: 5 plans, 3 waves; executed 2026-10-11: plans 1-4 done, 05 awaits real-Pi verification)
 - Phase 12 added: Add backup of the RRD database and settings to a NAS or other media (added 2026-11-05; executed 2026-11-05, pending real NAS verification)
-- Phase 13 added: Restore on webui (added 2026-11-06; not yet planned)
+- Phase 13 added: Restore on webui (added 2026-11-06; planned and executed 2026-11-06: 6 plans, 4 waves; plan 06 Pi/NAS restore check awaits the user)
 
 ### Pending Todos
 
