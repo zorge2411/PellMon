@@ -21,7 +21,12 @@
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-REPO=$(dirname "$SCRIPT_DIR")
+# the checkout: the folder above tools/, or the script's own folder when it was copied next to docker-compose.yml
+if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+    REPO=$SCRIPT_DIR
+else
+    REPO=$(dirname "$SCRIPT_DIR")
+fi
 DOCKER=${DOCKER:-docker}
 CURL=${CURL:-curl}
 SRV=pellmonsrv
@@ -74,7 +79,7 @@ info() { printf '%s       %s%s\n' "$C_DIM" "$1" "$C_OFF"; }
 envval() {
     local f="$REPO/.env" v
     [ -f "$f" ] || return 0
-    v=$(grep -E "^[[:space:]]*$1=" "$f" | tail -n 1 | cut -d= -f2-)
+    v=$(grep -E "^[[:space:]]*$1=" "$f" | tail -n 1 | cut -d= -f2- | tr -d '\r')
     v=${v%\"}; v=${v#\"}; v=${v%\'}; v=${v#\'}
     printf '%s' "$v"
 }
@@ -151,11 +156,16 @@ for c in "$DBUS" "$SRV" "$WEB"; do
 done
 
 image_ver=$(cexec "$SRV" 'cat /app/VERSION' | head -n 1 | tr -d '[:space:]')
-repo_ver=$(tr -d '[:space:]' < "$REPO/VERSION" 2>/dev/null)
+# an error message from cat is not a version
+case "$image_ver" in [0-9]*) ;; *) image_ver="" ;; esac
+repo_ver=""
+[ -f "$REPO/VERSION" ] && repo_ver=$(tr -d '[:space:]\r' < "$REPO/VERSION")
 if [ -n "$image_ver" ]; then
     ok "pellmonsrv image version: $image_ver"
     if [ -n "$repo_ver" ] && [ "$image_ver" != "$repo_ver" ]; then
         warn "image is $image_ver but this checkout says $repo_ver (docker compose pull / git pull, then up -d)"
+    elif [ -z "$repo_ver" ]; then
+        info "no VERSION file in $REPO: this does not look like a full checkout (docker-compose.yml, .env and tools/ should be there)"
     fi
 else
     warn "could not read the image version from the pellmonsrv container"
@@ -164,12 +174,18 @@ tz=$(cexec "$SRV" 'date +"%Z %z"' | head -n 1)
 [ -n "$tz" ] && info "server time zone in the container: $tz (backup times use it; set TZ in .env)"
 
 # ---------------------------------------------------------------- 2. daemon log
-section "Daemon log (last $LOG_LINES lines)"
+section "Daemon log (/var/log/pellmon/pellmon.log, last $LOG_LINES lines)"
 
-logs=$("$DOCKER" logs --tail "$LOG_LINES" "$SRV" 2>&1)
-plugins=$(printf '%s\n' "$logs" | grep -E 'Activated plugins:' | tail -n 1)
+# the daemon writes /var/log/pellmon/pellmon.log (docker logs only has what goes to stderr)
+logs=$(cexec "$SRV" "tail -n $LOG_LINES /var/log/pellmon/pellmon.log 2>/dev/null")
+if [ -z "$logs" ]; then
+    info "no /var/log/pellmon/pellmon.log in the container, using docker logs instead"
+    logs=$("$DOCKER" logs --tail "$LOG_LINES" "$SRV" 2>&1)
+fi
+plugins=$(cexec "$SRV" "grep -h 'Activated plugins:' /var/log/pellmon/pellmon.log* 2>/dev/null | tail -n 1")
+[ -z "$plugins" ] && plugins=$(printf '%s\n' "$logs" | grep -E 'Activated plugins:' | tail -n 1)
 if [ -z "$plugins" ]; then
-    warn "no 'Activated plugins:' line in the log (the log may have rotated, or the daemon failed to start)"
+    warn "no 'Activated plugins:' line in /var/log/pellmon/pellmon.log (rotated away, or the daemon failed to start: View log in the web interface)"
 else
     info "$plugins"
     for p in Backup HomeAssistant Openweathermap; do
@@ -182,11 +198,18 @@ else
 fi
 failed=$(printf '%s\n' "$logs" | grep -E 'Failed to activate plugins:' | tail -n 1)
 [ -n "$failed" ] && warn "$failed"
-tb=$(printf '%s\n' "$logs" | grep -c 'Traceback')
+# Count tracebacks from the last 24 hours only (the log file keeps months of history), and leave
+# out the harmless "No module named 'RPi'" that the raspberrygpio plugin logs at every start.
+cutoff=$(date -d '24 hours ago' '+%Y-%m-%d %H' 2>/dev/null || true)
+tb=$(printf '%s\n' "$logs" | awk -v cut="$cutoff" '
+    /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]/ { ts = substr($0, 1, 13) }
+    /Traceback/ { if (cut == "" || ts == "" || ts >= cut) total++ }
+    /No module named .RPi./ { if (cut == "" || ts == "" || ts >= cut) rpi++ }
+    END { n = total - rpi; if (n < 0) n = 0; print n + 0 }')
 if [ "$tb" -gt 0 ]; then
-    warn "$tb traceback(s) in the daemon log (docker logs $SRV | grep -B2 -A12 Traceback)"
+    warn "$tb traceback(s) in the daemon log in the last 24 hours (docker exec $SRV grep -B2 -A12 Traceback /var/log/pellmon/pellmon.log | tail -60)"
 else
-    ok "no tracebacks in the daemon log"
+    ok "no new tracebacks in the daemon log (last 24 hours)"
 fi
 backup_lines=$(printf '%s\n' "$logs" | grep -E 'Backup (written|failed|scheduler error|could not)' | tail -n 5)
 if [ -n "$backup_lines" ]; then
@@ -390,6 +413,7 @@ fi
 section "Web interface"
 
 [ -z "$WEB_URL" ] && WEB_URL="http://localhost:$(envval PELLMON_WEB_PORT)"
+WEB_URL=$(printf '%s' "$WEB_URL" | tr -d '\r')
 [ "$WEB_URL" = "http://localhost:" ] && WEB_URL="http://localhost:8081"
 if ! command -v "$CURL" >/dev/null 2>&1; then
     warn "curl is not installed, web checks skipped"

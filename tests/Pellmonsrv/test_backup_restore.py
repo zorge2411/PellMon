@@ -269,7 +269,7 @@ def test_validate_settings_db_bad(tmp_path):
 
 
 def test_reasons_registered():
-    assert len(bk.REASONS) == 21 and bk.REASON_SWAP in bk.REASONS
+    assert len(bk.REASONS) == 22 and bk.REASON_IO in bk.REASONS and bk.REASON_SWAP in bk.REASONS
 
 
 # ---- staging --------------------------------------------------------------------------

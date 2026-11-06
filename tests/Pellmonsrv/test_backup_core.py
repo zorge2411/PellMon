@@ -153,7 +153,8 @@ def test_check_folder_missing(tmp_path):
 
 
 @pytest.mark.parametrize('err,reason', [(errno.EACCES, bk.REASON_NOT_WRITABLE), (errno.EROFS, bk.REASON_NOT_WRITABLE),
-                                        (errno.ENOSPC, bk.REASON_NO_SPACE)])
+                                        (errno.ENOSPC, bk.REASON_NO_SPACE), (errno.EIO, bk.REASON_IO),
+                                        (errno.ETIMEDOUT, bk.REASON_TIMEOUT)])
 def test_check_folder_write_errors(tmp_path, monkeypatch, err, reason):
     def boom(*a, **k):
         raise OSError(err, 'x')
@@ -300,6 +301,94 @@ def test_out_of_space_while_writing(env, monkeypatch):
     with pytest.raises(bk.BackupError) as e:
         make(env)
     assert e.value.reason == bk.REASON_NO_SPACE
+    assert os.listdir(env['folder']) == []
+
+
+def test_an_io_error_while_writing_is_logged_with_file_and_traceback(env, monkeypatch, caplog):
+    def broken(tmp, out):
+        raise OSError(errno.EIO, 'Input/output error', out)
+    monkeypatch.setattr(bk, '_write_archive', broken)
+    with caplog.at_level('WARNING', logger='pellMon'):
+        with pytest.raises(bk.BackupError) as e:
+            make(env)
+    assert e.value.reason == bk.REASON_IO
+    text = caplog.text
+    assert 'EIO' in text and 'Input/output error' in text and '.part' in text and 'Traceback' in text
+    assert os.listdir(env['folder']) == []
+
+
+@pytest.mark.parametrize('err,reason', [(errno.EACCES, bk.REASON_NOT_WRITABLE), (errno.EROFS, bk.REASON_NOT_WRITABLE),
+                                        (errno.ETIMEDOUT, bk.REASON_TIMEOUT), (errno.ESTALE, bk.REASON_TIMEOUT),
+                                        (errno.EBUSY, bk.REASON_IO), (None, bk.REASON_IO)])
+def test_errors_while_writing_get_an_accurate_reason(env, monkeypatch, err, reason):
+    def broken(tmp, out):
+        raise OSError(err, 'x') if err else OSError('no errno')
+    monkeypatch.setattr(bk, '_write_archive', broken)
+    with pytest.raises(bk.BackupError) as e:
+        make(env)
+    assert e.value.reason == reason
+
+
+def _flaky_replace(monkeypatch, fail_times):
+    real = os.replace
+    calls = {'n': 0}
+
+    def replace(a, b, *args, **kw):
+        calls['n'] += 1
+        if calls['n'] <= fail_times:
+            raise OSError(errno.EIO, 'Input/output error', a)
+        return real(a, b, *args, **kw)
+    monkeypatch.setattr(bk.os, 'replace', replace)
+    return calls
+
+
+def test_a_refused_rename_is_retried_quietly(env, monkeypatch, caplog):
+    calls = _flaky_replace(monkeypatch, 1)
+    with caplog.at_level('INFO', logger='pellMon'):
+        made = make(env, now=D(2026, 11, 5, 3, 0, 0))
+    assert calls['n'] == 2
+    assert os.listdir(env['folder']) == [made['name']]
+    assert 'trying again' in caplog.text and 'EIO' in caplog.text
+    assert 'Traceback' not in caplog.text
+    assert [r for r in caplog.records if r.levelname in ('WARNING', 'ERROR')] == []
+
+
+def test_when_the_share_always_refuses_the_rename_the_archive_is_copied(env, monkeypatch, caplog):
+    calls = _flaky_replace(monkeypatch, 99)
+    with caplog.at_level('WARNING', logger='pellMon'):
+        made = make(env, now=D(2026, 11, 5, 3, 0, 0))
+    assert calls['n'] == bk.RENAME_ATTEMPTS
+    assert os.listdir(env['folder']) == [made['name']]  # no .part left behind
+    path = os.path.join(env['folder'], made['name'])
+    assert stat.S_IMODE(os.stat(path).st_mode) == 0o600
+    with tarfile.open(path) as tar:
+        assert set(tar.getnames()) >= {'rrd.xml', 'pellmon_settings.db', 'manifest.json'}
+    assert 'copying the archive under its final name' in caplog.text
+    assert 'renaming the finished archive failed (attempt 3 of 3)' in caplog.text and 'Traceback' in caplog.text
+
+
+def test_a_failed_copy_leaves_nothing_behind(env, monkeypatch):
+    _flaky_replace(monkeypatch, 99)
+
+    def broken(*a, **k):
+        raise OSError(errno.EIO, 'Input/output error')
+    monkeypatch.setattr(bk.shutil, 'copyfileobj', broken)
+    with pytest.raises(bk.BackupError) as e:
+        make(env, now=D(2026, 11, 5, 3, 0, 0))
+    assert e.value.reason == bk.REASON_IO
+    assert os.listdir(env['folder']) == []
+
+
+def test_a_full_share_is_not_retried(env, monkeypatch):
+    calls = {'n': 0}
+
+    def full(a, b, *args, **kw):
+        calls['n'] += 1
+        raise OSError(errno.ENOSPC, 'no space', a)
+    monkeypatch.setattr(bk.os, 'replace', full)
+    with pytest.raises(bk.BackupError) as e:
+        make(env)
+    assert e.value.reason == bk.REASON_NO_SPACE and calls['n'] == 1
     assert os.listdir(env['folder']) == []
 
 
