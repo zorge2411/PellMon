@@ -342,11 +342,15 @@ def _flaky_replace(monkeypatch, fail_times):
     return calls
 
 
-def test_a_refused_rename_is_retried(env, monkeypatch):
+def test_a_refused_rename_is_retried_quietly(env, monkeypatch, caplog):
     calls = _flaky_replace(monkeypatch, 1)
-    made = make(env, now=D(2026, 11, 5, 3, 0, 0))
+    with caplog.at_level('INFO', logger='pellMon'):
+        made = make(env, now=D(2026, 11, 5, 3, 0, 0))
     assert calls['n'] == 2
     assert os.listdir(env['folder']) == [made['name']]
+    assert 'trying again' in caplog.text and 'EIO' in caplog.text
+    assert 'Traceback' not in caplog.text
+    assert [r for r in caplog.records if r.levelname in ('WARNING', 'ERROR')] == []
 
 
 def test_when_the_share_always_refuses_the_rename_the_archive_is_copied(env, monkeypatch, caplog):
@@ -360,6 +364,7 @@ def test_when_the_share_always_refuses_the_rename_the_archive_is_copied(env, mon
     with tarfile.open(path) as tar:
         assert set(tar.getnames()) >= {'rrd.xml', 'pellmon_settings.db', 'manifest.json'}
     assert 'copying the archive under its final name' in caplog.text
+    assert 'renaming the finished archive failed (attempt 3 of 3)' in caplog.text and 'Traceback' in caplog.text
 
 
 def test_a_failed_copy_leaves_nothing_behind(env, monkeypatch):
