@@ -153,7 +153,8 @@ def test_check_folder_missing(tmp_path):
 
 
 @pytest.mark.parametrize('err,reason', [(errno.EACCES, bk.REASON_NOT_WRITABLE), (errno.EROFS, bk.REASON_NOT_WRITABLE),
-                                        (errno.ENOSPC, bk.REASON_NO_SPACE)])
+                                        (errno.ENOSPC, bk.REASON_NO_SPACE), (errno.EIO, bk.REASON_IO),
+                                        (errno.ETIMEDOUT, bk.REASON_TIMEOUT)])
 def test_check_folder_write_errors(tmp_path, monkeypatch, err, reason):
     def boom(*a, **k):
         raise OSError(err, 'x')
@@ -301,6 +302,31 @@ def test_out_of_space_while_writing(env, monkeypatch):
         make(env)
     assert e.value.reason == bk.REASON_NO_SPACE
     assert os.listdir(env['folder']) == []
+
+
+def test_an_io_error_while_writing_is_logged_with_file_and_traceback(env, monkeypatch, caplog):
+    def broken(tmp, out):
+        raise OSError(errno.EIO, 'Input/output error', out)
+    monkeypatch.setattr(bk, '_write_archive', broken)
+    with caplog.at_level('WARNING', logger='pellMon'):
+        with pytest.raises(bk.BackupError) as e:
+            make(env)
+    assert e.value.reason == bk.REASON_IO
+    text = caplog.text
+    assert 'EIO' in text and 'Input/output error' in text and '.part' in text and 'Traceback' in text
+    assert os.listdir(env['folder']) == []
+
+
+@pytest.mark.parametrize('err,reason', [(errno.EACCES, bk.REASON_NOT_WRITABLE), (errno.EROFS, bk.REASON_NOT_WRITABLE),
+                                        (errno.ETIMEDOUT, bk.REASON_TIMEOUT), (errno.ESTALE, bk.REASON_TIMEOUT),
+                                        (errno.EBUSY, bk.REASON_IO), (None, bk.REASON_IO)])
+def test_errors_while_writing_get_an_accurate_reason(env, monkeypatch, err, reason):
+    def broken(tmp, out):
+        raise OSError(err, 'x') if err else OSError('no errno')
+    monkeypatch.setattr(bk, '_write_archive', broken)
+    with pytest.raises(bk.BackupError) as e:
+        make(env)
+    assert e.value.reason == reason
 
 
 def test_unexpected_error_is_reported_without_details(env, monkeypatch):
