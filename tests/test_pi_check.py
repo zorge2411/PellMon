@@ -209,10 +209,42 @@ def test_stale_image_version_warns(env):
     assert res.returncode == 0
 
 
-def test_tracebacks_warn(env):
+def _stamp(hours_ago):
+    import datetime
+    t = datetime.datetime.now() - datetime.timedelta(hours=hours_ago)
+    return t.strftime("%Y-%m-%d %H:%M:%S,000")
+
+
+def _log_with(hours_ago, body):
+    return LOG_TEXT + "%s - ERROR - something\nTraceback (most recent call last):\n  File x\n%s\n" % (_stamp(hours_ago), body)
+
+
+def test_recent_traceback_warns(env):
     rules = healthy_rules()
-    rule(rules, "tail -n 1000 /var/log/pellmon/pellmon.log", out=LOG_TEXT + "Traceback (most recent call last):\n  File x\nValueError\n")
-    assert any("traceback" in l for l in lines(run(env, rules), "WARN"))
+    rule(rules, "tail -n 1000 /var/log/pellmon/pellmon.log", out=_log_with(1, "ValueError: boom"))
+    assert any("1 traceback(s) in the daemon log in the last 24 hours" in l for l in lines(run(env, rules), "WARN"))
+
+
+def test_old_tracebacks_do_not_warn(env):
+    rules = healthy_rules()
+    rule(rules, "tail -n 1000 /var/log/pellmon/pellmon.log", out=_log_with(100, "OSError: no connection to the burner"))
+    res = run(env, rules)
+    assert not any("traceback" in l for l in lines(res, "WARN"))
+    assert any("no new tracebacks" in l for l in lines(res, "OK"))
+
+
+def test_the_rpi_import_error_is_ignored(env):
+    rules = healthy_rules()
+    rule(rules, "tail -n 1000 /var/log/pellmon/pellmon.log", out=_log_with(1, "ModuleNotFoundError: No module named 'RPi'"))
+    assert not any("traceback" in l for l in lines(run(env, rules), "WARN"))
+
+
+def test_a_failed_version_read_is_not_ok(env):
+    rules = healthy_rules()
+    rule(rules, "cat /app/VERSION", out="cat: /app/VERSION: No such file or directory\n")
+    res = run(env, rules)
+    assert any("could not read the image version" in l for l in lines(res, "WARN"))
+    assert not any("image version" in l for l in lines(res, "OK"))
 
 
 def test_unwritable_backup_folder_in_the_container(env):
