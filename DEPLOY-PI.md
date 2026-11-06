@@ -472,7 +472,7 @@ where the share allows it. Keep the NAS folder private and do not share it.
 | folder missing (is the NAS mounted?) | `PELLMON_BACKUP_DIR` in `.env`, that the share is mounted on the host, then recreate `pellmonsrv` |
 | folder is on the same disk as the database | the NAS/drive is not mounted (see above) |
 | folder not writable | the folder must allow uid 999 to create files (`chown 999:999`, NFS export, `uid=999` for CIFS) |
-| file error while writing the backup | the share accepted the test file but a later step failed (an I/O error, for example). The server log (View log) has a line `backup: file error: EIO ... on <file>` and a traceback naming the step |
+| file error while writing the backup | the share accepted the test file but a later step failed (an I/O error, for example). The server log (View log) has a line `backup: file error: EIO ... on <file>` and a traceback naming the step. Some NAS shares refuse to rename a finished file; PellMon retries the rename and then copies the archive under its final name (log line `copying the archive under its final name`), so that case needs no action |
 | out of space | free space on the NAS, or lower the number of backups kept |
 | folder did not answer (is the NAS reachable?) | the NAS is off or the network share is hung; check the NAS and the host mount (`ls /mnt/nas-backup`) |
 | rrdtool failed | see the server log (View log) for what rrdtool said |
