@@ -478,6 +478,27 @@ where the share allows it. Keep the NAS folder private and do not share it.
 | rrdtool not found | the image is incomplete; rebuild or pull it (`docker compose build`, `docker compose pull`) |
 | settings database unreadable | the settings database `pellmon_settings.db` is damaged; restore an older backup |
 
+### Checking a deployment (`tools/pi_check.sh`)
+
+Run `tools/pi_check.sh` on the Pi (from anywhere; your user needs Docker access, or use `sudo`) after an update or
+after setting up the backup folder. It only reads: it never changes your data, settings or containers (it
+writes and deletes one tiny test file in the backup folder to prove the daemon user can write there). It prints
+`OK`, `WARN` and `FAIL` lines and exits 1 when something failed. It checks:
+
+- the containers, their health, and that the image matches this checkout's `VERSION`;
+- the daemon log: `Backup`, `HomeAssistant` and `Openweathermap` active, tracebacks, recent Backup lines;
+- the backup folder on the host (mounted, on another disk than the data, free space) and inside the container
+  (visible, writable as uid 999, on another disk);
+- the Backup plugin's stored settings and the result of the last backup;
+- the newest archive: not damaged, has `rrd.xml`, `pellmon_settings.db` and `manifest.json`, and a real
+  `rrdtool restore` of its RRD dump works in a scratch folder (the live data is not touched; use
+  `--skip-restore` to skip this, because it extracts the RRD dump, which can be 100 MB or more);
+- that the RRD is being updated, the settings database is mode 600, and the web pages answer.
+
+Options: `--backup-dir DIR` and `--data-dir DIR` override `PELLMON_BACKUP_DIR` and `PELLMON_DATA_DIR` from `.env`,
+`--web-url URL` for a non-default port, `--logs N` for how many log lines to scan, `--no-color`. Paste the output
+when asking for help. Things only a person can do (unplug the NAS, watch Home Assistant) are listed at the end.
+
 ### Moving data off the old named volume (one time)
 
 Older deployments kept data in a Docker named volume. Find its name with `docker volume ls`,

@@ -1,0 +1,10 @@
+# Scripts with a shebang must keep LF line endings on every platform: a CRLF checkout (Windows,
+# core.autocrlf=true) turns "#!/usr/bin/env bash" into "bash\r" and the script fails with
+# "/usr/bin/env: 'bash\r': No such file or directory".
+*.sh text eol=lf
+*.in text eol=lf
+autogen.sh text eol=lf
+tools/*.py text eol=lf
+src/**/*.py text eol=lf
+Dockerfile text eol=lf
+docker-compose.yml text eol=lf
