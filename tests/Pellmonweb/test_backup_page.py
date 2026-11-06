@@ -334,7 +334,7 @@ def render(**over):
     ctx = dict(username='u', webroot='', active_page='backup', settings=settings, weekdays=bp.WEEKDAYS, errors={}, msg='',
                msg_level='', auth_configured=True, available=True, daemon_down=False, root='/backups',
                status=bp.status_view(STATUS_OK), warnings=[], archives=bp.archive_rows(STATUS_OK), archive_count=1,
-               folder='/backups/pellmon')
+               folder='/backups/pellmon', restore=bp.restore_view(STATUS_OK))
     ctx.update(over)
     return TemplateLookup(directories=[str(HTML_DIR)]).get_template('backup.html').render(**ctx)
 
@@ -382,7 +382,7 @@ def test_template_disables_buttons_without_credentials_or_plugin():
 def test_template_empty_state_and_warnings():
     html = render(archives=[], archive_count=0, warnings=[bp.WARN_SAME_DISK])
     assert 'No backups in this folder yet' in html and 'same disk as the database' in html
-    assert 'Showing the newest' in render(archive_count=30)
+    assert 'Showing the newest' not in render(archive_count=30)
 
 
 def test_menu_entry_exists_in_layout():
@@ -532,3 +532,51 @@ def test_index_shows_result_once(cherrypy_request_ctx):
     c, d = _make()
     c.index()
     assert 'ack' not in d.calls
+
+
+def render_confirm(**over):
+    ctx = dict(username='u', webroot='', active_page='backup', name=NAME, when='2023-11-14 22:13', size='3.0 MB',
+               created='2023-11-14T22:13:20', machine='pi', rrdtool_version='1.7.2', created_by='PellMon',
+               has_config=False, restart='auto', auth_configured=True, error='')
+    ctx.update(over)
+    return TemplateLookup(directories=[str(HTML_DIR)]).get_template('backup_restore.html').render(**ctx)
+
+
+def test_template_restore_links():
+    html = render()
+    m = re.search(r'<a [^>]*href="/backup/restore\?name=([^"]+)"[^>]*>Restore\.\.\.</a>', html)
+    assert m and m.group(1) == NAME
+    assert html.count('<form') == 3
+    for kw in (dict(auth_configured=False), dict(available=False)):
+        h = render(**kw)
+        assert 'backup/restore?name=' not in h and 'text-muted">Restore...' in h
+
+
+def test_template_restore_panel():
+    html = render()
+    tag = re.search(r'<div id="backup-restore"[^>]*>', html).group(0)
+    assert 'data-url="/backup/restore_status"' in tag and 'data-active="0"' in tag
+    assert 'role="status"' in tag and 'aria-live="polite"' in tag
+    busy = bp.restore_view(dict(STATUS_OK, restore=dict(state='extracting', step=2, steps=5, name=NAME)))
+    html = render(restore=dict(busy, text='<b>x</b>'))
+    assert 'data-active="1"' in html and '<b>x</b>' not in html and '&lt;b&gt;x&lt;/b&gt;' in html
+
+
+def test_template_help_mentions_with_config():
+    html = render()
+    assert 'pellmon_backup.py restore --with-config' in html and 'Showing the newest' not in html
+
+
+def test_confirm_template():
+    html = render_confirm(machine='<script>x</script>', has_config=True)
+    assert '<script>x</script>' not in html and '&lt;script&gt;' in html
+    assert html.count('<form') == 1 and 'method="post"' in html and 'action="/backup/restore_run"' in html
+    assert re.search(r'<input type="hidden" name="name" value="%s"' % re.escape(NAME), html)
+    assert re.search(r'<input[^>]*name="confirm"[^>]*autocomplete="off"', html)
+    for text in ('.pre-restore', 'after the backup was made is lost', 'not restored', '--with-config',
+                 'restarts by itself', '2023-11-14 22:13', '1.7.2'):
+        assert text in html, text
+    assert 'href="/backup/"' in html and 'disabled' not in html
+    assert 'Restart the PellMon server when the restore is done' in render_confirm(restart='manual')
+    assert 'contains configuration files' not in render_confirm(has_config=False)
+    assert re.search(r'<button[^>]* disabled>', render_confirm(auth_configured=False))

@@ -1,0 +1,57 @@
+<%inherit file="layout.html"/>
+<%def name="title()">
+Restore backup
+</%def>
+<div class="container mqtt-page">
+	<h1>Restore a backup</h1>
+	% if error:
+	<div class="alert alert-danger" role="alert" tabindex="-1">${error | h}</div>
+	% endif
+	<section class="panel panel-default">
+		<div class="panel-heading">Backup</div>
+		<div class="panel-body">
+			<dl class="dl-horizontal">
+				<dt>Backup</dt><dd>${name | h}</dd>
+				<dt>Made</dt><dd>${when | h}</dd>
+				<dt>Size</dt><dd>${size | h}</dd>
+				<dt>Created</dt><dd>${created | h}</dd>
+				<dt>Machine</dt><dd>${machine | h}</dd>
+				<dt>rrdtool version</dt><dd>${rrdtool_version | h}</dd>
+			</dl>
+		</div>
+	</section>
+	<section class="panel panel-default">
+		<div class="panel-heading">What happens</div>
+		<div class="panel-body">
+			<ul>
+				<li>The RRD database and the settings are replaced by the ones in the backup.</li>
+				<li>Data recorded after the backup was made is lost.</li>
+				<li>The current files are kept as rrd.db.pre-restore and pellmon_settings.db.pre-restore in the data folder.</li>
+				<li>Configuration files are not restored from this page. To restore them too, run <code>python3 tools/pellmon_backup.py restore --with-config &lt;file&gt;</code> on the host.
+				% if has_config:
+				This backup contains configuration files.
+				% endif
+				</li>
+				% if restart == 'auto':
+				<li>The PellMon server restarts by itself; this page reconnects when it is back.</li>
+				% else:
+				<li>Restart the PellMon server when the restore is done.</li>
+				% endif
+			</ul>
+		</div>
+	</section>
+	<form method="post" action="${webroot | h}/backup/restore_run">
+		<input type="hidden" name="name" value="${name | h}">
+		<div class="form-group">
+			<label for="confirm">Type RESTORE to confirm</label>
+			<input type="text" class="form-control" id="confirm" name="confirm" autocomplete="off" autocapitalize="characters" spellcheck="false" required>
+		</div>
+		<div class="mqtt-actions" style="margin-bottom:24px">
+			<button type="submit" class="btn btn-danger"${'' if auth_configured else ' disabled'}>Restore this backup</button>
+			<a class="btn btn-default" href="${webroot | h}/backup/">Cancel</a>
+		</div>
+		% if not auth_configured:
+		<p class="help-block">Saving is disabled until web login credentials are configured.</p>
+		% endif
+	</form>
+</div>
