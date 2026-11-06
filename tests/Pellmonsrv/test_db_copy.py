@@ -59,6 +59,79 @@ def test_reentrant_copy_is_skipped(daemon_module, conf_stub, mocker):
     assert len(calls) == 1
 
 
+def test_restore_done_skips_store(daemon_module, conf_stub, mocker):
+    cp = mocker.patch.object(daemon_module.shutil, "copy")
+    conf_stub.restore_done = True
+    assert daemon_module.copy_db("store") is False
+    cp.assert_not_called()
+    assert daemon_module.copy_db("restore") is True
+    cp.assert_called_once_with("/tmp/b.db", "/tmp/a.db")
+
+
+def test_restore_copy_holds_restore_lock(daemon_module, conf_stub, mocker):
+    seen = []
+
+    def fake_copy(src, dst):
+        seen.append(daemon_module.restore_lock.locked())
+
+    mocker.patch.object(daemon_module.shutil, "copy", side_effect=fake_copy)
+    daemon_module.copy_db("store")
+    assert seen == [True]
+    assert not daemon_module.restore_lock.locked()
+
+
+def test_restore_sigterm_does_not_store(daemon_module, conf_stub, mocker, caplog):
+    import logging
+    daemon_module.logger = logging.getLogger("pellMon")
+    conf_stub.polling = True
+    conf_stub.restore_done = True
+    cp = mocker.patch.object(daemon_module.shutil, "copy")
+    with caplog.at_level("INFO", logger="pellMon"):
+        daemon_module.sigterm_handler(15)
+    cp.assert_not_called()
+    assert "RRD database synced" not in caplog.text
+
+
+def test_restore_db_copy_thread_skips(daemon_module, conf_stub, mocker):
+    conf_stub.restore_done = True
+    conf_stub.db_store_interval = 60
+    cp = mocker.patch.object(daemon_module.shutil, "copy")
+    timer = mocker.patch.object(daemon_module.threading, "Timer")
+    daemon_module.db_copy_thread()
+    cp.assert_not_called()
+    assert timer.called
+
+
+def test_restore_poller_update_holds_lock(daemon_module, conf_stub, mocker):
+    import threading
+    conf_stub.polling = True
+    conf_stub.pollData = []
+    conf_stub.lastupdate_time = 0
+    conf_stub.lastupdate = {}
+    conf_stub.database = {}
+    called = []
+    poller = daemon_module.Poller.__new__(daemon_module.Poller)
+    threading.Thread.__init__(poller)
+    poller.ev = threading.Event()
+    poller.ev.set()
+    poller.period = 1
+    poller.running = True
+    poller.timesync_wait = 0
+
+    class FakeProc(object):
+        returncode = 0
+
+        def communicate(self):
+            called.append(daemon_module.restore_lock.locked())
+            poller.running = False
+            return (b"", b"")
+
+    mocker.patch.object(daemon_module.subprocess, "Popen", return_value=FakeProc())
+    mocker.patch.object(daemon_module.time, "sleep")
+    poller.run()
+    assert called == [True]
+
+
 def test_rrd_create_command_is_argv_list(daemon_module, tmp_path):
     conffile = tmp_path / "p.conf"
     conffile.write_text(

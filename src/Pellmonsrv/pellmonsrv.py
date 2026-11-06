@@ -547,18 +547,19 @@ class Poller(threading.Thread):
                         logger.info('gave up waiting for timesync, continuing')
                         self.timesync_wait = 99
                     RRD_command = ['/usr/bin/rrdtool', 'update', conf.db, "%u:"%(int(time.time()))+s]
-                    for attempt in range(3):
-                        cmd = subprocess.Popen(RRD_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-                        out, err = cmd.communicate()
-                        # rrdtool update uses a non-blocking lock, so it fails while a graph/fetch has the file open
-                        if cmd.returncode and b'could not lock' in err:
-                            time.sleep(0.5)
+                    with restore_lock:
+                        for attempt in range(3):
+                            cmd = subprocess.Popen(RRD_command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+                            out, err = cmd.communicate()
+                            # rrdtool update uses a non-blocking lock, so it fails while a graph/fetch has the file open
+                            if cmd.returncode and b'could not lock' in err:
+                                time.sleep(0.5)
+                            else:
+                                break
+                        if not cmd.returncode:
+                            conf.lastupdate = lastupdate
                         else:
-                            break
-                    if not cmd.returncode:
-                        conf.lastupdate = lastupdate
-                    else:
-                        logger.info('rrdtool update %s failed with, %s, %s'%(RRD_command[3], out.decode('utf-8', errors='replace').rstrip('\n'), err.decode('utf-8', errors='replace').rstrip('\n')))
+                            logger.info('rrdtool update %s failed with, %s, %s'%(RRD_command[3], out.decode('utf-8', errors='replace').rstrip('\n'), err.decode('utf-8', errors='replace').rstrip('\n')))
                 else:
                     self.timesync_wait += 1
                     
@@ -607,24 +608,33 @@ def handle_settings_changed(item, oldvalue, newvalue, itemtype):
             sendmail(logline)
 
 _copy_lock = threading.Lock()
+# Held by the Backup plugin while it swaps in a restored RRD/settings DB; the Poller update
+# and copy_db take it so nothing writes the files mid-swap.
+restore_lock = threading.Lock()
 
 def copy_db(direction='store'):
-    """Copy db to nvdb or nvdb to db depending on direction"""
+    """Copy db to nvdb or nvdb to db depending on direction, returns True if copied"""
+    if direction=='store' and getattr(conf, 'restore_done', False):
+        logger.info('RRD sync skipped: a restore replaced the database, the server restarts with it')
+        return False
     if not _copy_lock.acquire(False):
         logger.debug('copy already in progress, skipping')
-        return
+        return False
     try:
         if direction=='store':
             src, dst = conf.db, conf.nvdb
         else:
             src, dst = conf.nvdb, conf.db
-        shutil.copy(src, dst)
+        with restore_lock:
+            shutil.copy(src, dst)
         if direction=='store':
             logger.debug('copied %s to %s'%(src, dst))
         else:
             logger.info('copied %s to %s'%(src, dst))
+        return True
     except Exception:
         logger.exception('copy %s to %s failed'%(src, dst))
+        return False
     finally:
         _copy_lock.release()
 
@@ -644,8 +654,8 @@ def sigterm_handler(signum, frame=None):
     # Flush RRD database if using non-volatile storage copy
     if conf and getattr(conf, 'polling', False) and getattr(conf, 'nvdb', None) != getattr(conf, 'db', None):
         try:
-            copy_db('store')
-            logger.info('RRD database synced to %s', conf.nvdb)
+            if copy_db('store'):
+                logger.info('RRD database synced to %s', conf.nvdb)
         except Exception:
             logger.exception('Error saving RRD database during shutdown')
     # Stop poller thread
@@ -742,8 +752,8 @@ class MyDaemon(Daemon):
         # Flush RRD database if using non-volatile storage copy
         if conf and getattr(conf, 'polling', False) and getattr(conf, 'nvdb', None) != getattr(conf, 'db', None):
             try:
-                copy_db('store')
-                logger.info('RRD database synced to %s', conf.nvdb)
+                if copy_db('store'):
+                    logger.info('RRD database synced to %s', conf.nvdb)
             except Exception:
                 logger.exception('Error saving RRD database during shutdown')
         # Stop poller thread
@@ -774,8 +784,8 @@ class MyDaemon(Daemon):
             # Flush RRD database if using non-volatile storage copy
             if conf.polling and conf.nvdb != conf.db:
                 try:
-                    copy_db('store')
-                    logger.info('RRD database synced to %s', conf.nvdb)
+                    if copy_db('store'):
+                        logger.info('RRD database synced to %s', conf.nvdb)
                 except Exception:
                     logger.exception('Error saving RRD database during shutdown')
             # Stop poller thread
