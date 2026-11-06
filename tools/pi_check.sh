@@ -156,6 +156,8 @@ for c in "$DBUS" "$SRV" "$WEB"; do
 done
 
 image_ver=$(cexec "$SRV" 'cat /app/VERSION' | head -n 1 | tr -d '[:space:]')
+# an error message from cat is not a version
+case "$image_ver" in [0-9]*) ;; *) image_ver="" ;; esac
 repo_ver=""
 [ -f "$REPO/VERSION" ] && repo_ver=$(tr -d '[:space:]\r' < "$REPO/VERSION")
 if [ -n "$image_ver" ]; then
@@ -196,11 +198,18 @@ else
 fi
 failed=$(printf '%s\n' "$logs" | grep -E 'Failed to activate plugins:' | tail -n 1)
 [ -n "$failed" ] && warn "$failed"
-tb=$(printf '%s\n' "$logs" | grep -c 'Traceback')
+# Count tracebacks from the last 24 hours only (the log file keeps months of history), and leave
+# out the harmless "No module named 'RPi'" that the raspberrygpio plugin logs at every start.
+cutoff=$(date -d '24 hours ago' '+%Y-%m-%d %H' 2>/dev/null || true)
+tb=$(printf '%s\n' "$logs" | awk -v cut="$cutoff" '
+    /^20[0-9][0-9]-[0-9][0-9]-[0-9][0-9] [0-9][0-9]/ { ts = substr($0, 1, 13) }
+    /Traceback/ { if (cut == "" || ts == "" || ts >= cut) total++ }
+    /No module named .RPi./ { if (cut == "" || ts == "" || ts >= cut) rpi++ }
+    END { n = total - rpi; if (n < 0) n = 0; print n + 0 }')
 if [ "$tb" -gt 0 ]; then
-    warn "$tb traceback(s) in the daemon log (docker logs $SRV | grep -B2 -A12 Traceback)"
+    warn "$tb traceback(s) in the daemon log in the last 24 hours (docker exec $SRV grep -B2 -A12 Traceback /var/log/pellmon/pellmon.log | tail -60)"
 else
-    ok "no tracebacks in the daemon log"
+    ok "no new tracebacks in the daemon log (last 24 hours)"
 fi
 backup_lines=$(printf '%s\n' "$logs" | grep -E 'Backup (written|failed|scheduler error|could not)' | tail -n 5)
 if [ -n "$backup_lines" ]; then
