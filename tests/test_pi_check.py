@@ -346,3 +346,37 @@ def test_summary_lists_failures_and_warnings(env):
     tail = res.stdout.split("== Summary ==")[1]
     assert "Failures:" in tail and "newest archive is damaged" in tail
     assert "Warnings:" in tail and "settings database mode is 666" in tail
+
+
+# ---- line endings and where the script lives ----
+
+def test_script_has_unix_line_endings():
+    """CRLF turns the shebang into 'bash\\r' (seen on a Pi after the file went through Windows)"""
+    assert b"\r" not in SCRIPT.read_bytes()
+
+
+def test_gitattributes_pins_lf_for_scripts():
+    attrs = (SCRIPT.parent.parent / ".gitattributes").read_text()
+    for needle in ("*.sh text eol=lf", "tools/*.py text eol=lf"):
+        assert needle in attrs
+
+
+def test_repo_is_found_when_the_script_is_copied_into_the_checkout(env, tmp_path):
+    """Copied next to docker-compose.yml instead of tools/: the checkout is the script's own folder"""
+    root = tmp_path / "pellmon"
+    root.mkdir()
+    (root / "docker-compose.yml").write_text("services: {}\n")
+    (root / "VERSION").write_text("9.9.9\n")
+    copy = root / "pi_check.sh"
+    copy.write_text(SCRIPT.read_text())
+    copy.chmod(0o755)
+    rules = healthy_rules()
+    rules_file = tmp_path / "rules2.json"
+    rules_file.write_text(json.dumps(rules))
+    calls = tmp_path / "calls2.log"
+    calls.write_text("")
+    e = dict(os.environ, DOCKER=str(env["tmp"] / "docker"), CURL=str(env["tmp"] / "curl"), STUB_RULES=str(rules_file),
+             STUB_CALLS=str(calls), STUB_WEB="{}", NO_COLOR="1")
+    res = subprocess.run([str(copy), "--no-color", "--backup-dir", str(env["backups"]), "--data-dir", str(env["repo"] / "pdata")],
+                         capture_output=True, text=True, timeout=60, env=e)
+    assert "but this checkout says 9.9.9" in res.stdout  # VERSION came from the script's own folder

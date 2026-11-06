@@ -21,7 +21,12 @@
 set -u
 
 SCRIPT_DIR=$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)
-REPO=$(dirname "$SCRIPT_DIR")
+# the checkout: the folder above tools/, or the script's own folder when it was copied next to docker-compose.yml
+if [ -f "$SCRIPT_DIR/docker-compose.yml" ]; then
+    REPO=$SCRIPT_DIR
+else
+    REPO=$(dirname "$SCRIPT_DIR")
+fi
 DOCKER=${DOCKER:-docker}
 CURL=${CURL:-curl}
 SRV=pellmonsrv
