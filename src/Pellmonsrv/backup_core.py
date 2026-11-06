@@ -658,6 +658,327 @@ def check_restore_space(data_dir, member_sizes, rrd_db):
         raise BackupError(REASON_RESTORE_SPACE)
 
 
+# ---- restore: RRD rebuild, checks, swap ------------------------------------------------
+
+RRD_RESTORE_TIMEOUT = 1800
+RRD_INFO_TIMEOUT = 60
+FUTURE_TOLERANCE = 86400
+CARRY_OVER_KEYS = ('backup.config', 'backup.state')
+RESULT_FILE = '.restore-result.json'
+RESULT_MAX_BYTES = 4096
+RESTORE_STEPS = ('checking', 'extracting', 'building', 'swapping')
+
+_STEP_RE = re.compile(r'^step\s*=\s*(\d+)\s*$', re.M)
+_DS_RE = re.compile(r'^ds\[([^\]]+)\]\.index\s*=\s*(\d+)\s*$', re.M)
+
+
+def _log_stderr(what, e):
+    err = getattr(e, 'stderr', None)
+    if err:
+        logger.warning('restore: %s said: %s' % (what, err.decode('utf-8', 'replace').strip()[:300]))
+
+
+def build_rrd(rrdtool, xml_path, out_path):
+    """Rebuild an RRD from the archive dump beside the live one; never onto the live file"""
+    _remove_quiet(out_path)
+    try:
+        subprocess.run([rrdtool, 'restore', xml_path, out_path], stdout=subprocess.DEVNULL,
+                       stderr=subprocess.PIPE, check=True, timeout=RRD_RESTORE_TIMEOUT)
+    except FileNotFoundError:
+        raise BackupError(REASON_RRD_MISSING)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        logger.warning('restore: rrdtool restore failed')
+        _log_stderr('rrdtool restore', e)
+        _remove_quiet(out_path)
+        raise BackupError(REASON_RESTORE_RRD)
+
+
+def _run_rrdtool(rrdtool, args, timeout):
+    try:
+        res = subprocess.run([rrdtool] + args, stdout=subprocess.PIPE, stderr=subprocess.PIPE,
+                             check=True, timeout=timeout)
+    except FileNotFoundError:
+        raise BackupError(REASON_RRD_MISSING)
+    except (subprocess.CalledProcessError, subprocess.TimeoutExpired) as e:
+        logger.warning('restore: rrdtool %s failed' % args[0])
+        _log_stderr('rrdtool ' + args[0], e)
+        raise BackupError(REASON_RESTORE_RRD)
+    return res.stdout.decode('utf-8', 'replace')
+
+
+def rrd_layout(rrdtool, path):
+    """(step, [data source names ordered by index])"""
+    out = _run_rrdtool(rrdtool, ['info', path], RRD_INFO_TIMEOUT)
+    m = _STEP_RE.search(out)
+    if not m:
+        raise BackupError(REASON_RESTORE_RRD)
+    names = [n for _i, n in sorted((int(i), n) for n, i in _DS_RE.findall(out))]
+    return int(m.group(1)), names
+
+
+def rrd_last(rrdtool, path):
+    out = _run_rrdtool(rrdtool, ['last', path], RRD_INFO_TIMEOUT)
+    try:
+        return int(out.strip())
+    except ValueError:
+        raise BackupError(REASON_RESTORE_RRD)
+
+
+def check_layout(staged, live, poll_ds_names):
+    """The restored RRD must have the layout the Poller writes to"""
+    if live is not None:
+        ok = (staged[0], list(staged[1])) == (live[0], list(live[1]))
+        expected = live[1]
+    elif poll_ds_names:
+        ok = list(staged[1]) == list(poll_ds_names)
+        expected = poll_ds_names
+    else:
+        return
+    if not ok:
+        logger.warning('restore: RRD layout mismatch: archive ds %s, installation ds %s'
+                       % (list(staged[1]), list(expected)))
+        raise BackupError(REASON_LAYOUT)
+
+
+def carry_over_settings(live_db, staged_db, keys=CARRY_OVER_KEYS):
+    """Keep this installation's Backup page settings across the restore"""
+    rows = []
+    src = None
+    try:
+        src = sqlite3.connect(pathlib.Path(os.path.abspath(live_db)).as_uri() + '?mode=ro', uri=True)
+        for key in keys:
+            row = src.execute('SELECT id, value FROM keyval WHERE id = ?', (key,)).fetchone()
+            if row is not None:
+                rows.append(row)
+    except sqlite3.Error:
+        logger.warning('restore: could not read the live backup settings, archive values are used')
+        rows = []
+    finally:
+        if src is not None:
+            src.close()
+    if not rows:
+        return
+    dst = None
+    try:
+        dst = sqlite3.connect(staged_db)
+        for row in rows:
+            dst.execute('INSERT OR REPLACE INTO keyval (id, value) VALUES (?, ?)', (row[0], row[1]))
+        dst.commit()
+    except sqlite3.Error:
+        raise BackupError(REASON_ARCHIVE_SETTINGS)
+    finally:
+        if dst is not None:
+            dst.close()
+
+
+def keep_pre_restore(path):
+    """Copy path to path.pre-restore (0600, older copy overwritten); None when path does not exist"""
+    if not os.path.isfile(path):
+        return None
+    dst = path + PRE_SUFFIX
+    _remove_quiet(dst)
+    fd = os.open(dst, os.O_WRONLY | os.O_CREAT | os.O_EXCL | getattr(os, 'O_NOFOLLOW', 0), 0o600)
+    with os.fdopen(fd, 'wb') as out:
+        with open(path, 'rb') as src:
+            shutil.copyfileobj(src, out)
+        out.flush()
+        try:
+            os.fsync(out.fileno())
+        except OSError:
+            pass
+    return os.path.basename(dst)
+
+
+def swap_in(pairs, locks=(), should_continue=None, on_swapped=None):
+    """Replace each target with its staged file while holding every lock; roll back already
+    replaced targets from .pre-restore when a later replace fails. Returns the pre-restore names."""
+    held = []
+    try:
+        for lock in locks:
+            lock.acquire()
+            held.append(lock)
+        if should_continue is not None and not should_continue():
+            raise BackupError(REASON_ARCHIVE_DAMAGED)
+        done = []  # (target, had_pre)
+        names = []
+        try:
+            for target, staged in pairs:
+                pre = keep_pre_restore(target)
+                if pre:
+                    names.append(pre)
+                os.replace(staged, target)
+                done.append((target, bool(pre)))
+            if on_swapped is not None:
+                on_swapped()
+        except BaseException as e:
+            logger.error('restore: swap failed (%s), rolling back' % e.__class__.__name__)
+            for target, had_pre in reversed(done):
+                try:
+                    if had_pre:
+                        os.replace(target + PRE_SUFFIX, target)
+                    else:
+                        _remove_quiet(target)
+                except Exception as e2:
+                    logger.error('restore: rollback of %s failed: %s' % (os.path.basename(target), e2.__class__.__name__))
+            raise BackupError(REASON_SWAP)
+        return names
+    finally:
+        for lock in reversed(held):
+            lock.release()
+
+
+def write_result(data_dir, result):
+    """Persist the restore result atomically (0600); never raises"""
+    tmp = None
+    try:
+        data = {
+            'name': result.get('name', ''),
+            'time': result.get('time'),
+            'ok': bool(result.get('ok')),
+            'reason': result.get('reason', ''),
+            'restart': result.get('restart', 'manual'),
+            'acknowledged': bool(result.get('acknowledged', False)),
+        }
+        fd, tmp = tempfile.mkstemp(dir=data_dir, prefix='.restore-result-')
+        try:
+            os.fchmod(fd, 0o600)
+        except (AttributeError, OSError):
+            pass
+        with os.fdopen(fd, 'w') as f:
+            json.dump(data, f)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except OSError:
+                pass
+        os.replace(tmp, os.path.join(data_dir, RESULT_FILE))
+        tmp = None
+    except Exception as e:
+        logger.warning('restore: could not write the result file: %s' % e.__class__.__name__)
+    finally:
+        if tmp:
+            _remove_quiet(tmp)
+
+
+def read_result(data_dir):
+    """The persisted result with every field sanitised, None when absent or unusable"""
+    try:
+        fd = os.open(os.path.join(data_dir, RESULT_FILE), os.O_RDONLY | getattr(os, 'O_NOFOLLOW', 0))
+        try:
+            st = os.fstat(fd)
+            if not stat.S_ISREG(st.st_mode) or st.st_size > RESULT_MAX_BYTES:
+                return None
+            raw = os.read(fd, RESULT_MAX_BYTES + 1)
+        finally:
+            os.close(fd)
+        if len(raw) > RESULT_MAX_BYTES:
+            return None
+        data = json.loads(raw.decode('utf-8'))
+        if not isinstance(data, dict):
+            return None
+        name = data.get('name')
+        name = name if isinstance(name, str) and NAME_RE.fullmatch(name) else ''
+        t = data.get('time')
+        t = float(t) if isinstance(t, (int, float)) and not isinstance(t, bool) else None
+        ok = data.get('ok') is True
+        reason = data.get('reason')
+        if ok:
+            reason = ''
+        elif not isinstance(reason, str) or reason not in REASONS:
+            reason = REASON_UNKNOWN
+        restart = data.get('restart')
+        return {'name': name, 'time': t, 'ok': ok, 'reason': reason,
+                'restart': restart if restart in ('auto', 'manual') else 'manual',
+                'acknowledged': data.get('acknowledged') is True}
+    except Exception:
+        return None
+
+
+def _same_mode(src, dst):
+    try:
+        os.chmod(dst, stat.S_IMODE(os.stat(src).st_mode))
+    except OSError:
+        pass
+
+
+def restore_archive(archive_path, rrd_db, nvdb, settings_db, rrdtool='rrdtool', locks=(), progress=None,
+                    should_continue=None, on_swapped=None, poll_ds_names=None, now=None):
+    """Validate everything first, then swap RRD (and nvdb) plus settings DB in under the locks.
+    Returns {'pre_restore': [names], 'manifest': dict}; raises BackupError."""
+    data_dir = os.path.dirname(os.path.abspath(nvdb or rrd_db))
+    separate_nv = bool(nvdb) and os.path.abspath(nvdb) != os.path.abspath(rrd_db)
+    targets = [rrd_db] + ([nvdb] if separate_nv else []) + [settings_db]
+    staging = None
+    swapped = False
+
+    def step(name):
+        if progress:
+            progress(name)
+
+    try:
+        step('checking')
+        checked = check_archive(archive_path)
+        step('extracting')
+        staging = prepare_staging(data_dir)
+        check_restore_space(data_dir, checked['sizes'], nvdb or rrd_db)
+        tar = open_archive(archive_path)
+        try:
+            safe_extract(tar, staging, only=RESTORE_MEMBERS)
+        finally:
+            close_archive(tar)
+        step('building')
+        new_db = rrd_db + NEW_SUFFIX
+        build_rrd(rrdtool, os.path.join(staging, 'rrd.xml'), new_db)
+        if os.path.isfile(rrd_db):
+            _same_mode(rrd_db, new_db)
+        staged = rrd_layout(rrdtool, new_db)
+        live = None
+        if os.path.isfile(rrd_db):
+            try:
+                live = rrd_layout(rrdtool, rrd_db)
+            except BackupError:
+                logger.warning('restore: live RRD layout unreadable, comparing with the configured data sources')
+        check_layout(staged, live, poll_ds_names)
+        if rrd_last(rrdtool, new_db) > (now if now is not None else time.time()) + FUTURE_TOLERANCE:
+            raise BackupError(REASON_FUTURE)
+        staged_settings = os.path.join(staging, 'pellmon_settings.db')
+        verify_sqlite(staged_settings)
+        new_sdb = settings_db + NEW_SUFFIX
+        shutil.copyfile(staged_settings, new_sdb)
+        os.chmod(new_sdb, 0o600)
+        carry_over_settings(settings_db, new_sdb)
+        verify_sqlite(new_sdb)
+        pairs = [(rrd_db, new_db)]
+        if separate_nv:
+            new_nv = nvdb + NEW_SUFFIX
+            shutil.copyfile(new_db, new_nv)
+            if os.path.isfile(nvdb):
+                _same_mode(nvdb, new_nv)
+            pairs.append((nvdb, new_nv))
+        pairs.append((settings_db, new_sdb))
+        step('swapping')
+        names = swap_in(pairs, locks, should_continue, on_swapped)
+        swapped = True
+        return {'pre_restore': names, 'manifest': checked['manifest']}
+    except BackupError:
+        raise
+    except OSError as e:
+        logger.warning('restore: file error: %s' % errno.errorcode.get(e.errno, e.errno))
+        if e.errno in (errno.ENOSPC, getattr(errno, 'EDQUOT', errno.ENOSPC)):
+            raise BackupError(REASON_RESTORE_SPACE)
+        raise BackupError(REASON_UNKNOWN)
+    except Exception:
+        logger.exception('restore: unexpected error')
+        raise BackupError(REASON_UNKNOWN)
+    finally:
+        if staging:
+            shutil.rmtree(staging, ignore_errors=True)
+        if not swapped:
+            clean_restore_leftovers(data_dir, targets)
+            for target in targets:
+                _remove_quiet(target + NEW_SUFFIX)
+
+
 # ---- schedule ------------------------------------------------------------------------
 
 FREQUENCIES = ('daily', 'weekly')

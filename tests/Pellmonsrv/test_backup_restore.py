@@ -334,3 +334,370 @@ def test_staging_space_refused(tmp_path, monkeypatch):
         raise OSError(5, 'io')
     monkeypatch.setattr(shutil, 'disk_usage', boom)
     bk.check_restore_space(str(tmp_path), sizes, str(rrd))
+
+
+# ---- restore: RRD rebuild, layout, swap ------------------------------------------------
+
+FAKE_RRDTOOL = """#!/bin/sh
+cmd="$1"
+case "$cmd" in
+  restore)
+    if [ -n "$FAKE_FAIL_RESTORE" ] || [ -e "$3" ]; then echo broken >&2; exit 1; fi
+    cp "$2" "$3" ;;
+  info) cat "$2" ;;
+  last) sed -n 's/^last_update = //p' "$2" ;;
+  dump) cat "$2" ;;
+  --version) echo "RRDtool 1.7.2 fake" ;;
+  *) exit 2 ;;
+esac
+"""
+
+
+def fake_rrd_tool(tmp_path, fail_restore=False):
+    p = tmp_path / 'fakerrdtool'
+    body = FAKE_RRDTOOL
+    if fail_restore:
+        body = body.replace('if [ -n "$FAKE_FAIL_RESTORE" ]', 'if true')
+    p.write_bytes(body.encode())
+    p.chmod(0o755)
+    return str(p)
+
+
+def fake_rrd_bytes(step=60, ds=('a', 'b'), last=1700000000):
+    lines = ['step = %d' % step] + ['ds[%s].index = %d' % (n, i) for i, n in enumerate(ds)]
+    lines.append('last_update = %d' % last)
+    return ('\n'.join(lines) + '\n').encode()
+
+
+def fake_rrd(path, **kw):
+    with open(str(path), 'wb') as f:
+        f.write(fake_rrd_bytes(**kw))
+    return str(path)
+
+
+def settings_db(path, rows=()):
+    c = sqlite3.connect(str(path))
+    c.execute("create table keyval (id text primary key, value text, confvalue text not null default '-')")
+    for k, v in rows:
+        c.execute('insert into keyval (id, value) values (?, ?)', (k, v))
+    c.commit()
+    c.close()
+    return str(path)
+
+
+def read_keyval(path):
+    c = sqlite3.connect(str(path))
+    try:
+        return dict(c.execute('select id, value from keyval').fetchall())
+    finally:
+        c.close()
+
+
+class World(object):
+    pass
+
+
+def make_world(tmp_path, live_ds=('a', 'b'), arch_ds=('a', 'b'), arch_last=1700000000, arch_step=60, live_step=60,
+               two_dirs=False):
+    w = World()
+    w.data = tmp_path / 'data'
+    w.data.mkdir()
+    w.rrd_db = fake_rrd(w.data / 'pellmon.rrd', step=live_step, ds=live_ds, last=1600000000)
+    if two_dirs:
+        (tmp_path / 'nv').mkdir()
+        w.nvdb = fake_rrd(tmp_path / 'nv' / 'pellmon.rrd', step=live_step, ds=live_ds, last=1600000000)
+    else:
+        w.nvdb = w.rrd_db
+    w.settings = settings_db(w.data / 'pellmon_settings.db',
+                             [('backup.config', 'LIVE-CONF'), ('backup.state', 'LIVE-STATE'), ('x', 'live-x')])
+    arch_db = settings_db(tmp_path / 'arch.db', [('backup.config', 'ARCH-CONF'), ('x', 'arch-x')])
+    with open(arch_db, 'rb') as f:
+        db_bytes = f.read()
+    w.arch_rrd = fake_rrd_bytes(step=arch_step, ds=arch_ds, last=arch_last)
+    w.archive = _tar_with(tmp_path / NAME, [('manifest.json', MANIFEST, 0o644), ('pellmon_settings.db', db_bytes, 0o644),
+                                            ('rrd.xml', w.arch_rrd, 0o644)])
+    w.rrdtool = fake_rrd_tool(tmp_path)
+    return w
+
+
+def snapshot(w):
+    out = {}
+    for p in set([w.rrd_db, w.nvdb, w.settings]):
+        with open(p, 'rb') as f:
+            out[p] = (f.read(), os.stat(p).st_mtime_ns)
+    return out
+
+
+def leftovers(w):
+    found = []
+    for d in set([os.path.dirname(w.rrd_db), os.path.dirname(w.nvdb)]):
+        for n in os.listdir(d):
+            if n.endswith('.restore-new') or n == '.restore-tmp' or n.endswith('.pre-restore'):
+                found.append(n)
+    return found
+
+
+def restore(w, **kw):
+    return bk.restore_archive(w.archive, w.rrd_db, w.nvdb, w.settings, rrdtool=w.rrdtool, now=1700000100, **kw)
+
+
+@posix_only
+def test_validate_rrd_layout_parses_step_and_index_order(tmp_path):
+    tool_path = fake_rrd_tool(tmp_path)
+    p = tmp_path / 'x.rrd'
+    p.write_text('step = 30\nds[b].index = 1\nds[a].index = 0\nds[c].index = 2\nlast_update = 5\n')
+    assert bk.rrd_layout(tool_path, str(p)) == (30, ['a', 'b', 'c'])
+    assert bk.rrd_last(tool_path, str(p)) == 5
+
+
+@posix_only
+def test_validate_build_rrd_failure(tmp_path):
+    t = fake_rrd_tool(tmp_path, fail_restore=True)
+    xml = fake_rrd(tmp_path / 'in.xml')
+    out = str(tmp_path / 'out.rrd')
+    with pytest.raises(bk.BackupError) as e:
+        bk.build_rrd(t, xml, out)
+    assert e.value.reason == bk.REASON_RESTORE_RRD
+    assert not os.path.exists(out)
+
+
+def test_validate_build_rrd_missing_binary(tmp_path):
+    with pytest.raises(bk.BackupError) as e:
+        bk.build_rrd(str(tmp_path / 'nonexistent-rrdtool'), str(tmp_path / 'a'), str(tmp_path / 'b'))
+    assert e.value.reason == bk.REASON_RRD_MISSING
+
+
+def test_validate_build_rrd_timeout_kwarg(tmp_path, monkeypatch):
+    seen = {}
+
+    def fake_run(argv, **kw):
+        seen.update(kw)
+        seen['argv'] = argv
+    monkeypatch.setattr(bk.subprocess, 'run', fake_run)
+    bk.build_rrd('rrdtool', 'in.xml', str(tmp_path / 'o'))
+    assert seen['timeout'] == bk.RRD_RESTORE_TIMEOUT
+    assert seen['argv'][:2] == ['rrdtool', 'restore']
+
+
+def test_validate_layout():
+    base = (60, ['a', 'b'])
+    bk.check_layout(base, (60, ['a', 'b']), None)
+    for other in [(60, ['b', 'a']), (60, ['a', 'b', 'c']), (60, ['a']), (30, ['a', 'b'])]:
+        with pytest.raises(bk.BackupError) as e:
+            bk.check_layout(other, base, None)
+        assert e.value.reason == bk.REASON_LAYOUT
+    bk.check_layout(base, None, ['a', 'b'])
+    with pytest.raises(bk.BackupError):
+        bk.check_layout(base, None, ['a', 'c'])
+    bk.check_layout(base, None, [])
+
+
+def test_swap_carry_over(tmp_path):
+    live = settings_db(tmp_path / 'live.db', [('backup.config', 'L1'), ('backup.state', 'L2')])
+    staged = settings_db(tmp_path / 'staged.db', [('backup.config', 'S1'), ('other', 'o')])
+    bk.carry_over_settings(live, staged)
+    assert read_keyval(staged) == {'backup.config': 'L1', 'backup.state': 'L2', 'other': 'o'}
+
+
+def test_swap_carry_over_missing_rows(tmp_path):
+    live = settings_db(tmp_path / 'live.db', [('zzz', '1')])
+    staged = settings_db(tmp_path / 'staged.db', [('backup.config', 'S1')])
+    bk.carry_over_settings(live, staged)
+    assert read_keyval(staged) == {'backup.config': 'S1'}
+    bk.carry_over_settings(str(tmp_path / 'nolive.db'), staged)
+    assert read_keyval(staged) == {'backup.config': 'S1'}
+
+
+@posix_only
+def test_swap_success(tmp_path):
+    w = make_world(tmp_path)
+    old_rrd = open(w.rrd_db, 'rb').read()
+    old_set = open(w.settings, 'rb').read()
+    steps = []
+    res = restore(w, progress=steps.append)
+    assert steps == list(bk.RESTORE_STEPS)
+    assert open(w.rrd_db, 'rb').read() == w.arch_rrd
+    assert open(w.rrd_db + '.pre-restore', 'rb').read() == old_rrd
+    assert open(w.settings + '.pre-restore', 'rb').read() == old_set
+    assert sorted(res['pre_restore']) == ['pellmon.rrd.pre-restore', 'pellmon_settings.db.pre-restore']
+    assert stat.S_IMODE(os.stat(w.rrd_db + '.pre-restore').st_mode) == 0o600
+    kv = read_keyval(w.settings)
+    assert kv['backup.config'] == 'LIVE-CONF' and kv['backup.state'] == 'LIVE-STATE' and kv['x'] == 'arch-x'
+    assert not [n for n in leftovers(w) if not n.endswith('.pre-restore')]
+
+
+@posix_only
+def test_swap_nvdb(tmp_path):
+    w = make_world(tmp_path, two_dirs=True)
+    res = restore(w)
+    assert open(w.rrd_db, 'rb').read() == w.arch_rrd
+    assert open(w.nvdb, 'rb').read() == w.arch_rrd
+    assert os.path.isfile(w.nvdb + '.pre-restore') and os.path.isfile(w.rrd_db + '.pre-restore')
+    assert len(res['pre_restore']) == 3
+    assert not os.path.exists(str(tmp_path / 'nv' / '.restore-tmp'))
+
+
+@posix_only
+def test_swap_keeps_mode(tmp_path):
+    w = make_world(tmp_path)
+    os.chmod(w.rrd_db, 0o644)
+    os.chmod(w.settings, 0o640)
+    restore(w)
+    assert stat.S_IMODE(os.stat(w.rrd_db).st_mode) == 0o644
+    assert stat.S_IMODE(os.stat(w.settings).st_mode) == 0o600
+
+
+@posix_only
+def test_swap_lock_held(tmp_path, monkeypatch):
+    import threading
+    w = make_world(tmp_path)
+    l1, l2 = threading.Lock(), threading.Lock()
+    seen = []
+    real = os.replace
+
+    def checking(a, b):
+        seen.append((l1.locked(), l2.locked()))
+        return real(a, b)
+    monkeypatch.setattr(bk.os, 'replace', checking)
+    after = []
+    restore(w, locks=(l1, l2), on_swapped=lambda: after.append((l1.locked(), l2.locked())))
+    assert seen and all(s == (True, True) for s in seen)
+    assert after == [(True, True)]
+    assert not l1.locked() and not l2.locked()
+
+
+@posix_only
+def test_swap_should_continue_false(tmp_path):
+    w = make_world(tmp_path)
+    before = snapshot(w)
+    with pytest.raises(bk.BackupError):
+        restore(w, should_continue=lambda: False)
+    assert snapshot(w) == before
+    assert leftovers(w) == []
+
+
+@posix_only
+@pytest.mark.parametrize('kind', ['gzip', 'no_rrd', 'no_settings', 'bad_sqlite', 'rrd_fail', 'layout', 'future', 'space'])
+def test_validate_failures_leave_live_untouched(tmp_path, monkeypatch, kind):
+    kw = {}
+    if kind == 'layout':
+        kw['arch_ds'] = ('a', 'c')
+    if kind == 'future':
+        kw['arch_last'] = 1700000100 + bk.FUTURE_TOLERANCE + 1
+    w = make_world(tmp_path, **kw)
+    if kind == 'gzip':
+        with open(w.archive, 'r+b') as f:
+            f.seek(40)
+            f.write(b'\xff' * 50)
+    elif kind in ('no_rrd', 'no_settings', 'bad_sqlite'):
+        db = open(str(tmp_path / 'arch.db'), 'rb').read()
+        members = [('manifest.json', MANIFEST, 0o644), ('pellmon_settings.db', db, 0o644), ('rrd.xml', w.arch_rrd, 0o644)]
+        if kind == 'no_rrd':
+            members = members[:2]
+        elif kind == 'no_settings':
+            members = [members[0], members[2]]
+        else:
+            members[1] = ('pellmon_settings.db', b'not a database at all' * 100, 0o644)
+        _tar_with(w.archive, members)
+    elif kind == 'rrd_fail':
+        w.rrdtool = fake_rrd_tool(tmp_path, fail_restore=True)
+    elif kind == 'space':
+        class U:
+            free = 1
+        monkeypatch.setattr(bk.shutil, 'disk_usage', lambda p: U)
+    before = snapshot(w)
+    with pytest.raises(bk.BackupError) as e:
+        restore(w)
+    assert e.value.reason in bk.REASONS
+    assert snapshot(w) == before
+    assert leftovers(w) == []
+
+
+@posix_only
+def test_validate_future_boundary_ok(tmp_path):
+    w = make_world(tmp_path, arch_last=1700000100 + bk.FUTURE_TOLERANCE)
+    restore(w)
+    assert open(w.rrd_db, 'rb').read() == w.arch_rrd
+
+
+@posix_only
+def test_swap_rollback(tmp_path, monkeypatch):
+    w = make_world(tmp_path)
+    before = snapshot(w)
+    real = os.replace
+    calls = []
+
+    def flaky(a, b):
+        calls.append(b)
+        if len(calls) == 2:
+            raise OSError(5, 'boom')
+        return real(a, b)
+    monkeypatch.setattr(bk.os, 'replace', flaky)
+    with pytest.raises(bk.BackupError) as e:
+        restore(w)
+    assert e.value.reason == bk.REASON_SWAP
+    now = snapshot(w)
+    assert {k: v[0] for k, v in now.items()} == {k: v[0] for k, v in before.items()}
+    assert not [n for n in leftovers(w) if n.endswith('.restore-new') or n == '.restore-tmp']
+
+
+def test_result_round_trip(tmp_path):
+    bk.write_result(str(tmp_path), {'name': NAME, 'time': 12.5, 'ok': False, 'reason': bk.REASON_LAYOUT,
+                                    'restart': 'auto', 'acknowledged': True})
+    assert bk.read_result(str(tmp_path)) == {'name': NAME, 'time': 12.5, 'ok': False, 'reason': bk.REASON_LAYOUT,
+                                             'restart': 'auto', 'acknowledged': True}
+    if sys.platform != 'win32':
+        assert stat.S_IMODE(os.stat(str(tmp_path / bk.RESULT_FILE)).st_mode) == 0o600
+    assert [n for n in os.listdir(str(tmp_path)) if n.startswith('.restore-result-')] == []
+
+
+def test_result_sanitised(tmp_path):
+    p = tmp_path / bk.RESULT_FILE
+    p.write_text(json.dumps({'name': '../etc/passwd', 'time': 'x', 'ok': False, 'reason': '<script>',
+                             'restart': 'rm', 'acknowledged': 'yes'}))
+    r = bk.read_result(str(tmp_path))
+    assert r == {'name': '', 'time': None, 'ok': False, 'reason': bk.REASON_UNKNOWN, 'restart': 'manual',
+                 'acknowledged': False}
+
+
+def test_result_rejects_bad_files(tmp_path):
+    assert bk.read_result(str(tmp_path)) is None
+    p = tmp_path / bk.RESULT_FILE
+    p.write_text('{not json')
+    assert bk.read_result(str(tmp_path)) is None
+    p.write_text(json.dumps({'name': 'x' * (bk.RESULT_MAX_BYTES + 10)}))
+    assert bk.read_result(str(tmp_path)) is None
+    p.unlink()
+    if sys.platform != 'win32':
+        target = tmp_path / 'real.json'
+        target.write_text('{"ok": true}')
+        os.symlink(str(target), str(p))
+        assert bk.read_result(str(tmp_path)) is None
+
+
+@pytest.mark.skipif(shutil.which('rrdtool') is None, reason='rrdtool not installed')
+def test_roundtrip(tmp_path):
+    import subprocess
+    import time as _t
+    src = tmp_path / 'src'
+    dst = tmp_path / 'dst'
+    src.mkdir()
+    dst.mkdir()
+    t0 = int(_t.time()) - 600
+
+    def make(path):
+        subprocess.run(['rrdtool', 'create', str(path), '--start', str(t0 - 10), '--step', '60',
+                        'DS:a:GAUGE:120:U:U', 'DS:b:GAUGE:120:U:U', 'RRA:AVERAGE:0.5:1:100'], check=True)
+    make(src / 'p.rrd')
+    subprocess.run(['rrdtool', 'update', str(src / 'p.rrd'), '%d:1:2' % (t0 + 60), '%d:3:4' % (t0 + 120)], check=True)
+    make(dst / 'p.rrd')
+    sdb = settings_db(src / 's.db', [('x', 'y')])
+    folder = tmp_path / 'folder'
+    folder.mkdir()
+    res = bk.create_archive(str(folder), str(src / 'p.rrd'), sdb, None, None)
+    live_set = settings_db(dst / 's.db', [('backup.config', 'KEEP')])
+    out = bk.restore_archive(os.path.join(str(folder), res['name']), str(dst / 'p.rrd'), str(dst / 'p.rrd'), live_set)
+    assert out['pre_restore']
+    assert bk.rrd_layout('rrdtool', str(dst / 'p.rrd')) == bk.rrd_layout('rrdtool', str(src / 'p.rrd'))
+    assert bk.rrd_last('rrdtool', str(dst / 'p.rrd')) == bk.rrd_last('rrdtool', str(src / 'p.rrd'))
+    assert read_keyval(live_set)['backup.config'] == 'KEEP'
