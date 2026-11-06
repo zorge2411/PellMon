@@ -54,6 +54,11 @@ def test_deploy_guide_documents_scheduled_backups():
     assert "There is no backup button in the web GUI yet" not in DEPLOY
 
 
+def test_deploy_guide_documents_the_pi_check_script():
+    for needle in ("tools/pi_check.sh", "--skip-restore", "--backup-dir", "never changes your data", "rrdtool restore"):
+        assert needle in DEPLOY, needle
+
+
 def test_every_failure_reason_the_page_can_show_is_explained():
     import sys
     sys.path.insert(0, str(REPO / "src"))
