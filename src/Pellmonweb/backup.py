@@ -22,7 +22,11 @@ from logging import getLogger
 from .auth import require
 from .security import check_same_origin
 from Pellmonsrv.plugins.backup.settings import DEFAULTS, WEEKDAYS, validate
-from Pellmonsrv.backup_core import REASONS, REASON_UNKNOWN
+import json
+from Pellmonsrv.backup_core import REASONS, REASON_UNKNOWN, NAME_RE, REASON_RESTORE_BUSY
+
+# mirrors Pellmonsrv.plugins.backup.REASON_BUSY (a test pins the equality)
+BACKUP_BUSY_REASON = 'a backup is already running'
 
 logger = getLogger('pellMon')
 
@@ -42,9 +46,29 @@ MSG_TEST_OK = 'The folder is ready for backups.'
 MSG_TEST_OK_FREE = 'The folder is ready for backups. %s free.'
 MSG_TEST_FAILED = 'The folder cannot be used: %s.'
 
+MSG_RESTORE_STARTED = 'Restore started. Keep this page open: it shows each step and reconnects after the server restarts.'
+MSG_RESTORE_BUSY = 'A restore is already running.'
+MSG_RESTORE_BACKUP_BUSY = 'A backup is running. Wait until it has finished, then restore.'
+MSG_RESTORE_FAILED_START = 'The restore could not be started: %s.'
+MSG_RESTORE_NOT_FOUND = 'That backup was not found in the backup folder.'
+MSG_PREVIEW_FAILED = 'The backup cannot be restored: %s.'
+MSG_CONFIRM_WORD = 'Type RESTORE in capital letters to confirm.'
+
 DONE_MESSAGES = {'saved': (MSG_SAVED, 'success'), 'off': (MSG_SAVED_OFF, 'success'),
                  'started': (MSG_STARTED, 'success'), 'busy': (MSG_BUSY, 'warning'),
-                 'failed': (MSG_START_FAILED, 'danger')}
+                 'failed': (MSG_START_FAILED, 'danger'),
+                 'restoring': (MSG_RESTORE_STARTED, 'success'), 'restore_busy': (MSG_RESTORE_BUSY, 'warning'),
+                 'restore_backup_busy': (MSG_RESTORE_BACKUP_BUSY, 'warning')}
+
+STEP_TEXT = {'checking': 'checking the archive', 'extracting': 'unpacking the archive',
+             'building': 'rebuilding the database with rrdtool',
+             'swapping': 'replacing the database and settings', 'restarting': 'restarting the server'}
+TEXT_RESTARTING = 'Restarting the server... This page reconnects by itself.'
+TEXT_RESTORED = ('Restored from %s at %s. The previous data is kept as .pre-restore files in the data folder. '
+                 'Configuration files were not restored.')
+TEXT_MANUAL = ('Restored from %s. Restart the PellMon server now to load the restored data. '
+               'The previous data is kept as .pre-restore files in the data folder.')
+TEXT_RESTORE_FAILED = 'The restore from %s failed: %s. Your data was not changed.'
 
 STATUS_OFF = 'Off. Automatic backups are off. Turn on "Enable automatic backups" and save, or use Back up now.'
 STATUS_WAITING = 'Waiting. The first backup starts within a minute.'
@@ -119,6 +143,49 @@ def status_view(status, daemon_down=False):
     if state == 'waiting':
         return _view('well', '', STATUS_WAITING)
     return _view('well', '', STATUS_OFF)
+
+
+def _valid_name(name):
+    return isinstance(name, str) and NAME_RE.fullmatch(name) is not None
+
+
+def _restore_view(level, text, active, step=0, steps=5, state=''):
+    return dict(state=state, level=level, text=text, active=active, step=step, steps=steps)
+
+
+def restore_view(status, daemon_down=False):
+    """Map the daemon restore block to {state, level, text, active, step, steps}; fixed text only"""
+    if daemon_down:
+        return _restore_view('warning', TEXT_RESTARTING, True, state='daemon_down')
+    block = status.get('restore') if isinstance(status, dict) else None
+    if not isinstance(block, dict):
+        return _restore_view('well', '', False, state='idle')
+    state = str(block.get('state') or 'idle')
+    result = block.get('result') if isinstance(block.get('result'), dict) else None
+    unacked = result is not None and not result.get('acknowledged')
+    try:
+        step = int(block.get('step') or 0)
+        steps = int(block.get('steps') or 5)
+    except (TypeError, ValueError):
+        step, steps = 0, 5
+    name = block.get('name')
+    name = name if _valid_name(name) else ''
+    if state in STEP_TEXT:
+        text = 'Restoring %s: step %d of %d, %s...' % (name, step, steps, STEP_TEXT[state])
+        return _restore_view('well', text, True, step, steps, state)
+    if state == 'done' and block.get('restart') == 'manual':
+        return _restore_view('warning', TEXT_MANUAL % name, False, step, steps, state)
+    if state == 'failed':
+        return _restore_view('danger', TEXT_RESTORE_FAILED % (name, _reason(block.get('reason'))), False, step, steps, state)
+    if unacked:
+        rname = result.get('name')
+        rname = rname if _valid_name(rname) else ''
+        if result.get('ok'):
+            return _restore_view('success', TEXT_RESTORED % (rname, _stamp(result.get('time'), '%Y-%m-%d %H:%M')),
+                                 False, step, steps, state)
+        return _restore_view('danger', TEXT_RESTORE_FAILED % (rname, _reason(result.get('reason'))),
+                             False, step, steps, state)
+    return _restore_view('well', '', False, step, steps, 'idle')
 
 
 def archive_rows(status):
@@ -202,9 +269,46 @@ class Backup(object):
                    warnings=warnings(settings, status),
                    archives=archive_rows(status),
                    archive_count=(status or {}).get('archive_count', 0) if isinstance(status, dict) else 0,
-                   folder=(status or {}).get('folder', root) if isinstance(status, dict) else root)
+                   folder=(status or {}).get('folder', root) if isinstance(status, dict) else root,
+                   restore=restore_view(status, daemon_down))
+        block = status.get('restore') if isinstance(status, dict) else None
+        result = block.get('result') if isinstance(block, dict) else None
+        # per-request flag: the controller object is shared between threads
+        cherrypy.request.backup_ack = isinstance(result, dict) and not result.get('acknowledged')
         ctx.update(overrides)
         return self.lookup.get_template('backup.html').render(**ctx)
+
+    def _render_confirm(self, name, preview, error=''):
+        manifest = preview.get('manifest') if isinstance(preview.get('manifest'), dict) else {}
+
+        def field(key):
+            value = manifest.get(key)
+            return '' if value is None else str(value)
+        return self.lookup.get_template('backup_restore.html').render(
+            username=cherrypy.session.get('_cp_username'),
+            webroot=cherrypy.request.script_name,
+            active_page='backup',
+            name=name,
+            when=_stamp(preview.get('time'), '%Y-%m-%d %H:%M'),
+            size=human_size(preview.get('size')),
+            created=field('created'), machine=field('machine'),
+            rrdtool_version=field('rrdtool_version'), created_by=field('created_by'),
+            has_config=bool(preview.get('has_config')),
+            restart='auto' if preview.get('restart') == 'auto' else 'manual',
+            auth_configured=bool(self.credentials),
+            error=error)
+
+    def _preview_or_page(self, name):
+        """(preview, None) or (None, the backup page to show instead)"""
+        try:
+            preview = self.dbus.backup_preview(name)
+        except Exception:
+            return None, self._render(msg=MSG_DAEMON_DOWN, msg_level='warning')
+        if not isinstance(preview, dict) or preview.get('available') is False:
+            return None, self._render(msg=MSG_NOT_ACTIVE, msg_level='danger')
+        if not preview.get('ok'):
+            return None, self._render(msg=MSG_PREVIEW_FAILED % _reason(preview.get('reason')), msg_level='danger')
+        return preview, None
 
     def _echo(self, raw, clean, errors):
         echo = dict(clean)
@@ -237,11 +341,70 @@ class Backup(object):
     def index(self, done=''):
         found = DONE_MESSAGES.get(done) if isinstance(done, str) else None
         if found:
-            return self._render(msg=found[0], msg_level=found[1])
-        _, _, daemon_down, _ = self._load()
-        if daemon_down:
-            return self._render(msg=MSG_DAEMON_DOWN, msg_level='warning')
-        return self._render()
+            page = self._render(msg=found[0], msg_level=found[1])
+        else:
+            _, _, daemon_down, _ = self._load()
+            if daemon_down:
+                return self._render(msg=MSG_DAEMON_DOWN, msg_level='warning')
+            page = self._render()
+        if getattr(cherrypy.request, 'backup_ack', False):
+            try:
+                self.dbus.backup_restore_ack()
+            except Exception:
+                pass
+        return page
+
+    @cherrypy.expose
+    @require()
+    def restore(self, name=''):
+        name = _last(name)
+        if not _valid_name(name):
+            return self._render(msg=MSG_RESTORE_NOT_FOUND, msg_level='warning')
+        preview, page = self._preview_or_page(name)
+        if page is not None:
+            return page
+        return self._render_confirm(name, preview)
+
+    @cherrypy.expose
+    @require()
+    def restore_run(self, name='', confirm='', **form):
+        blocked = self._guard('restore')
+        if blocked is not None:
+            return blocked
+        name = _last(name)
+        if not _valid_name(name):
+            return self._render(msg=MSG_RESTORE_NOT_FOUND, msg_level='warning')
+        if str(_last(confirm)).strip() != 'RESTORE':
+            preview, page = self._preview_or_page(name)
+            if page is not None:
+                return page
+            return self._render_confirm(name, preview, error=MSG_CONFIRM_WORD)
+        try:
+            result = self.dbus.backup_restore(name)
+        except Exception:
+            return self._render(msg=MSG_DAEMON_DOWN, msg_level='danger')
+        if isinstance(result, dict) and result.get('available') is False:
+            return self._render(msg=MSG_NOT_ACTIVE, msg_level='danger')
+        base = cherrypy.request.script_name + '/backup/?done='
+        reason = result.get('reason', '') if isinstance(result, dict) else ''
+        if isinstance(result, dict) and result.get('ok'):
+            raise cherrypy.HTTPRedirect(base + 'restoring', 303)
+        if reason == REASON_RESTORE_BUSY:
+            raise cherrypy.HTTPRedirect(base + 'restore_busy', 303)
+        if reason == BACKUP_BUSY_REASON:
+            raise cherrypy.HTTPRedirect(base + 'restore_backup_busy', 303)
+        return self._render(msg=MSG_RESTORE_FAILED_START % _reason(reason), msg_level='danger')
+
+    @cherrypy.expose
+    @require()
+    def restore_status(self):
+        try:
+            view = restore_view(self.dbus.backup_status())
+        except Exception:
+            view = restore_view(None, daemon_down=True)
+        cherrypy.response.headers['Content-Type'] = 'application/json'
+        cherrypy.response.headers['Cache-Control'] = 'no-store'
+        return json.dumps(view)
 
     @cherrypy.expose
     @require()
@@ -283,6 +446,8 @@ class Backup(object):
             return self._render(msg=MSG_NOT_ACTIVE, msg_level='danger')
         if isinstance(result, dict) and result.get('ok'):
             done = 'started'
+        elif isinstance(result, dict) and result.get('reason') == REASON_RESTORE_BUSY:
+            done = 'restore_busy'
         elif isinstance(result, dict) and 'already running' in str(result.get('reason', '')):
             done = 'busy'
         else:

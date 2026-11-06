@@ -1,4 +1,5 @@
 """Backup page controller (Phase 12): auth/CSRF guards, validation, actions, status mapping, template."""
+import json
 import logging
 import re
 import sys
@@ -25,11 +26,18 @@ STATUS_OK = dict(available=True, state='ok', enabled=True, running=False, last_o
                                                  time=1700000000.0)])
 
 
+NAME = 'pellmon-backup-20231114-221320.tar.gz'
+PREVIEW_OK = {'ok': True, 'reason': '', 'name': NAME, 'size': 3 * 1024 * 1024, 'time': 1700000000.0,
+              'manifest': {'created': '2023-11-14T22:13:20', 'machine': 'pi', 'rrdtool_version': '1.7.2',
+                           'created_by': 'PellMon'}, 'has_config': True, 'restart': 'auto'}
+
+
 class FakeTemplate:
     def __init__(self, sink):
         self.sink = sink
 
     def render(self, **kw):
+        kw['_template'] = getattr(self, 'name', None)
         self.sink.append(kw)
         return kw
 
@@ -39,12 +47,18 @@ class FakeLookup:
         self.calls = []
 
     def get_template(self, name):
-        assert name == 'backup.html'
-        return FakeTemplate(self.calls)
+        assert name in ('backup.html', 'backup_restore.html')
+        t = FakeTemplate(self.calls)
+        t.name = name
+        return t
 
 
 class FakeDbus:
-    def __init__(self, fail=False, settings=None, status=None, set_result=None, start_result=None, test_result=None):
+    def __init__(self, fail=False, settings=None, status=None, set_result=None, start_result=None, test_result=None,
+                 preview_result=None, restore_result=None, ack_fail=False):
+        self.preview_result = PREVIEW_OK if preview_result is None else preview_result
+        self.restore_result = {'ok': True, 'reason': ''} if restore_result is None else restore_result
+        self.ack_fail = ack_fail
         self.fail = fail
         self.settings = dict(SETTINGS) if settings is None else settings
         self.status = dict(STATUS_OK) if status is None else status
@@ -79,8 +93,23 @@ class FakeDbus:
         self._check('test')
         return self.test_result
 
+    def backup_preview(self, name):
+        self._check('preview')
+        return self.preview_result
+
+    def backup_restore(self, name):
+        self._check('restore')
+        self.restore_name = name
+        return self.restore_result
+
+    def backup_restore_ack(self):
+        self.calls.append('ack')
+        if self.ack_fail:
+            raise RuntimeError('down')
+        return {'ok': True}
+
     def wrote(self):
-        return 'set' in self.calls or 'start' in self.calls
+        return 'set' in self.calls or 'start' in self.calls or 'restore' in self.calls
 
 
 def _make(creds=True, **kw):
@@ -111,7 +140,7 @@ def _redirect(fn, **form):
 # ---- auth and CSRF ----
 
 def test_auth_required_on_all_routes():
-    for name in ('index', 'save', 'run', 'test'):
+    for name in ('index', 'save', 'run', 'test', 'restore', 'restore_run', 'restore_status'):
         assert 'auth.require' in getattr(bp.Backup, name)._cp_config
 
 
@@ -241,7 +270,8 @@ def test_folder_test_failure_shows_a_known_reason_only(cherrypy_request_ctx):
 # ---- index and messages ----
 
 @pytest.mark.parametrize('done,level', [('saved', 'success'), ('off', 'success'), ('started', 'success'),
-                                        ('busy', 'warning'), ('failed', 'danger')])
+                                        ('busy', 'warning'), ('failed', 'danger'), ('restoring', 'success'),
+                                        ('restore_busy', 'warning'), ('restore_backup_busy', 'warning')])
 def test_index_done_messages(cherrypy_request_ctx, done, level):
     c, d = _make()
     ctx = c.index(done=done)
@@ -368,3 +398,137 @@ def test_timeout_reason_is_shown_as_is(cherrypy_request_ctx):
     _post(**ORIGIN)
     c, d = _make(test_result={'ok': False, 'reason': core.REASON_TIMEOUT, 'free_bytes': None})
     assert c.test()['msg'] == bp.MSG_TEST_FAILED % core.REASON_TIMEOUT
+
+
+# ---- restore (Phase 13) ----
+
+def _status_restore(**block):
+    st = dict(STATUS_OK)
+    st['restore'] = block
+    return st
+
+
+def test_restore_get_has_no_side_effects(cherrypy_request_ctx):
+    c, d = _make()
+    ctx = c.restore(name=NAME)
+    assert ctx['_template'] == 'backup_restore.html' and ctx['name'] == NAME
+    assert ctx['size'] == '3.0 MB' and ctx['machine'] == 'pi' and ctx['rrdtool_version'] == '1.7.2'
+    assert ctx['has_config'] is True and ctx['restart'] == 'auto' and ctx['when']
+    assert 'restore' not in d.calls and 'preview' in d.calls and not d.wrote()
+
+
+@pytest.mark.parametrize('name', ['', '../x', 'a/' + NAME, 'x.tar.gz', ['a', 'b'], None])
+def test_restore_bad_names(cherrypy_request_ctx, name):
+    c, d = _make()
+    ctx = c.restore(name=name)
+    assert ctx['msg'] == bp.MSG_RESTORE_NOT_FOUND and 'preview' not in d.calls
+
+
+def test_restore_preview_failures(cherrypy_request_ctx):
+    c, d = _make(fail=True)
+    assert c.restore(name=NAME)['msg'] == bp.MSG_DAEMON_DOWN
+    c, d = _make(preview_result={'available': False})
+    assert c.restore(name=NAME)['msg'] == bp.MSG_NOT_ACTIVE
+    c, d = _make(preview_result={'ok': False, 'reason': '/secret/path'})
+    msg = c.restore(name=NAME)['msg']
+    assert core.REASON_UNKNOWN in msg and '/secret' not in msg
+    c, d = _make(preview_result={'ok': False, 'reason': core.REASON_TIMEOUT})
+    assert core.REASON_TIMEOUT in c.restore(name=NAME)['msg']
+
+
+def test_restore_run_guards(cherrypy_request_ctx, caplog):
+    import cherrypy
+    cherrypy.request.method = 'GET'
+    c, d = _make()
+    assert c.restore_run(name=NAME, confirm='RESTORE')['msg'] == bp.MSG_REJECTED
+    _post(Origin='http://evil.example', Host='localhost:8081')
+    with caplog.at_level(logging.WARNING, logger='pellMon'):
+        c.restore_run(name=NAME, confirm='RESTORE')
+    assert cherrypy.response.status == 403
+    assert any('evil.example' in r.getMessage() for r in caplog.records)
+    _post(**ORIGIN)
+    c2, d2 = _make(creds=False)
+    assert c2.restore_run(name=NAME, confirm='RESTORE')['msg'] == bp.MSG_AUTH_DISABLED
+    assert 'restore' not in d.calls and 'restore' not in d2.calls
+
+
+@pytest.mark.parametrize('word', ['', 'restore', 'RESTOR'])
+def test_restore_run_confirm_word(cherrypy_request_ctx, word):
+    _post(**ORIGIN)
+    c, d = _make()
+    ctx = c.restore_run(name=NAME, confirm=word)
+    assert 'restore' not in d.calls
+    assert ctx['_template'] == 'backup_restore.html' and ctx['error'] == bp.MSG_CONFIRM_WORD
+
+
+def test_restore_run_confirm_word_whitespace_accepted(cherrypy_request_ctx):
+    _post(**ORIGIN)
+    c, d = _make()
+    r = _redirect(c.restore_run, name=NAME, confirm=' RESTORE ')
+    assert 'restore' in d.calls and d.restore_name == NAME and r.status == 303
+
+
+def test_restore_run_started(cherrypy_request_ctx):
+    _post(**ORIGIN)
+    c, d = _make()
+    assert _redirect(c.restore_run, name=NAME, confirm='RESTORE').urls[0].endswith('/backup/?done=restoring')
+    c, d = _make(restore_result={'ok': False, 'reason': core.REASON_RESTORE_BUSY})
+    assert _redirect(c.restore_run, name=NAME, confirm='RESTORE').urls[0].endswith('?done=restore_busy')
+    c, d = _make(restore_result={'ok': False, 'reason': bp.BACKUP_BUSY_REASON})
+    assert _redirect(c.restore_run, name=NAME, confirm='RESTORE').urls[0].endswith('?done=restore_backup_busy')
+    c, d = _make(restore_result={'ok': False, 'reason': core.REASON_ARCHIVE_NOT_FOUND})
+    assert core.REASON_ARCHIVE_NOT_FOUND in c.restore_run(name=NAME, confirm='RESTORE')['msg']
+    c, d = _make(fail=True)
+    assert c.restore_run(name=NAME, confirm='RESTORE')['msg'] == bp.MSG_DAEMON_DOWN
+    c, d = _make(restore_result={'available': False})
+    assert c.restore_run(name=NAME, confirm='RESTORE')['msg'] == bp.MSG_NOT_ACTIVE
+
+
+def test_backup_busy_reason_matches_plugin():
+    from Pellmonsrv.plugins import backup as plugin
+    assert bp.BACKUP_BUSY_REASON == plugin.REASON_BUSY
+
+
+def test_run_during_restore(cherrypy_request_ctx):
+    _post(**ORIGIN)
+    c, d = _make(start_result={'ok': False, 'reason': core.REASON_RESTORE_BUSY})
+    assert _redirect(c.run).urls[0].endswith('?done=restore_busy')
+
+
+def test_restore_status_json(cherrypy_request_ctx):
+    import cherrypy
+    c, d = _make(status=_status_restore(state='idle', step=0, steps=5, name='', reason='', restart='auto', result=None))
+    out = json.loads(c.restore_status())
+    assert cherrypy.response.headers['Content-Type'] == 'application/json' and out['active'] is False
+    for n, step in enumerate(bp.STEP_TEXT, 1):
+        c, d = _make(status=_status_restore(state=step, step=n, steps=5, name=NAME, reason='', restart='auto', result=None))
+        out = json.loads(c.restore_status())
+        assert out['active'] is True and 'step %d of 5' % n in out['text']
+    c, d = _make(fail=True)
+    out = json.loads(c.restore_status())
+    assert out['state'] == 'daemon_down' and out['active'] is True and out['text'].startswith('Restarting the server')
+    res = dict(name=NAME, time=1700000000.0, ok=True, reason='', restart='auto', acknowledged=False)
+    c, d = _make(status=_status_restore(state='done', step=5, steps=5, name=NAME, reason='', restart='auto', result=res))
+    out = json.loads(c.restore_status())
+    assert out['level'] == 'success' and NAME in out['text'] and out['active'] is False
+    c, d = _make(status=_status_restore(state='failed', step=3, steps=5, name=NAME, reason='/etc/passwd', restart='auto', result=None))
+    out = json.loads(c.restore_status())
+    assert core.REASON_UNKNOWN in out['text'] and '/etc' not in json.dumps(out) and out['level'] == 'danger'
+
+
+def test_restore_view_manual_restart():
+    v = bp.restore_view(_status_restore(state='done', step=5, steps=5, name=NAME, reason='', restart='manual', result=None))
+    assert 'Restart the PellMon server now' in v['text'] and v['level'] == 'warning'
+
+
+def test_index_shows_result_once(cherrypy_request_ctx):
+    res = dict(name=NAME, time=1700000000.0, ok=True, reason='', restart='auto', acknowledged=False)
+    st = _status_restore(state='done', step=5, steps=5, name=NAME, reason='', restart='auto', result=res)
+    c, d = _make(status=st)
+    ctx = c.index()
+    assert ctx['restore']['level'] == 'success' and 'ack' in d.calls
+    c, d = _make(status=st, ack_fail=True)
+    assert c.index()['restore']['level'] == 'success'
+    c, d = _make()
+    c.index()
+    assert 'ack' not in d.calls

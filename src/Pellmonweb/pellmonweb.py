@@ -309,6 +309,27 @@ class Dbus_handler:
             except:
                 raise DbusNotConnected("server not running")
 
+    def backup_preview(self, name):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.PreviewBackup(name, dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def backup_restore(self, name):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.StartRestore(name, dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
+    def backup_restore_ack(self):
+        with self.lock:
+            try:
+                return simplejson.loads(str(self.remote_object.AckRestoreResult(dbus_interface ='org.pellmon.int')))
+            except:
+                raise DbusNotConnected("server not running")
+
     def getdb(self):
         with self.lock:
             try:
