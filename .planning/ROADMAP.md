@@ -266,6 +266,7 @@ Plans:
 **Plans:** 7/7 plans complete
 
 Plans:
+
 - [x] 10-01-PLAN.md — Playwright legitimacy gate, --disable-socket spike, browser harness (stub server over real handlers + FakeDbus)
 - [x] 10-02-PLAN.md — Phase 10 responsive CSS block in pellmon.css + structural CSS/framework tests
 - [x] 10-03-PLAN.md — Dashboard grid (col-md-6.0 fix, D-07), events toggle, graph controls, navbar aria, CSS-sized charts
@@ -282,6 +283,7 @@ Plans:
 **Plans:** 4/5 plans complete (11-05 awaits real-Pi verification)
 
 Scope notes:
+
 - Research first (`/gsd-research-phase 11`): inventory every numeric DB item (scottecom, calculate, consumption, silolevel, pelletcalc, heatingcircuit, onewire/owfs, openweathermap), judge each for HA value, cost of `get_text` on the 2 s Database thread (silolevel runs rrdtool, cached 300 s), update cadence, and unit/device_class mapping.
 - Decide failure semantics for `silo_days_left` (`'0'` on prediction error reads as "empty today"; `None` before first compute is already skipped by the bridge).
 - Implementation is expected to be mostly `ENTITIES` rows in `plugins/homeassistant/entities.py` plus updates to hard-coded entity counts in `tests/Pellmonsrv/plugins/test_homeassistant_entities.py`, the HA docs page and its tests.
@@ -327,3 +329,28 @@ Plans:
 
 - [ ] 12-04-PLAN.md - Compose mount, docs, config tests, real-NAS verification (D-01, D-08, D-09)
 
+### Phase 13: restore on webui
+
+**Goal:** From the Backup page in the web GUI the user can pick one of the backup archives from phase 12 and restore the RRD database and settings from it, safely (validated archive, pre-restore safety copy, daemon quiesced/restarted as needed), with clear progress and failure reasons; `tools/pellmon_backup.py` stays as the host-side fallback.
+**Requirements**: TBD
+**Depends on:** Phase 12
+**Plans:** 6 plans
+
+Plans:
+**Wave 1**
+
+- [ ] 13-01-PLAN.md — backup_core: restore reasons, archive name allow-list, archive check/preview, validated extractor (tool parity), staging and space check
+- [ ] 13-03-PLAN.md — pellmonsrv: restore_lock around Poller/copy_db, restore_done guard on every store copy, PreviewBackup/StartRestore/AckRestoreResult D-Bus
+
+**Wave 2** *(blocked on Wave 1 completion)*
+
+- [ ] 13-02-PLAN.md — backup_core: rrdtool restore + layout/clock checks, settings carry-over, locked swap with .pre-restore and rollback, result file
+
+**Wave 3** *(blocked on Wave 2 completion)*
+
+- [ ] 13-04-PLAN.md — Backup plugin: restore worker, mutual exclusion with backups, watchdog, Docker self-restart, persisted result, all archives listed
+- [ ] 13-05-PLAN.md — Web: Restore... links, confirm page, guarded restore_run, restore_status JSON, text-only polling script
+
+**Wave 4** *(blocked on Wave 3 completion)*
+
+- [ ] 13-06-PLAN.md — DEPLOY-PI.md web restore/undo/failure rows, doc tests, Pi UAT checkpoint

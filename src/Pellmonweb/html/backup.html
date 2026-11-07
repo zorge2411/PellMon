@@ -1,3 +1,4 @@
+<%! scripts = ['js/backup.js'] %>
 <%inherit file="layout.html"/>
 <%def name="title()">
 Backup
@@ -41,6 +42,8 @@ Backup
 		% endif
 		${st['text'] | h}
 	</div>
+	<div id="backup-restore" class="${('alert alert-' + restore['level']) if restore['level'] != 'well' and restore['text'] else ('well' if restore['text'] else 'hidden')}" role="status" aria-live="polite" data-active="${'1' if restore['active'] else '0'}" data-url="${webroot | h}/backup/restore_status">${restore['text'] | h}</div>
+	<noscript><p class="help-block">Reload this page to see how the restore is going.</p></noscript>
 	<form class="mqtt-form" method="post" action="${webroot | h}/backup/save">
 		<section class="panel panel-default">
 			<div class="panel-heading">Schedule</div>
@@ -149,21 +152,24 @@ Backup
 			% if archives:
 			<div class="table-responsive">
 				<table class="table table-condensed">
-					<thead><tr><th scope="col">Backup</th><th scope="col">Made</th><th scope="col" class="text-right">Size</th></tr></thead>
+					<thead><tr><th scope="col">Backup</th><th scope="col">Made</th><th scope="col" class="text-right">Size</th><th scope="col">Restore</th></tr></thead>
 					<tbody>
 						% for a in archives:
-						<tr><td>${a['name'] | h}</td><td>${a['when'] | h}</td><td class="text-right">${a['size'] | h}</td></tr>
+						<tr><td>${a['name'] | h}</td><td>${a['when'] | h}</td><td class="text-right">${a['size'] | h}</td><td>
+							% if auth_configured and available and not restore['active']:
+							<a class="btn btn-default btn-xs" href="${webroot | h}/backup/restore?name=${a['name'] | u}" aria-label="Restore ${a['name'] | h}">Restore...</a>
+							% else:
+							<span class="text-muted">Restore...</span>
+							% endif
+						</td></tr>
 						% endfor
 					</tbody>
 				</table>
 			</div>
-			% if archive_count > len(archives):
-			<p class="help-block">Showing the newest ${len(archives)} of ${archive_count}.</p>
-			% endif
 			% else:
 			<p class="help-block">No backups in this folder yet.</p>
 			% endif
-			<p class="help-block">To restore a backup, run <code class="mqtt-prefix-code">python3 tools/pellmon_backup.py restore &lt;file&gt;</code> on the host (see the installation guide). The archives contain password hashes and settings secrets: keep the folder private.</p>
+			<p class="help-block">Restore... replaces the database and settings with the ones in that backup and restarts the server. Configuration files are not restored from this page; to restore them too, run <code class="mqtt-prefix-code">python3 tools/pellmon_backup.py restore --with-config &lt;file&gt;</code> on the host (see the installation guide). The archives contain password hashes and settings secrets: keep the folder private.</p>
 		</div>
 	</section>
 	</div>

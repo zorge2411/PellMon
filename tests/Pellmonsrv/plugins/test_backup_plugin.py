@@ -250,12 +250,12 @@ def test_test_folder(env):
     assert p.test_folder()['reason'] == core.REASON_FOLDER_MISSING
 
 
-def test_status_lists_archives_newest_first_and_limits_them(env):
+def test_status_lists_all_archives_newest_first(env):
     p = make(env)
     for i in range(25):
         open(os.path.join(env['root'], 'pellmon-backup-202611%02d-030000.tar.gz' % (i + 1)), 'wb').write(b'x' * 10)
     s = p.status_dict()
-    assert s['archive_count'] == 25 and len(s['archives']) == 20
+    assert s['archive_count'] == 25 and len(s['archives']) == 25
     assert s['archives'][0]['name'].startswith('pellmon-backup-20261125')
     assert s['folder'] == env['root'] and s['folder_exists'] is True
 

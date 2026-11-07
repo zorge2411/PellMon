@@ -13,7 +13,7 @@ configured on a login-protected web page like the Home Assistant and Weather pag
 Today (Phase 7) only a manual host-side CLI exists (`tools/pellmon_backup.py backup|restore`). That tool stays the
 way to **restore**; the archive format is unchanged so archives made by the new feature restore with it.
 
-Out of scope: restore from the web GUI, SSH/SFTP/rsync or direct SMB targets, encryption, e-mail on failure,
+Out of scope: restore from the web GUI, (done in Phase 13: restore from the Backup page; config files stay a host-tool restore) SSH/SFTP/rsync or direct SMB targets, encryption, e-mail on failure,
 downloading archives through the web page (they are on the NAS), cloud storage.
 </domain>
 

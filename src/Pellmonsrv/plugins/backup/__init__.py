@@ -24,6 +24,7 @@
 
 import datetime
 import os
+import signal
 import threading
 import time
 from logging import getLogger
@@ -36,8 +37,10 @@ from . import settings as backup_settings
 logger = getLogger('pellMon')
 
 DEFAULT_ROOT = '/backups'
-LIST_LIMIT = 20
 REASON_BUSY = 'a backup is already running'
+RESTORE_STEPS_TOTAL = 5
+STEP_NUMBERS = {'checking': 1, 'extracting': 2, 'building': 3, 'swapping': 4, 'restarting': 5}
+_FALLBACK_LOCK = threading.Lock()  # only used when the daemon globals have no restore_lock (tests)
 
 
 class backupplugin(protocols):
@@ -49,6 +52,10 @@ class backupplugin(protocols):
     status_io_timeout = 3.0
     test_timeout = 10.0
     listing_max_age = 30.0
+    preview_timeout = 10.0     # bounded manifest preview (D-13)
+    restore_watchdog = 3600.0  # must exceed core.RRD_RESTORE_TIMEOUT
+    exit_after_restore = True  # tests switch this off
+    restart_delay = 2.0        # seconds before SIGTERM so the page can show 'restarting'
 
     def __init__(self):
         protocols.__init__(self)
@@ -67,6 +74,15 @@ class backupplugin(protocols):
         self.retry_delay = 1.0
         self.listing = None
         self.listing_time = 0.0
+        self.restoring = False
+        self.nvdb = None
+        self.data_dir = None
+        self.poll_ds_names = []
+        self.in_docker = False
+        self.restore = dict(state='idle', step=0, name='', reason='')
+        self.restore_result = None
+        self._restore_cancel = threading.Event()
+        self._watchdog = None
 
     def activate(self, conf, glob, db, *args, **kwargs):
         protocols.activate(self, conf, glob, db, *args, **kwargs)
@@ -80,6 +96,13 @@ class backupplugin(protocols):
         self.root = (self.conf or {}).get('folder', DEFAULT_ROOT) or DEFAULT_ROOT
         self.cfg = backup_settings.load(self.store)
         self.state = backup_settings.load_state(self.store)
+        self.nvdb = getattr(daemon_conf, 'nvdb', None) or self.rrd_db
+        self.data_dir = os.path.dirname(os.path.abspath(self.nvdb)) if self.nvdb else None
+        self.poll_ds_names = [d.get('ds_name') for d in (getattr(daemon_conf, 'pollData', None) or [])]
+        self.in_docker = os.path.exists('/.dockerenv')
+        if self.data_dir:
+            core.clean_restore_leftovers(self.data_dir, [self.rrd_db, self.nvdb, self.settings_db])
+            self.restore_result = core.read_result(self.data_dir)
         if self.autostart:
             t = threading.Thread(target=self.scheduler, name='backup-scheduler')
             t.daemon = True
@@ -106,7 +129,7 @@ class backupplugin(protocols):
         """Start a scheduled backup when one is due. Returns True when it ran."""
         now = time.time() if now is None else now
         cfg = self.cfg
-        if not cfg.get('enabled') or self.running:
+        if not cfg.get('enabled') or self.running or self.restoring:
             return False
         if core.is_due(now, self.state.get('last_ok'), self.state.get('last_attempt'),
                        cfg['frequency'], cfg['time'], cfg['weekday']):
@@ -145,6 +168,8 @@ class backupplugin(protocols):
     def run_backup(self, now=None):
         """Run one backup now, in the calling thread. Returns {'ok': bool, 'reason': str, ...}."""
         with self.lock:
+            if self.restoring:
+                return {'ok': False, 'reason': core.REASON_RESTORE_BUSY}
             if self.running:
                 return {'ok': False, 'reason': REASON_BUSY}
             self.running = True
@@ -179,6 +204,8 @@ class backupplugin(protocols):
 
     def start_now(self):
         """Back up now in a background thread (for the web page). Returns at once."""
+        if self.restoring:
+            return {'ok': False, 'reason': core.REASON_RESTORE_BUSY}
         if self.running:
             return {'ok': False, 'reason': REASON_BUSY}
         t = threading.Thread(target=self.run_backup, name='backup-now')
@@ -203,6 +230,144 @@ class backupplugin(protocols):
         if not finished:
             return {'ok': False, 'reason': core.REASON_TIMEOUT, 'free_bytes': None}
         return result
+
+    # ---- restore --------------------------------------------------------------------
+
+    def _check_name(self, name):
+        """The archive name must be a listed archive of the folder (allow-list, the daemon is the
+        final authority); returns the archive path. Raises BackupError."""
+        if not isinstance(name, str) or not core.NAME_RE.fullmatch(name):
+            raise core.BackupError(core.REASON_ARCHIVE_NOT_FOUND)
+        folder = self._folder()
+        if folder is None:
+            raise core.BackupError(core.REASON_ARCHIVE_NOT_FOUND)
+        return core.validate_archive_name(folder, name)
+
+    def _preview_blocking(self, name):
+        path = self._check_name(name)
+        info = core.preview_archive(path)
+        return {'ok': True, 'reason': '', 'name': name, 'size': os.lstat(path).st_size,
+                'time': core.parse_name(name).timestamp(), 'manifest': info['manifest'],
+                'has_config': info['has_config'], 'restart': 'auto' if self.in_docker else 'manual'}
+
+    def _bounded(self, fn):
+        try:
+            finished, value = core.call_with_timeout(fn, self.preview_timeout)
+        except core.BackupError as e:
+            return {'ok': False, 'reason': e.reason}
+        except Exception:
+            logger.exception('Backup preview failed')
+            return {'ok': False, 'reason': core.REASON_UNKNOWN}
+        if not finished:
+            return {'ok': False, 'reason': core.REASON_TIMEOUT}
+        return value
+
+    def preview_backup(self, name):
+        """Manifest of one archive for the confirmation dialog (bounded wait)"""
+        if not isinstance(name, str) or not core.NAME_RE.fullmatch(name):
+            return {'ok': False, 'reason': core.REASON_ARCHIVE_NOT_FOUND}
+        return self._bounded(lambda: self._preview_blocking(name))
+
+    def start_restore(self, name):
+        """Start restoring an archive in a worker thread. Returns at once."""
+        if not isinstance(name, str) or not core.NAME_RE.fullmatch(name):
+            return {'ok': False, 'reason': core.REASON_ARCHIVE_NOT_FOUND}
+        # allow-list check against the folder listing before any worker is spawned
+        checked = self._bounded(lambda: {'ok': True, 'reason': '', 'path': self._check_name(name)})
+        if not checked.get('ok'):
+            return {'ok': False, 'reason': checked['reason']}
+        with self.lock:
+            if self.restoring:
+                return {'ok': False, 'reason': core.REASON_RESTORE_BUSY}
+            if self.running:
+                return {'ok': False, 'reason': REASON_BUSY}
+            if not self.rrd_db or not self.settings_db or not self.data_dir:
+                return {'ok': False, 'reason': core.REASON_UNKNOWN}
+            self.restoring = True
+            self._restore_cancel.clear()
+            self.restore = dict(state='checking', step=1, name=name, reason='')
+        t = threading.Thread(target=self.run_restore, args=(name,), name='backup-restore')
+        t.daemon = True
+        w = threading.Timer(self.restore_watchdog, self._restore_watchdog_fired)
+        w.daemon = True
+        self._watchdog = w
+        w.start()
+        t.start()
+        logger.info('Restore of %s started from the web page' % name)
+        return {'ok': True, 'reason': ''}
+
+    def run_restore(self, name):
+        ok = False
+        try:
+            path = self._check_name(name)
+            locks = [self.glob.get('restore_lock') or _FALLBACK_LOCK]
+            if self.store is not None and hasattr(self.store, 'lock'):
+                locks.append(self.store.lock)
+            made = core.restore_archive(path, self.rrd_db, self.nvdb, self.settings_db, rrdtool=self.rrdtool,
+                                        locks=locks, progress=self._restore_progress,
+                                        should_continue=lambda: not self._restore_cancel.is_set(),
+                                        on_swapped=self._mark_restore_done, poll_ds_names=self.poll_ds_names)
+            ok = True
+            restart = 'auto' if self.in_docker else 'manual'
+            self._save_restore_result(name, True, '', restart)
+            logger.warning('Restore from %s done; previous data kept as %s' %
+                           (name, ', '.join(made['pre_restore'])))
+            self.restore = dict(state='restarting' if self.in_docker else 'done', step=5, name=name, reason='')
+            if self.in_docker and self.exit_after_restore:
+                t = threading.Timer(self.restart_delay, self._exit_for_restart)
+                t.daemon = True
+                t.start()
+        except core.BackupError as e:
+            logger.error('Restore failed: %s' % e.reason)
+            self._restore_failed(name, e.reason)
+        except Exception:
+            logger.exception('Restore failed')
+            self._restore_failed(name, core.REASON_UNKNOWN)
+        finally:
+            if self._watchdog is not None:
+                self._watchdog.cancel()
+            if not ok:
+                self.restoring = False
+
+    def _restore_failed(self, name, reason):
+        self.restore = dict(state='failed', step=self.restore.get('step', 0), name=name, reason=reason)
+        self._save_restore_result(name, False, reason, 'auto' if self.in_docker else 'manual')
+
+    def _save_restore_result(self, name, ok, reason, restart):
+        result = dict(name=name, time=time.time(), ok=bool(ok), reason=reason, restart=restart,
+                      acknowledged=False)
+        self.restore_result = result
+        if self.data_dir:
+            core.write_result(self.data_dir, result)
+
+    def ack_restore_result(self):
+        """The web page has shown the result. A failed restore also returns the in-memory state to idle."""
+        result = self.restore_result
+        if result and not result.get('acknowledged'):
+            result['acknowledged'] = True
+            if self.data_dir:
+                core.write_result(self.data_dir, result)
+        if self.restore.get('state') == 'failed':
+            self.restore = dict(state='idle', step=0, name='', reason='')
+        return {'ok': True}
+
+    def _restore_progress(self, step):
+        self.restore = dict(self.restore, state=step, step=STEP_NUMBERS.get(step, 0))
+
+    def _mark_restore_done(self):
+        conf = self.glob.get('conf')
+        if conf is not None:
+            conf.restore_done = True
+
+    def _restore_watchdog_fired(self):
+        if self.restore.get('state') in ('checking', 'extracting', 'building'):
+            self._restore_cancel.set()
+            self.restore = dict(self.restore, state='failed', reason=core.REASON_ARCHIVE_DAMAGED)
+            logger.error('Restore gave up: the archive did not finish reading in time')
+
+    def _exit_for_restart(self):
+        logger.warning('Restarting the server to load the restored data')
+        os.kill(os.getpid(), signal.SIGTERM)
 
     # ---- D-Bus contract -------------------------------------------------------------
 
@@ -258,7 +423,13 @@ class backupplugin(protocols):
             'next_run': next_run, 'root': self.root, 'folder': folder,
             'folder_exists': listing['folder_exists'], 'same_disk': listing['same_disk'],
             'folder_slow': slow,
-            'archive_count': listing['count'], 'archives': listing['archives'][:LIST_LIMIT],
+            'archive_count': listing['count'], 'archives': listing['archives'],
+            'restoring': self.restoring,
+            'restore': dict(self.restore, steps=RESTORE_STEPS_TOTAL,
+                            restart='auto' if self.in_docker else 'manual',
+                            result=(dict(self.restore_result)
+                                    if self.restore_result and not self.restore_result.get('acknowledged')
+                                    else None)),
         }
 
     def _read_listing(self, folder):
@@ -266,7 +437,7 @@ class backupplugin(protocols):
         other = os.path.dirname(os.path.abspath(self.rrd_db)) if self.rrd_db else None
         exists = os.path.isdir(folder)
         archives = core.list_archives(folder) if exists else []
-        return {'folder_exists': exists, 'count': len(archives), 'archives': archives[:LIST_LIMIT],
+        return {'folder_exists': exists, 'count': len(archives), 'archives': archives,
                 'same_disk': bool(other and exists and core.same_disk(folder, other))}
 
     def _listing(self, folder):

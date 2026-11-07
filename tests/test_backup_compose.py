@@ -66,3 +66,9 @@ def test_every_failure_reason_the_page_can_show_is_explained():
     section = DEPLOY.split("**If the page reports a failure:**")[1].split("###")[0]
     for reason in core.REASONS - {core.REASON_VERIFY, core.REASON_UNKNOWN}:
         assert reason.split(" (")[0] in section, reason
+
+
+def test_deploy_guide_documents_web_restore():
+    for needle in ("Restore...", "RESTORE", ".pre-restore", "--with-config", "restarts by itself",
+                   "docker compose stop pellmonsrv", "layout"):
+        assert needle in DEPLOY, needle

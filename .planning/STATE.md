@@ -2,16 +2,16 @@
 gsd_state_version: 1.0
 milestone: v1.0
 milestone_name: milestone
-status: completed
+status: executing
 stopped_at: Phase 6 planned (9 plans, 4 waves); next /gsd-execute-phase 6
-last_updated: "2026-09-25T07:18:50.536Z"
-last_activity: 2026-09-25 -- Phase 10 real-device verification approved
+last_updated: "2026-11-06T13:43:49.913Z"
+last_activity: 2026-11-06 -- Phase 13 planning complete
 progress:
-  total_phases: 10
-  completed_phases: 9
-  total_plans: 49
-  completed_plans: 40
-  percent: 82
+  total_phases: 13
+  completed_phases: 11
+  total_plans: 64
+  completed_plans: 55
+  percent: 85
 ---
 
 # Project State
@@ -27,8 +27,8 @@ See: .planning/PROJECT.md (updated 2026-09-17)
 
 Phase: 10 (optimize-for-mobile-devices-screen-size) — COMPLETE
 Plan: 7 of 7
-Status: Phase 10 complete, v2.1.0 published, real-phone and desktop check approved
-Last activity: 2026-09-28 - Completed quick task 260928-bzn: OpenWeatherMap pyowm 3 port + Weather settings page
+Status: Ready to execute
+Last activity: 2026-11-06 -- Phase 13 planning complete
 
 Progress: [██████████] 100%
 
@@ -80,6 +80,7 @@ Recent decisions affecting current work:
 - Phase 10 added: Optimize for mobile devices screen size (added 2026-09-24; not yet planned)
 - Phase 11 added: Add silo days-left and additional numeric sensors to Home Assistant (added 2026-10-08; researched, context captured, planned 2026-10-11: 5 plans, 3 waves; executed 2026-10-11: plans 1-4 done, 05 awaits real-Pi verification)
 - Phase 12 added: Add backup of the RRD database and settings to a NAS or other media (added 2026-11-05; executed 2026-11-05, pending real NAS verification)
+- Phase 13 added: Restore on webui (added 2026-11-06; planned and executed 2026-11-06: 6 plans, 4 waves; plan 06 Pi/NAS restore check awaits the user)
 
 ### Pending Todos
 
