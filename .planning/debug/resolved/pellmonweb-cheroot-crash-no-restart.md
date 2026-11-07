@@ -1,8 +1,8 @@
 ---
-status: awaiting_human_verify
+status: resolved
 trigger: "During the same real-Pi Phase 8 checklist step 7 retest that confirmed the D-Bus reconnect fix (v2.0.4) working, a WebSocket upgrade request raced against pellmonsrv still being restarted, got a DbusNotConnected 500 from Dbus_handler.getdb(), and moments later cheroot (the CherryPy HTTP server) hit an unhandled AttributeError/OSError and the whole HTTP server thread died ('ENGINE Bus EXITED'). Unlike a normal crash, the pellmonweb container did NOT restart itself afterward -- docker-compose.yml sets `restart: unless-stopped` on pellmonweb, but no automatic recovery happened. Operator had to run `docker compose stop` (all 4 containers) then `docker compose up -d` to bring the stack back to healthy."
 created: 2026-09-23T15:05:00Z
-updated: 2026-09-23T15:05:00Z
+updated: 2026-09-26T00:00:00Z
 ---
 
 ## Current Focus
@@ -220,3 +220,7 @@ files_changed:
   - src/Pellmonweb/pellmonweb.py
   - tests/Pellmonweb/test_websocket_dbus_down.py
   - tests/Pellmonweb/test_engine_exit_process_restart.py
+
+## Human Verification
+
+2026-09-26: user confirmed the site has stayed up on the Pi across the later releases (v2.0.5 through v2.3.3, several container restarts). Closed as resolved.
